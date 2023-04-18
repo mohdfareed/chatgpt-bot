@@ -37,14 +37,14 @@ def main(log: bool = False) -> None:
         file = os.path.join(LOGS, f'{datetime.now():%y%m%d_%H%M%S}.log')
         logging.basicConfig(
             filename=file,
-            level=logging.DEBUG,
-            format='%(asctime)s [%(levelname)8s] %(name)s - %(message)s',
+            level=logging.INFO,
+            format='%(asctime)s - %(name)s[%(levelname)s] %(message)s',
         )
 
     # start the bot
-    logging.debug("starting bot...")
+    logging.info("starting bot...")
     bot.run()
-    logging.debug("bot has stopped.")
+    logging.info("bot has stopped")
 
 
 def entry_point() -> None:
