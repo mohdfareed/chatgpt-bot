@@ -28,7 +28,8 @@ def main(dev: bool = False) -> None:
     req = os.path.join(req_dir, "development.txt" if dev else "common.txt")
     os.system(f"{python} -m pip install -r {req}")
     # set bot token
-    open(token, "w+").write(os.environ.get("TELEGRAM_BOT_TOKEN", ""))
+    with open(token, "w+") as token_file:
+        token_file.write(os.environ.get("TELEGRAM_BOT_TOKEN", ""))
 
 
 if __name__ == "__main__":

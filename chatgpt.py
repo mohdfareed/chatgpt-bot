@@ -4,7 +4,6 @@ import os
 from datetime import datetime
 
 import requests
-from rich import print
 
 from chatgpt import bot
 from config import TOKEN
@@ -25,7 +24,7 @@ def main(log: bool = False) -> None:
     response = requests.get(f'https://api.telegram.org/bot{TOKEN}/getMe')
     # if the response status code is successful
     if response.status_code == 401:
-        print('[bold red]ERROR:[/] Invalid OpenAI API key.')
+        print('\033[91mERROR:\033[0m Invalid Telegram bot token.')
         print(f"Set 'OPENAI_API_KEY' environment variable to a valid key.")
         exit(1)
 
