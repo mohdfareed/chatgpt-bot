@@ -1,4 +1,0 @@
-[submodule "config"]
-	path = config
-	url = git@github.com:mohdfareed/machine-resources.git
-	branch = chatgpt-telegram
