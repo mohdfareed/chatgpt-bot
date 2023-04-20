@@ -18,7 +18,6 @@ def main(dev: bool = False) -> None:
     venv = os.path.join(os.getcwd(), ".venv")
     python = os.path.join(venv, "bin", "python3")
     req_dir = os.path.join(os.getcwd(), REQUIREMENTS)
-    token = os.path.join(os.getcwd(), "config", "token.txt")
 
     # create virtual environment
     os.system(f"python3 -m venv {venv}")
@@ -27,9 +26,8 @@ def main(dev: bool = False) -> None:
     # install dependencies
     req = os.path.join(req_dir, "development.txt" if dev else "common.txt")
     os.system(f"{python} -m pip install -r {req}")
-    # set bot token
-    with open(token, "w+") as token_file:
-        token_file.write(os.environ.get("TELEGRAM_BOT_TOKEN", ""))
+
+    print("\nSetup complete.")
 
 
 if __name__ == "__main__":

@@ -1,4 +1,6 @@
 *__pycache__*
 *.log
+*.env
+*.key
 .venv/
 .vscode/
