@@ -6,6 +6,7 @@ import dotenv
 
 _root = os.path.dirname(os.path.abspath(__file__))
 _passport_key = os.path.join(_root, 'passport.key')
+_sessions = os.path.join(_root, 'sessions')
 dotenv.load_dotenv()
 
 
@@ -21,10 +22,6 @@ APPID = int(os.environ.get('APPID', '0'))
 APPID_HASH = os.environ.get('APPID_HASH', '')
 """Application ID hash."""
 
-SESSIONS = os.path.join(_root, 'sessions')
-"""Sessions directory."""
-os.makedirs(SESSIONS, exist_ok=True)
-
 
 def session_path(session: str) -> str:
     """Returns the path to a session file.
@@ -35,4 +32,4 @@ def session_path(session: str) -> str:
     Returns:
         str: The path to the session file.
     """
-    return os.path.join(SESSIONS, f'{session}')
+    return os.path.join(_sessions, f'{session}')

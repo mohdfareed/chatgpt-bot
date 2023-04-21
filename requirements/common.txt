@@ -1,5 +1,6 @@
 --extra-index-url https://test.pypi.org/simple/
 chatgpt-mohdfareed
 python-telegram-bot
-telethon
 python-dotenv
+telethon
+qrcode

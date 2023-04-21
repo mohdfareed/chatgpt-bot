@@ -35,5 +35,5 @@ The setup script uses a virtual environment. It also loads the `.env` file from 
 Run the bot:
 
 ```sh
-./chatgpt.py
+./run.py
 ```
