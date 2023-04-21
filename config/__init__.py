@@ -9,9 +9,9 @@ load_dotenv()
 
 PASSPORT_KEY = open(_key_filepath, "rb").read()
 """Passports authentication key."""
-TOKEN = os.environ.get('TOKEN', '')
+TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN', '')
 """Telegram bot token."""
-APPID = int(os.environ.get('APPID', '0'))
+APPID = int(os.environ.get('TELEGRAM_APPID', '0'))
 """Application ID."""
-APPID_HASH = os.environ.get('APPID_HASH', '')
+APPID_HASH = os.environ.get('TELEGRAM_APPID_HASH', '')
 """Application ID hash."""

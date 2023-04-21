@@ -18,9 +18,9 @@ Add the following to the `config/` directory:
 
 - Passport private key as `passport.key`
 - The following environment variables to `.env`:
-  - `TOKEN`: Telegram bot token
-  - `APPID`: Telegram application API ID
-  - `APPID_HASH`: Telegram application API hash
+  - `TELEGRAM_BOT_TOKEN`: Telegram bot token (obtained from [@BotFather](https://t.me/BotFather))
+  - `TELEGRAM_APPID`: Telegram application API ID (obtained from [my.telegram.org](https://my.telegram.org))
+  - `TELEGRAM_APPID_HASH`: Telegram application API hash (obtained from [my.telegram.org](https://my.telegram.org))
 
 ## Usage
 
