@@ -1,6 +1,10 @@
+# project
 *__pycache__*
+.venv/
+.vscode/
+
+# date
 *.log
 *.env
 *.key
-.venv/
-.vscode/
+*.session

@@ -18,6 +18,7 @@ def main(dev: bool = False) -> None:
     venv = os.path.join(os.getcwd(), ".venv")
     python = os.path.join(venv, "bin", "python3")
     req_dir = os.path.join(os.getcwd(), REQUIREMENTS)
+    local_env = os.path.join(os.getcwd(), "config", ".env")
 
     # create virtual environment
     os.system(f"python3 -m venv {venv}")
@@ -26,6 +27,12 @@ def main(dev: bool = False) -> None:
     # install dependencies
     req = os.path.join(req_dir, "development.txt" if dev else "common.txt")
     os.system(f"{python} -m pip install -r {req}")
+
+    # load environment variables
+    with open(local_env, "w") as f:
+        f.write(f"TOKEN={os.environ.get('TELEGRAM_BOT_TOKEN')}\n")
+        f.write(f"APPID={os.environ.get('TELEGRAM_APPID')}\n")
+        f.write(f"APPID_HASH={os.environ.get('TELEGRAM_APPID_HASH')}\n")
 
     print("\nSetup complete.")
 
