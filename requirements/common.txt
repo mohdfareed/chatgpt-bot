@@ -2,5 +2,3 @@
 chatgpt-mohdfareed
 python-telegram-bot
 python-dotenv
-telethon
-qrcode

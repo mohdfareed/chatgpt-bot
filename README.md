@@ -1,6 +1,6 @@
 # ChatGPT Telegram Bot
 
-ChatGPT interface using Telegram's bot API. The bot is currently hosted at [@MohdFareed_ChatGPT_Bot](https://t.me/MohdFareed_ChatGPT_Bot). The bot relies on a `telethon` Telegram client to sync messages with the Telegram server.
+ChatGPT interface using Telegram's bot API. The bot is currently hosted at [@MohdFareed_ChatGPT_Bot](https://t.me/MohdFareed_ChatGPT_Bot).
 
 ## Installation
 
@@ -16,19 +16,11 @@ cd chatgpt-telegram
 
 Add the following to the `config/` directory:
 
-- Passport private key as `passport.key`
-- The following environment variables to `.env`:
-  - `BOT_TOKEN`: Telegram bot token (obtained from [@BotFather](https://t.me/BotFather))
-  - `APPID`: Telegram application API ID (obtained from [my.telegram.org](https://my.telegram.org))
-  - `APPID_HASH`: Telegram application API hash (obtained from [my.telegram.org](https://my.telegram.org))
+- `TOKEN`: Telegram bot token (obtained from [@BotFather](https://t.me/BotFather))
 
 ### For local development
 
-The setup script uses a virtual environment. It also loads the `.env` file from the process environment with the following names:
-
-- 'TELEGRAM_BOT_TOKEN'
-- 'TELEGRAM_APP_ID'
-- 'TELEGRAM_APP_ID_HASH'
+The setup script uses a virtual environment. It also loads the `.env` file from the process environment with the name `TELEGRAM_BOT_TOKEN`. You can set this variable in your shell to avoid having to add the token to the `config/` directory.
 
 ## Usage
 

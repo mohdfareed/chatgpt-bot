@@ -20,13 +20,11 @@ def main(log: bool = False) -> None:
         log (bool, optional): Whether to log to a file. Defaults to False.
     """
 
-    # run client in background
-
     # check if the bot token is valid
     response = requests.get(f'https://api.telegram.org/bot{TOKEN}/getMe')
     if response.status_code == 401:  # if the status code is unsuccessful
         print('\033[91mERROR:\033[0m Invalid Telegram bot token.')
-        print(f"Set 'OPENAI_API_KEY' environment variable to a valid key.")
+        print(f"Set 'TOKEN' environment variable to a valid key.")
         exit(1)
     # setup logging
     _setup_logger() if log else None
