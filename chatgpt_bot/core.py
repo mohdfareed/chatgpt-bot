@@ -6,6 +6,8 @@ from chatgpt.message import Prompt, Reply
 from telegram import Update
 from telegram.ext import ContextTypes
 
+from chatgpt_bot.utils import stream_message
+
 chatgpt = ChatCompletion()
 
 
@@ -24,7 +26,8 @@ async def reply_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     message = Prompt('user', update.message.text)
     chat_context = Chat(messages=[message]).to_messages()
-    response = chatgpt.request(chat_context)
-
-    await context.bot.send_message(update.effective_chat.id,  # type: ignore
-                                   text=response.content)
+    await stream_message(chatgpt, context.bot, update.effective_chat.id,
+                         chat_context)
+    # response = chatgpt.request(chat_context)
+    # await context.bot.send_message(update.effective_chat.id,  # type: ignore
+    #                                text=response.content)
