@@ -1,8 +1,6 @@
-# project
 *__pycache__*
 .venv/
 .vscode/
-
-# date
-*.log
+*.sql
 *.env
+*.log
