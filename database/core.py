@@ -63,7 +63,6 @@ def stop():
     """Stop the database engine and container."""
     global container, engine
 
-    backup()  # backup database before stopping
     engine.dispose()  # dispose of database connections
     container.stop()  # stop the database container
     logger.info("database has stopped")

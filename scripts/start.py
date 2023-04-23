@@ -36,9 +36,13 @@ def main(restore: bool = False, log: bool = False) -> None:
         import database.core as db
         from chatgpt_bot import bot
 
+        # start the database
         db.start()
         db.restore() if restore else None
+        # run the bot
         bot.run()
+        # stop the database
+        db.backup()
         db.stop()
     except Exception as e:
         print(f"\033[0;31m{'error:'}\033[0m {e}")
