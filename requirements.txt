@@ -2,3 +2,8 @@
 chatgpt-mohdfareed
 python-telegram-bot
 python-dotenv
+# postgresql
+docker
+psycopg2-binary
+sqlalchemy
+sqlalchemy_utils
