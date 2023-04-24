@@ -58,4 +58,4 @@ if __name__ == "__main__":
     parser.add_argument("-l", "--log", action="store_true",
                         help="log to a file")
     args = parser.parse_args()
-    main(args.log)
+    main(args.restore, args.log)
