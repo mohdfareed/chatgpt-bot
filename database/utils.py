@@ -11,7 +11,7 @@ def get_user(user_id: int) -> User:
         return session.query(User).filter_by(id=user_id).first()
 
 
-def create_user(user: User) -> None:
+def add_user(user: User) -> None:
     """Add a new user or update an existing one."""
     from database.core import session_maker
 
@@ -28,7 +28,7 @@ def get_chat(chat_id: int) -> Chat:
         return session.query(Chat).filter_by(id=chat_id).first()
 
 
-def create_chat(chat: Chat) -> None:
+def add_chat(chat: Chat) -> None:
     """Add a new chat or update an existing one."""
     from database.core import session_maker
 
@@ -46,19 +46,15 @@ def get_message(message_id: int, chat_id: int) -> Message:
             id=message_id, chat_id=chat_id).first()
 
 
-def store_message(message: Message) -> None:
-    """Add a new message or update an existing one."""
+def add_message(message: Message) -> None:
+    """Add or update a message. Creates new chat if none exists."""
     from database.core import session_maker
 
-    # link to chat and user
-    message.chat = get_chat(message.chat_id)
-    message.user = get_user(message.user_id)
     # create chat if it doesn't exist
-    create_chat(Chat(id=message.chat_id)) if not message.chat else None
-
+    add_chat(Chat(id=message.chat_id)) if not message.chat else None
     # store message
     with session_maker() as session:
         session.add(message) if not get_message(
-            message.id, message.chat.id
+            message.id, message.chat_id
         ) else session.merge(message)
         session.commit()
