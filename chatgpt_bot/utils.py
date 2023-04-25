@@ -1,6 +1,6 @@
 """Utility and helper functions for the package."""
 
-import asyncio
+import html
 
 import telegram
 from chatgpt.chat_completion import ChatCompletion
@@ -9,8 +9,8 @@ from telegram.constants import MessageEntityType, ParseMode
 from telegram.ext import ExtBot
 
 
-async def stream_message(model: ChatCompletion, bot: ExtBot,
-                         chat_id, chat_history) -> Reply:
+async def stream_message(model: ChatCompletion, bot: ExtBot, chat_history,
+                         chat_id, topic_id=None) -> Reply:
     """Stream a message to the chat."""
 
     message = ''
@@ -18,7 +18,7 @@ async def stream_message(model: ChatCompletion, bot: ExtBot,
     chunk_size = 10
     counter = 0
 
-    async def packet_handler(packet: str | None) -> None:
+    async def packet_handler(packet) -> None:
         nonlocal message, message_id, chunk_size, counter
         message += packet or ''
         counter += 1
@@ -27,16 +27,21 @@ async def stream_message(model: ChatCompletion, bot: ExtBot,
         if packet and counter % chunk_size != 0:
             return
 
-        if message_id is None:  # initial message to be appended
-            msg = await bot.send_message(chat_id=chat_id, text=message)
+        if not message_id:  # initial message to be appended
+            if not topic_id:
+                msg = await bot.send_message(chat_id=chat_id,
+                                             text=html.escape(message),
+                                             parse_mode=ParseMode.HTML)
+            else:
+                msg = await bot.send_message(chat_id=chat_id,
+                                             text=html.escape(message),
+                                             parse_mode=ParseMode.HTML,
+                                             message_thread_id=topic_id)
             message_id = msg.message_id
         else:  # update the message
             await bot.edit_message_text(chat_id=chat_id, message_id=message_id,
-                                        text=message)
-        if not packet and counter == 1:  # leftover message to be sent
-            await bot.edit_message_text(chat_id=chat_id, message_id=message_id,
-                                        parse_mode=ParseMode.MARKDOWN_V2,
-                                        text=message)
+                                        text=html.escape(message),
+                                        parse_mode=ParseMode.HTML)
 
         counter = 0
         return

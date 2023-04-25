@@ -1,12 +1,13 @@
 """The ChatGPT Telegram bot."""
 
-from telegram import Update
+from telegram import MessageEntity, Update
 from telegram.constants import MessageEntityType
 from telegram.ext import (Application, CommandHandler, ContextTypes,
                           MessageHandler, filters)
 
 from chatgpt_bot import BOT_TOKEN, logger
-from chatgpt_bot.core import dummy_callback, reply_callback, store_callback
+from chatgpt_bot.core import (dummy_callback, mention_callback,
+                              private_callback, store_message)
 
 
 def run():
@@ -18,14 +19,12 @@ def run():
 
     # add handlers
     app.add_error_handler(error_handler)
-    app.add_handler(CommandHandler('start', dummy_callback))
-    app.add_handler(MessageHandler(filters.REPLY, callback=reply_callback))
-    # app.add_handler(MessageHandler(filters.ALL, callback=dummy_callback))
-    # every message handler
-    app.add_handler(MessageHandler(filters.ALL, callback=store_callback))
-    # app.add_handler(MessageHandler(filters.ChatType.PRIVATE,
-    #                                callback=reply_callback))
-
+    app.add_handler(MessageHandler(filters.ChatType.PRIVATE,
+                                   callback=private_callback))
+    app.add_handler(MessageHandler(filters.Entity(MessageEntityType.MENTION),
+                                   callback=mention_callback))
+    app.add_handler(MessageHandler(filters.ALL,
+                                   callback=store_message))
     # start the bot
     app.run_polling()
     logger.info("telegram bot has stopped")
