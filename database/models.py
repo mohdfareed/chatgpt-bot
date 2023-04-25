@@ -20,6 +20,10 @@ class User(Base):
     """The user's Telegram username."""
     usage: Mapped[int] = mapped_column(default=0)
     """The user's cumulative token usage."""
+    messages: Mapped[List["Message"]] = relationship(back_populates="user")
+    """The user's messages."""
+    chats: Mapped[List["Chat"]] = relationship(secondary="messages")
+    """The chats the user has sent messages in."""
 
     def __repr__(self):
         return f"<User(id={self.id}, username={self.username})>"
@@ -27,10 +31,12 @@ class User(Base):
 
 class Chat(Base):
     __tablename__ = "chats"
-    id: Mapped[int] = mapped_column(primary_key=True)
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
 
     messages: Mapped[List["Message"]] = relationship(back_populates="chat")
     """The chat's messages."""
+    users: Mapped[List[User]] = relationship(secondary="messages")
+    """The chat's users."""
 
     def __repr__(self):
         return f"<Chat(id={self.id})>"
@@ -42,18 +48,27 @@ class Message(Base):
 
     # identifiers
     chat_id: Mapped[int] = mapped_column(ForeignKey(Chat.id), primary_key=True)
-    topic_id: Mapped[Optional[int]]  # the topic within a group
+    """The ID of the chat the message was sent in."""
+    topic_id: Mapped[Optional[int]] = mapped_column()
+    """The ID of the topic under which the message was sent, if any."""
     user_id: Mapped[int] = mapped_column(ForeignKey(User.id))
+    """The ID of the user who sent the message, if known."""
 
     # relationships
     chat: Mapped[Chat] = relationship(back_populates="messages")
-    user: Mapped[User] = relationship(User)
+    """The chat the message was sent in."""
+    user: Mapped[User] = relationship(back_populates="messages")
+    """The user who sent the message."""
 
     # openai data
     role: Mapped[str] = mapped_column(default=Prompt.ROLES[0])
+    """The role under which the message was sent."""
     finish_reason: Mapped[Optional[str]] = mapped_column()
+    """The reason the message content terminated, if any."""
     prompt_tokens: Mapped[Optional[int]] = mapped_column()
+    """The number of tokens in the prompt."""
     reply_tokens: Mapped[Optional[int]] = mapped_column()
+    """The number of tokens in the reply."""
 
     # telegram data
     text: Mapped[str] = mapped_column()

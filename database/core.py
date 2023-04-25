@@ -1,7 +1,5 @@
 """Database core functionality."""
 
-import os
-
 import docker
 from docker.errors import DockerException, NotFound
 from docker.models.containers import Container
@@ -9,7 +7,7 @@ from sqlalchemy import Engine, create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy_utils import database_exists
 
-from database import DATABASE, USERNAME, logger
+from database import DATABASE, URL, USERNAME, logger
 from database.models import Base
 
 _container: Container = None  # type: ignore
@@ -21,25 +19,21 @@ session_maker: sessionmaker = None  # type: ignore
 
 def start():
     """Initialize database by setting up a Docker container."""
-    global _container, _engine, session_maker
-    from database import URL
+    global _engine, session_maker
 
-    # attach to docker and start container
     logger.info("initializing database...")
-    try:  # check if docker is running
-        client = docker.from_env()  # docker client
-        _container = _start_container(client)
+    try:  # setup docker container
+        _setup_container()
     except DockerException:
-        raise RuntimeError("could not connect to docker")
+        raise RuntimeError("failed to setup docker container")
 
     # initialize database
     _engine = create_engine(URL)
-    # wait for database to start up
     while not database_exists(URL):
-        pass
-    # create tables if they don't exist
+        pass  # wait for database to start up
+
+    # create missing tables and session maker
     Base.metadata.create_all(_engine)
-    # initialized session
     session_maker = sessionmaker(bind=_engine)
     logger.info("database initialized")
 
@@ -48,11 +42,11 @@ def stop():
     """Stop the database engine and container."""
     global _container, _engine
 
-    try:
-        _engine.dispose()  # dispose of database connections
-        _container.stop()  # stop the database container
-    except:
-        pass
+    # dispose of database connections
+    _engine.dispose() if _engine else None
+    # stop the database container
+    _container.stop() if _container else None
+
     logger.info("database has stopped")
 
 
@@ -60,54 +54,50 @@ def backup():
     """Backup database to file."""
     global _container
 
-    _verify_connection()
-    logger.info("backing up...")
+    validate_connection()
     command = f"pg_dump -U {USERNAME} -d {DATABASE} > /backup.sql"
     if _container.exec_run(f"sh -c '{command}'").exit_code != 0:
         raise RuntimeError("backup failed")
+    logger.info("database backed up")
 
 
 def restore():
     """Load database from backup file."""
     global _container
 
-    _verify_connection()
-    logger.info("restoring backup...")
+    validate_connection()
     command = f"psql -U {USERNAME} -d {DATABASE} < /backup.sql"
     if _container.exec_run(f"sh -c '{command}'").exit_code != 0:
         raise RuntimeError("restoration failed")
+    logger.info("database restored")
 
 
-def _start_container(client: docker.DockerClient) -> Container:
-    """Start the database container."""
-    from database import CONTAINER_NAME as NAME
-    from database import _backup_path, container_config
-
-    # create database backup file
-    with open(_backup_path, 'a'):
-        pass
-
-    container: Container
-    try:  # get existing container and start it
-        container = client.containers.get(NAME)  # type: ignore
-        container.start() if container.status != 'running' else None
-    except NotFound:  # run new container otherwise
-        logger.info("starting database container...")
-        container = client.containers.run(**container_config)  # type: ignore
-    return container
-
-
-def _verify_connection():
+def validate_connection():
     """Check if the database is connected."""
     global _container, _engine, session_maker
 
-    try:  # check if engine and container are defined
-        _container.status
-        _engine.url
-    except:
+    # check if engine and container are initialized
+    if None in (session_maker, _container, _engine):
         raise RuntimeError("database not initialized")
-
-    if not database_exists(_engine.url):  # check connection
+    # check connection to database
+    if not database_exists(_engine.url):
         raise RuntimeError("failed to connect to database")
-    if session_maker is None:  # initialize session
-        session_maker = sessionmaker(bind=_engine)
+
+
+def _setup_container():
+    """Start the database container."""
+    from database import CONTAINER_NAME, backup_path, container_config
+    global _container
+
+    # create database backup file
+    with open(backup_path, 'a'):
+        pass
+
+    # connect to docker and start container
+    client = docker.from_env()
+    try:  # get existing container and start it
+        _container = client.containers.get(CONTAINER_NAME)  # type: ignore
+        _container.start() if _container.status != 'running' else None
+    except NotFound:  # run new container otherwise
+        logger.info("creating database container...")
+        _container = client.containers.run(**container_config)  # type: ignore
