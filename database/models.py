@@ -13,7 +13,10 @@ class Base(DeclarativeBase):
 
 
 class Chat(Base):
-    __tablename__ = "chat"
+    __tablename__ = "chats"
+
+    def __init__(self, id: int, **kw):
+        super().__init__(id=id, **kw)
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     """The chat's ID."""
@@ -25,35 +28,45 @@ class Chat(Base):
 
 
 class User(Base):
-    __tablename__ = "user"
+    __tablename__ = "users"
 
-    id: Mapped[int] = mapped_column(primary_key=True)
+    def __init__(self, id: int, **kw):
+        super().__init__(id=id, **kw)
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     """The user's Telegram ID."""
-    username: Mapped[str] = mapped_column()
-    """The user's Telegram username."""
     usage: Mapped[int] = mapped_column(default=0)
     """The user's cumulative token usage."""
+    username: Mapped[Optional[str]] = mapped_column()
+    """The user's Telegram username."""
+    messages: Mapped[List["Message"]] = relationship(back_populates="user")
+    """The user's messages."""
 
     def __repr__(self):
         return f"<User(id={self.id}, username={self.username})>"
 
 
 class Message(Base):
-    __tablename__ = "message"
+    __tablename__ = "messages"
+
+    def __init__(self, id: int, chat_id: int, user: User, **kw):
+        super().__init__(id=id, chat_id=chat_id, user=user, **kw)
 
     # identifiers
-    id: Mapped[int] = mapped_column(primary_key=True)
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     """The ID of the message."""
     chat_id: Mapped[int] = mapped_column(ForeignKey(Chat.id), primary_key=True)
     """The ID of the chat the message was sent in."""
     topic_id: Mapped[Optional[int]] = mapped_column()
     """The ID of the topic under which the message was sent, if any."""
+    user_id: Mapped[int] = mapped_column(ForeignKey(User.id))
+    """The ID of the user who sent the message."""
 
     # relationships
-    chat: Mapped[Chat] = relationship(back_populates="messages")
-    """The chat the message was sent in."""
     user: Mapped[User] = relationship()
     """The user who sent the message."""
+    chat: Mapped[Chat] = relationship(back_populates="messages")
+    """The chat the message was sent in."""
 
     # openai data
     role: Mapped[str] = mapped_column(default=Prompt.Role.USER)

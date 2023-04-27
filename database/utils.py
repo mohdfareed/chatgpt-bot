@@ -34,6 +34,9 @@ def add_message(message: Message) -> None:
     # create chat if it doesn't exist
     if not message.chat:
         message.chat = Chat(id=message.chat_id)
+    # assign user if not assigned
+    if not message.user:
+        message.user = User(id=message.user_id)
 
     # store message
     with Session(db.engine) as session:

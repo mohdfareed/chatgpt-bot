@@ -102,6 +102,3 @@ def _setup_container():
     except NotFound:  # run new container otherwise
         logger.info("creating database container...")
         _container = client.containers.run(**container_config)  # type: ignore
-
-
-start()  # start database on import

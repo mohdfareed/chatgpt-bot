@@ -25,11 +25,13 @@ def main(restore: bool = False, log: bool = False) -> None:
         file = os.path.join(logs_dir, f'{datetime.now():%y%m%d_%H%M%S}.log')
     else:  # log to console
         file = None
+    # format = ('%(asctime)s[%(levelname)s] %(name)s - ' +
+    #             '%(message)s (%(filename)s:%(lineno)d)')
+    format = '[%(levelname)s] %(message)s - %(name)s (%(filename)s:%(lineno)d)'
     logging.basicConfig(
         filename=file,
         level=logging.INFO,
-        # format='%(asctime)s[%(levelname)s] (%(name)s) - %(message)s'
-        format='[%(levelname)s] %(message)s (%(name)s)'
+        format=format
     )
 
     try:  # initialize the database and start the bot
@@ -39,8 +41,10 @@ def main(restore: bool = False, log: bool = False) -> None:
         # start the database
         db.start()
         db.restore() if restore else None
+
         # run the bot
         bot.run()
+
         # stop the database
         db.backup()
         db.stop()
