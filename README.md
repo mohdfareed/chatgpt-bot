@@ -1,6 +1,12 @@
 # ChatGPT Telegram Bot
 
-ChatGPT interface using Telegram's bot API. The bot is currently hosted at [@MohdFareed_ChatGPT_Bot](https://t.me/MohdFareed_ChatGPT_Bot).
+ChatGPT interface using Telegram's bot API. The bot is currently hosted at
+[@MohdFareed_ChatGPT_Bot](https://t.me/MohdFareed_ChatGPT_Bot).
+
+## Requirements
+
+- Python
+- Docker
 
 ## Installation
 
@@ -8,24 +14,35 @@ Download the repository and run the setup script:
 
 ```sh
 git clone https://github.com/mohdfareed/chatgpt-telegram.git
-cd chatgpt-telegram
-./scripts/setup.py
+cd path/to/chatgpt-telegram
+./scripts/setup.py [--clean]
 ```
 
-## Setup
+- The `--clean` flag will remove the existing virtual environment.
 
-Add the following to the `config/` directory:
-
-- `TOKEN`: Telegram bot token (obtained from [@BotFather](https://t.me/BotFather))
+Fill in the provided example environment file and renamed it to `.env`.
 
 ### For local development
 
-The setup script uses a virtual environment. It also loads the `.env` file from the process environment with the name `TELEGRAM_BOT_TOKEN`. You can set this variable in your shell to avoid having to add the token to the `config/` directory.
+If developing `chatgpt` alongside the bot locally, run:
+
+```sh
+cd path/to/chatgpt-telegram
+source .venv/bin/activate
+pip install -e /path/to/chatgpt
+```
 
 ## Usage
 
-Run the bot:
+Start the bot using the virtual environment:
 
 ```sh
-./run.py
+cd path/to/chatgpt-telegram
+source .venv/bin/activate
+./scripts/start.py [--debug] [--log] [--clean]
 ```
+
+- `--debug`: flag will log debug messages. Defaults to logging info messages.
+- `--log`: flag will log messages to a file. Defaults to logging to stdout.
+- `--clean`: flag will remove the existing database docker container and will
+    not restore the database from a backup.

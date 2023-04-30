@@ -10,13 +10,14 @@ os.chdir(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 sys.path.append(os.getcwd())
 
 
-def main(restore: bool = False, log: bool = False) -> None:
+def main(debug: bool = False, log: bool = False, clean: bool = False) -> None:
     """Instantiates and runs the app. This function sets up logging and
     checks the validity of the configured Telegram bot token.
 
     Args:
-        restore (bool, optional): Whether to load the database from backup.
+        debug (bool, optional): Whether to log debug messages.
         log (bool, optional): Whether to log to a file. Defaults to console.
+        clean (bool, optional): Whether to start a clean database.
     """
 
     if log:  # set up logging to file
@@ -25,41 +26,32 @@ def main(restore: bool = False, log: bool = False) -> None:
         file = os.path.join(logs_dir, f'{datetime.now():%y%m%d_%H%M%S}.log')
     else:  # log to console
         file = None
-    # format = ('%(asctime)s[%(levelname)s] %(name)s - ' +
-    #             '%(message)s (%(filename)s:%(lineno)d)')
+
     format = '[%(levelname)s] %(message)s - %(name)s (%(filename)s:%(lineno)d)'
-    logging.basicConfig(
-        filename=file,
-        level=logging.INFO,
-        format=format
-    )
+    level = logging.DEBUG if debug else logging.INFO
+    logging.basicConfig(filename=file, level=level, format=format)
 
-    try:  # initialize the database and start the bot
-        import database.core as db
-        from chatgpt_bot import bot
-
-        # start the database
-        db.start()
-        db.restore() if restore else None
-
-        # run the bot
+    import database.core as db
+    from chatgpt_bot import bot
+    try:  # start the database and run the bot
+        db.start(clean)
         bot.run()
-
-        # stop the database
-        db.backup()
-        db.stop()
     except Exception as e:
         print(f"\033[0;31m{'error:'}\033[0m {e}")
         exit(1)
+    finally:
+        db.stop()
 
 
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-r", "--restore", action="store_true",
-                        help="load database from backup")
+    parser = argparse.ArgumentParser('chatgpt_bot')
+    parser.add_argument("-d", "--debug", action="store_true",
+                        help="log debug messages")
     parser.add_argument("-l", "--log", action="store_true",
                         help="log to a file")
+    parser.add_argument("-c", "--clean", action="store_true",
+                        help="start a clean database")
     args = parser.parse_args()
-    main(args.restore, args.log)
+    main(args.log, args.clean)
