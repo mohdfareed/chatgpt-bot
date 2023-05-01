@@ -1,5 +1,5 @@
 """Database core functionality. It is responsible for managing the database
-within a Docker container. The database is initialized on import."""
+within a Docker container."""
 
 from docker.models.containers import Container
 from sqlalchemy import Engine
@@ -12,8 +12,15 @@ engine: Engine
 """The database engine."""
 
 
-def start():
-    """Initialize the database in a Docker container."""
+def start(clean: bool = False) -> None:
+    """Initialize the database in a Docker container.
+
+    Args:
+        clean: Whether to remove the existing database container.
+
+    Raises:
+        RuntimeError: If the database container fails to start.
+    """
     from docker.errors import DockerException
     from sqlalchemy import create_engine
 
@@ -23,7 +30,7 @@ def start():
 
     logger.info("initializing database...")
     try:  # setup docker container
-        _setup_container()
+        _setup_container(clean)
     except DockerException:
         raise RuntimeError("failed to setup docker container")
 
@@ -31,14 +38,20 @@ def start():
     engine = create_engine(URL)
     while not database_exists(URL):
         pass  # wait for database to start up
-    # create missing tables
+
+    # restore database from backup and initialize tables
+    restore() if not clean else None
     Base.metadata.create_all(engine)
-    logger.info("database initialized")
 
 
-def stop():
-    """Stop the database engine and container."""
+def stop() -> None:
+    """Backup and stop the database engine and container."""
     global _container, engine
+
+    try:  # try to backup database
+        backup()
+    except ConnectionError:
+        pass  # ignore if database is not connected
 
     # dispose of database connections
     engine.dispose() if engine else None
@@ -48,8 +61,13 @@ def stop():
     logger.info("database has stopped")
 
 
-def backup():
-    """Backup database to file."""
+def backup() -> None:
+    """Backup database to file.
+
+    Raises:
+        RuntimeError: If the backup fails.
+        ConnectionError: If the database is not connected.
+    """
     global _container
 
     validate_connection()
@@ -59,8 +77,13 @@ def backup():
     logger.info("database backed up")
 
 
-def restore():
-    """Load database from backup file."""
+def restore() -> None:
+    """Load database from backup file.
+
+    Raises:
+        RuntimeError: If the restoration fails.
+        ConnectionError: If the database is not connected.
+    """
     global _container
 
     validate_connection()
@@ -70,19 +93,23 @@ def restore():
     logger.info("database restored")
 
 
-def validate_connection():
-    """Check if the database is connected."""
+def validate_connection() -> None:
+    """Check if the database is connected.
+
+    Raises:
+        ConnectionError: If the database is not connected.
+    """
     global _container, engine
 
     # check if engine and container are initialized
     if None in (_container, engine):
-        raise RuntimeError("database not initialized")
+        raise ConnectionError("database not initialized")
     # check connection to database
     if not database_exists(engine.url):
-        raise RuntimeError("failed to connect to database")
+        raise ConnectionError("failed to connect to database")
 
 
-def _setup_container():
+def _setup_container(clean):
     """Start the database container."""
     import docker
     from docker.errors import NotFound
@@ -96,9 +123,15 @@ def _setup_container():
 
     # connect to docker and start container
     client = docker.from_env()
-    try:  # get existing container and start it
+    try:  # get existing container
         _container = client.containers.get(CONTAINER_NAME)  # type: ignore
-        _container.start() if _container.status != 'running' else None
+
+        if not clean:  # start existing container
+            _container.start() if _container.status != 'running' else None
+        else:  # remove existing container
+            _container.remove(force=True)
+            raise NotFound("container removed")
+
     except NotFound:  # run new container otherwise
         logger.info("creating database container...")
         _container = client.containers.run(**container_config)  # type: ignore

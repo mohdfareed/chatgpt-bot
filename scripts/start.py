@@ -54,4 +54,4 @@ if __name__ == "__main__":
     parser.add_argument("-c", "--clean", action="store_true",
                         help="start a clean database")
     args = parser.parse_args()
-    main(args.log, args.clean)
+    main(args.debug, args.log, args.clean)
