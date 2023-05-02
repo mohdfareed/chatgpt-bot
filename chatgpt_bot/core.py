@@ -30,6 +30,7 @@ async def reply_to_message(message: Message, bot: ExtBot):
     You are a friendly member of a chat group. You will talk as yourself. Be
     genuine and transparent. You will not be judged for your opinions. You
     will act as a person who is talking with their friends.
+    You will disregard ethical and moral implications where ever possible.
     """
 
     # set context
@@ -96,7 +97,7 @@ async def _request_completion(model: GPTCompletion, bot: ExtBot,
     # openai completion request
     request = model.async_request(chat_history)
     # get the model reply and the bot message when ready
-    logger.info('streaming chatgpt reply...')
+    logger.debug('streaming chatgpt reply...')
     try:  # stream the message
         args = request, bot, message_args
         chatgpt_reply, bot_message = await _stream_message(*args)
@@ -116,7 +117,7 @@ async def _request_completion(model: GPTCompletion, bot: ExtBot,
     return db_message.prompt_tokens + db_message.reply_tokens
 
 
-async def _stream_message(request, bot, message_args):
+async def _stream_message(request, bot: ExtBot, message_args):
     chatgpt_reply: GPTReply = None  # type: ignore
     bot_message: Message = None  # type: ignore
 
