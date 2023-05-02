@@ -36,7 +36,7 @@ def get_topic(chat_id: int, topic_id: int) -> Topic:
     # get new topic if topic doesn't exist
     with Session(db.engine) as session:
         return (session.get(Topic, (chat_id, topic_id)) or
-                Topic(chat_id=chat_id, topic_id=topic_id))
+                Topic(id=topic_id, chat_id=chat_id))
 
 
 def add_topic(topic: Topic) -> None:
@@ -77,14 +77,24 @@ def get_message(message_id: int, chat_id: int) -> Message:
 def add_message(message: Message) -> None:
     """Add or update a message. Creates new chat if none exists."""
 
+    # create user if none exists
+    if message.user_id and not message.user:
+        message.user = User(id=message.user_id)
     # create chat if none exists
     if not message.chat:
         message.chat = Chat(id=message.chat_id)
+    # create topic if none exists
+    if message.topic_id and not message.topic:
+        message.topic = Topic(id=message.topic_id,
+                              chat_id=message.chat_id)
+    # create reply message if none exists
+    if message.reply_id and not message.reply_to:
+        message.reply_to = get_message(message.reply_id, message.chat_id)
+
     # fix reply if to a topic (telegram bug)
     if message.reply_id == message.topic_id:
         message.reply_id = None
 
-    # store message
     with Session(db.engine) as session:
         session.merge(message)
         session.commit()
