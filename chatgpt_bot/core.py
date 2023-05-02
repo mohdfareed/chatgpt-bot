@@ -146,12 +146,12 @@ async def _stream_message(request, bot, message_args):
             except TelegramError:
                 pass
 
-        # set typing status
+        # set typing status if not flushing
         await bot.send_chat_action(
             chat_id=message_args['chat_id'],
             message_thread_id=message_args.get('message_thread_id', None),
             action=ChatAction.TYPING
-        )
+        ) if not flush else None
         chunk_counter = 0
 
     # finish typing
