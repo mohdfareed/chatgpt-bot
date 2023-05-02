@@ -80,6 +80,9 @@ def add_message(message: Message) -> None:
     # create chat if none exists
     if not message.chat:
         message.chat = Chat(id=message.chat_id)
+    # fix reply if to a topic (telegram bug)
+    if message.reply_id == message.topic_id:
+        message.reply_id = None
 
     # store message
     with Session(db.engine) as session:
