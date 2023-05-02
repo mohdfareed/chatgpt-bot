@@ -1,83 +1,22 @@
 """The bot's core functionality and Telegram callbacks."""
 
 from chatgpt.chat import Chat as GPTChat
-from chatgpt.completions import ChatCompletion
+from chatgpt.completions import ChatCompletion as GPTCompletion
 from chatgpt.message import Message as GPTMessage
 from chatgpt.message import Prompt as GPTPrompt
-from telegram import Message, Update
-from telegram.ext import ContextTypes, ExtBot
+from chatgpt.message import Reply as GPTReply
+from telegram import Message
+from telegram.constants import ChatAction
+from telegram.error import TelegramError
+from telegram.ext import ExtBot
 
-from chatgpt_bot import logger
-from chatgpt_bot.utils import store_message, stream_completion
+from chatgpt_bot import logger, utils
+from database import models
 from database import utils as db
 
-dummy_string = """
-*bold \\*text*
-_italic \\*text_
-__underline__
-~strikethrough~
-||spoiler||
-*bold _italic bold ~italic bold strikethrough ||italic bold strikethrough spoiler||~ __underline italic bold___ bold*
-[inline URL](http://www.example.com/)
-[inline mention of a user](tg://user?id=123456789)
-![👍](tg://emoji?id=5368324170671202286)
-`inline fixed-width code`
-```
-pre-formatted fixed-width code block
-```
-```python
-pre-formatted fixed-width code block written in the Python programming language
-```
-"""
 
-
-async def dummy_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    message = {
-        'chat_id': update.effective_chat.id,
-        'message_thread_id': update.message.message_thread_id,
-        'parse_mode': 'MarkdownV2',
-        'text': dummy_string,
-    }
-    await context.bot.send_message(**message)
-
-
-async def store_update(update: Update, _: ContextTypes.DEFAULT_TYPE):
-    if not (message := update.effective_message):
-        return
-    store_message(message)
-
-
-async def mention_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Reply to a message."""
-
-    logger.info("mention_callback")
-    if not (message := update.effective_message):
-        return
-    store_message(message)
-
-    if not message.text:
-        return
-    if context.bot.username not in message.text:
-        return
-
-    await send_reply(message, context.bot)
-
-
-async def private_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Reply to a message."""
-
-    logger.info("private_callback")
-    if not (message := update.effective_message):
-        return
-    if not message.text:
-        return
-
-    store_message(message)
-    await send_reply(message, context.bot)
-
-
-async def send_reply(message: Message, bot: ExtBot):
-    """Reply to a message."""
+async def reply_to_message(message: Message, bot: ExtBot):
+    """Reply to a message using a bot."""
 
     # bot message arguments
     message_args = {
@@ -105,10 +44,10 @@ async def send_reply(message: Message, bot: ExtBot):
     if message.is_topic_message and message.message_thread_id:
         message_args['message_thread_id'] = message.message_thread_id
     # set chatgpt instance
-    chatgpt = ChatCompletion()
+    chatgpt = GPTCompletion()
 
     try:  # stream the reply
-        usage = await stream_completion(chatgpt, bot, context, message_args)
+        usage = await _request_completion(chatgpt, bot, context, message_args)
     except Exception as e:
         chatgpt.cancel()  # cancel the request if it hasn't already finished
         raise RuntimeError(f"error streaming message: {e}")
@@ -126,3 +65,94 @@ async def send_reply(message: Message, bot: ExtBot):
         if topic := db.get_topic(message.chat_id, topic_id):
             topic.usage += usage
             db.add_topic(topic)
+
+
+def store_message(message: Message) -> models.Message:
+    """Parse a telegram message, store it in the database, and return it."""
+
+    # add chat to database
+    db.add_chat(utils.parse_chat(message.chat))
+    # add topic to database
+    if message.is_topic_message:
+        db.add_topic(utils.parse_topic(message))
+    # add user to database
+    if user := message.from_user:
+        db.add_user(utils.parse_user(user))
+    # add sender chat to database
+    if sender := message.sender_chat:
+        db.add_chat(utils.parse_chat(sender))
+
+    # add message to database and return it
+    db.add_message(db_message := utils.parse_message(message))
+    return db_message
+
+
+async def _request_completion(model: GPTCompletion, bot: ExtBot,
+                              chat_history, message_args: dict) -> int:
+    """Stream a telegram message using a ChatGPT model and return the generated
+    message. The bot message is sent with the provided `message_args`, which
+    must include the `chat_id`."""
+
+    # openai completion request
+    request = model.async_request(chat_history)
+    # get the model reply and the bot message when ready
+    logger.info('streaming chatgpt reply...')
+    try:  # stream the message
+        args = request, bot, message_args
+        chatgpt_reply, bot_message = await _stream_message(*args)
+    except:  # cancel the model request
+        model.cancel()
+        raise
+
+    # store the bot's reply message
+    db_message = store_message(bot_message)
+    # fill-in chatgpt reply fields
+    db_message.role = chatgpt_reply.role
+    db_message.finish_reason = chatgpt_reply.finish_reason
+    db_message.prompt_tokens = chatgpt_reply.prompt_tokens
+    db_message.reply_tokens = chatgpt_reply.reply_tokens
+    # store message and return completion usage
+    db.add_message(db_message)
+    return db_message.prompt_tokens + db_message.reply_tokens
+
+
+async def _stream_message(request, bot, message_args):
+    chatgpt_reply: GPTReply = None  # type: ignore
+    bot_message: Message = None  # type: ignore
+
+    # send packets in chunks
+    chunk_size = 10
+    chunk_counter = 0
+    message_args['text'] = ''
+
+    async for packet in request:
+        # flush when the model reply is ready
+        if flush := isinstance(packet, GPTReply):
+            chatgpt_reply = packet
+        else:
+            message_args['text'] += packet
+
+        # parse the packet
+        chunk_counter += 1
+        if not flush and chunk_counter % chunk_size != 0:
+            continue
+
+        # send the chunk
+        if not bot_message:
+            bot_message = await bot.send_message(**message_args)
+        else:  # edit the message if one was received
+            try:
+                await bot_message.edit_text(text=message_args['text'])
+            except TelegramError:
+                pass
+
+        # set typing status
+        await bot.send_chat_action(
+            chat_id=message_args['chat_id'],
+            message_thread_id=message_args.get('message_thread_id', None),
+            action=ChatAction.TYPING
+        )
+        chunk_counter = 0
+
+    # finish typing
+    return chatgpt_reply, bot_message

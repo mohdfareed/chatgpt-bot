@@ -1,12 +1,13 @@
-"""The ChatGPT Telegram bot."""
+"""The ChatGPT Telegram bot. This module contains the bot's entry point. It
+manages the bot's lifecycle and tunneling updates to the handlers."""
 
 from telegram.constants import MessageEntityType
 from telegram.ext import (Application, CommandHandler, ContextTypes,
                           MessageHandler, filters)
 
 from chatgpt_bot import BOT_TOKEN, logger
-from chatgpt_bot.core import (dummy_callback, mention_callback,
-                              private_callback, store_update)
+from chatgpt_bot.handlers import (dummy_callback, mention_callback,
+                                  private_callback, store_update)
 
 
 def run():
