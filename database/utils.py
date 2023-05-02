@@ -87,9 +87,10 @@ def add_message(message: Message) -> None:
     if message.topic_id and not message.topic:
         message.topic = Topic(id=message.topic_id,
                               chat_id=message.chat_id)
-    # create reply message if none exists
+    # create reply message in same topic if none exists
     if message.reply_id and not message.reply_to:
         message.reply_to = get_message(message.reply_id, message.chat_id)
+        message.reply_to.topic_id = message.topic_id
 
     # fix reply if to a topic (telegram bug)
     if message.reply_id == message.topic_id:
