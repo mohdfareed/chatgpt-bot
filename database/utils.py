@@ -3,7 +3,7 @@ objects in the database."""
 
 from typing import Optional
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from database import core as db
 from database.models import Chat, Message, Topic, User
@@ -122,14 +122,13 @@ def add_message(message: Message) -> None:
 
     # create user if none exists
     if message.user_id and not message.user:
-        message.user = User(id=message.user_id)
+        message.user = get_user(message.user_id)
     # create chat if none exists
     if not message.chat:
-        message.chat = Chat(id=message.chat_id)
+        message.chat = get_chat(message.chat_id)
     # create topic if none exists
     if message.topic_id and not message.topic:
-        message.topic = Topic(id=message.topic_id,
-                              chat_id=message.chat_id)
+        message.topic = get_topic(message.topic_id, message.chat_id)
     # create reply message in same topic if none exists
     if message.reply_id and not message.reply_to:
         message.reply_to = get_message(message.reply_id, message.chat_id)
@@ -146,7 +145,7 @@ def add_message(message: Message) -> None:
         session.commit()
 
 
-def get_messages(chat_id: int, topic_id: Optional[int] = None) -> list:
+def get_messages(chat_id: int, topic_id: int | None = None) -> list[Message]:
     """Get all messages in a chat or topic. The messages are sorted by their
     message ID.
 
@@ -157,8 +156,10 @@ def get_messages(chat_id: int, topic_id: Optional[int] = None) -> list:
     """
 
     with Session(db.engine) as session:
-        query = session.query(Message).filter(Message.chat_id == chat_id)
-        if topic_id:
+        # load all messages in chat
+        query = session.query(Message).filter(
+            Message.chat_id == chat_id).options(selectinload('*'))
+        if topic_id:  # filter by topic if given
             query = query.filter(Message.topic_id == topic_id)
         query = query.order_by(Message.id)
         return query.all()

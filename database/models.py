@@ -1,8 +1,8 @@
 """The models defining the database schema."""
 
-from typing import List, Optional
+from typing import Optional
 
-from chatgpt.message import Message as GPTMessage
+from chatgpt.messages import Message as GPTMessage
 from sqlalchemy import BigInteger, ForeignKey, ForeignKeyConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -34,7 +34,7 @@ class Topic(Base):
     chat_id: Mapped[int] = mapped_column(ForeignKey(Chat.id), primary_key=True)
     """The ID of the chat the topic was created in."""
 
-    chat: Mapped[Chat] = relationship(back_populates="topics")
+    chat: Mapped[Chat] = relationship()
     """The chat the topic was created in."""
     usage: Mapped[int] = mapped_column(BigInteger, default=0)
     """The topic's cumulative token usage."""
@@ -49,7 +49,7 @@ class User(Base):
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     """The user's ID."""
-    username: Mapped[Optional[str]] = mapped_column()
+    username: Mapped[str] = mapped_column(default="unknown")
     """The user's Telegram username."""
     usage: Mapped[int] = mapped_column(BigInteger, default=0)
     """The user's cumulative token usage."""
@@ -68,29 +68,29 @@ class Message(Base):
     # chat
     chat_id: Mapped[int] = mapped_column(ForeignKey(Chat.id), primary_key=True)
     """The ID of the chat the message was sent in."""
-    chat: Mapped[Chat] = relationship(back_populates="messages")
+    chat: Mapped[Chat] = relationship()
     """The chat the message was sent in."""
 
     # topic
     topic_id: Mapped[Optional[int]] = mapped_column()
     """The ID of the chat the message was sent in."""
     topic: Mapped[Topic] = relationship(
-        primaryjoin=topic_id == Topic.id and chat_id == Topic.chat_id,
-        back_populates="messages")
+        primaryjoin=(topic_id == Topic.id and chat_id == Topic.chat_id)
+    )
     """The topic the message was sent in, if any."""
 
     # reply
     reply_id: Mapped[Optional[int]] = mapped_column()
     """The ID of the message this message is a reply to, if any."""
     reply_to: Mapped[Optional["Message"]] = relationship(
-        primaryjoin=reply_id == id and chat_id == chat_id,
-        remote_side=[id], back_populates="replies")
+        primaryjoin=(reply_id == id and chat_id == chat_id), remote_side=[id]
+    )
     """The message this message is a reply to, if any."""
 
     # user
     user_id: Mapped[Optional[int]] = mapped_column(ForeignKey(User.id))
     """The ID of the user who sent the message, if any."""
-    user: Mapped[Optional[User]] = relationship(back_populates="messages")
+    user: Mapped[Optional[User]] = relationship()
     """The user who sent the message, if any."""
 
     # openai data
