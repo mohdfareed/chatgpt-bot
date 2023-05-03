@@ -162,3 +162,22 @@ def get_messages(chat_id: int, topic_id: Optional[int] = None) -> list:
             query = query.filter(Message.topic_id == topic_id)
         query = query.order_by(Message.id)
         return query.all()
+
+
+def delete_messages(chat_id: int, topic_id: Optional[int] = None) -> None:
+    """Delete all messages in a chat or topic.
+
+    Args:
+        chat_id (int): The ID of the chat containing the messages.
+        topic_id (int, optional): The ID of the topic containing the messages,
+        if any.
+    """
+
+    with Session(db.engine) as session:
+        query = session.query(Message).filter(Message.chat_id == chat_id)
+        if topic_id:
+            query = query.filter(Message.topic_id == topic_id)
+        else:
+            query = query.filter(Message.topic_id == None)
+        query.delete()
+        session.commit()

@@ -6,6 +6,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from chatgpt_bot import core, logger
+from database import utils as db
 
 dummy_string = """
 *bold \\*text*
@@ -70,3 +71,17 @@ async def private_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     core.store_message(message)
     await core.reply_to_message(message, context.bot)
+
+
+async def delete_history(update: Update, _: ContextTypes.DEFAULT_TYPE):
+    """Delete a chat."""
+
+    if not update.effective_chat:
+        return
+
+    logger.info(f"deleting chat: {update.effective_chat.id}")
+    chat_id, topic_id = update.effective_chat.id, None
+    if update.effective_message and update.effective_message.is_topic_message:
+        topic_id = update.effective_message.message_thread_id
+
+    db.delete_messages(chat_id, topic_id)
