@@ -2,7 +2,7 @@
 
 from typing import List, Optional
 
-from chatgpt.message import Prompt
+from chatgpt.message import Message as GPTMessage
 from sqlalchemy import BigInteger, ForeignKey, ForeignKeyConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -113,7 +113,7 @@ class Message(Base):
     """The user who sent the message, if any."""
 
     # openai data
-    role: Mapped[str] = mapped_column(default=Prompt.Role.USER)
+    role: Mapped[GPTMessage.Role] = mapped_column(default=GPTMessage.Role.USER)
     """The role under which the message was sent."""
     finish_reason: Mapped[Optional[str]] = mapped_column()
     """The reason the message content terminated, if any."""

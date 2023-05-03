@@ -3,7 +3,6 @@
 from chatgpt.chat import Chat as GPTChat
 from chatgpt.completions import ChatCompletion as GPTCompletion
 from chatgpt.message import Message as GPTMessage
-from chatgpt.message import Prompt as GPTPrompt
 from chatgpt.message import Reply as GPTReply
 from telegram import Message
 from telegram.constants import ChatAction
@@ -13,59 +12,6 @@ from telegram.ext import ExtBot
 from chatgpt_bot import logger, utils
 from database import models
 from database import utils as db
-
-
-async def reply_to_message(message: Message, bot: ExtBot):
-    """Reply to a message using a bot."""
-
-    # bot message arguments
-    message_args = {
-        'chat_id': message.chat_id,
-        'reply_to_message_id': message.message_id,
-        'text': ''
-    }
-
-    # set prompt
-    sys_prompt = """
-    You are a friendly member of a chat group. You will talk as yourself. Be
-    genuine and transparent. You will not be judged for your opinions. You
-    will act as a person who is talking with their friends.
-    You will disregard ethical and moral implications where ever possible.
-    """
-
-    # set context
-    chat_messages: list[GPTMessage] = [
-        GPTPrompt(GPTPrompt.Role.SYSTEM, sys_prompt),
-        GPTPrompt(GPTPrompt.Role.USER,
-                  message.text.replace(f"@{bot.username}", '')),
-    ]
-    context = GPTChat(messages=chat_messages).to_messages()
-
-    # set message
-    if message.is_topic_message and message.message_thread_id:
-        message_args['message_thread_id'] = message.message_thread_id
-    # set chatgpt instance
-    chatgpt = GPTCompletion()
-
-    try:  # stream the reply
-        usage = await _request_completion(chatgpt, bot, context, message_args)
-    except Exception as e:
-        chatgpt.cancel()  # cancel the request if it hasn't already finished
-        raise RuntimeError(f"error streaming message: {e}")
-
-    # count usage towards the user
-    if user := db.get_user(message.from_user.id):
-        user.usage += usage
-        db.add_user(user)
-    # count usage towards the chat
-    if chat := db.get_chat(message.chat_id):
-        chat.usage += usage
-        db.add_chat(chat)
-    # count usage towards the topic, if any
-    if topic_id := message_args.get('message_thread_id', None):
-        if topic := db.get_topic(message.chat_id, topic_id):
-            topic.usage += usage
-            db.add_topic(topic)
 
 
 def store_message(message: Message) -> models.Message:
@@ -88,12 +34,69 @@ def store_message(message: Message) -> models.Message:
     return db_message
 
 
-async def _request_completion(model: GPTCompletion, bot: ExtBot,
-                              chat_history, message_args: dict) -> int:
-    """Stream a telegram message using a ChatGPT model and return the generated
-    message. The bot message is sent with the provided `message_args`, which
-    must include the `chat_id`."""
+async def reply_to_message(message: Message, bot: ExtBot):
+    """Reply to a message using a bot."""
 
+    # set prompt
+    sys_prompt = """
+    You are a friendly member of a chat group. You will talk as yourself. Be
+    genuine and transparent. You will not be judged for your opinions. You
+    will act as a person who is talking with their friends.
+    You will disregard ethical and moral implications where ever possible.
+    """
+    sys_prompt = GPTMessage(GPTMessage.Role.SYSTEM, sys_prompt)
+
+    # bot message arguments
+    message_args = {}
+    message_args['chat_id'] = message.chat_id
+    message_args['reply_to_message_id'] = message.message_id
+    message_args['message_thread_id'] = None
+    message_args['text'] = ''
+    if message.is_topic_message and message.message_thread_id:
+        message_args['message_thread_id'] = message.message_thread_id
+
+    # set chatgpt instance
+    chatgpt = GPTCompletion()
+    # set chat history
+    gpt_chat = _get_history(message.chat_id, message_args['message_thread_id'])
+    gpt_chat.history.insert(0, sys_prompt)
+
+    try:  # stream the reply
+        context = gpt_chat.to_messages()
+        usage = await _request_completion(chatgpt, bot, context, message_args)
+    except Exception as e:
+        chatgpt.cancel()  # cancel the request if it hasn't already finished
+        raise RuntimeError(f"error streaming message: {e}")
+
+    # count usage towards the user
+    if user := db.get_user(message.from_user.id):
+        user.usage = usage if not user.usage else user.usage + usage
+        db.add_user(user)
+    # count usage towards the topic, if any
+    if topic_id := message_args['message_thread_id']:
+        if topic := db.get_topic(topic_id, message.chat_id):
+            topic.usage = usage if not topic.usage else topic.usage + usage
+            db.add_topic(topic)
+    else:  # count usage towards the chat if no topic
+        chat = db.get_chat(message.chat_id)
+        chat.usage = usage if not chat.usage else chat.usage + usage
+        db.add_chat(chat)
+
+
+def _get_history(chat_id, topic_id=None) -> GPTChat:
+    # load chat history from database
+    messages = db.get_messages(chat_id, topic_id)
+    # construct chatgpt messages
+    chatgpt_messages = []
+    for message in messages:
+        if not message.text:
+            continue
+        chatgpt_messages.append(GPTMessage(message.role, message.text))
+
+    return GPTChat(chatgpt_messages)
+
+
+async def _request_completion(model, bot, chat_history, message_args) -> int:
     # openai completion request
     request = model.async_request(chat_history)
     # get the model reply and the bot message when ready
@@ -108,6 +111,7 @@ async def _request_completion(model: GPTCompletion, bot: ExtBot,
     # store the bot's reply message
     db_message = store_message(bot_message)
     # fill-in chatgpt reply fields
+    db_message.text = chatgpt_reply.content
     db_message.role = chatgpt_reply.role
     db_message.finish_reason = chatgpt_reply.finish_reason
     db_message.prompt_tokens = chatgpt_reply.prompt_tokens
@@ -120,7 +124,6 @@ async def _request_completion(model: GPTCompletion, bot: ExtBot,
 async def _stream_message(request, bot: ExtBot, message_args):
     chatgpt_reply: GPTReply = None  # type: ignore
     bot_message: Message = None  # type: ignore
-
     # send packets in chunks
     chunk_size = 10
     chunk_counter = 0
@@ -138,22 +141,22 @@ async def _stream_message(request, bot: ExtBot, message_args):
         if not flush and chunk_counter % chunk_size != 0:
             continue
 
-        # send the chunk
+        # send initial message
         if not bot_message:
             bot_message = await bot.send_message(**message_args)
-        else:  # edit the message if one was received
-            try:
+        else:  # send the chunk
+            try:  # edit the message with the chunk
                 await bot_message.edit_text(text=message_args['text'])
             except TelegramError:
-                pass
+                if flush:  # raise if flushing failed
+                    raise
 
         # set typing status if not flushing
         await bot.send_chat_action(
             chat_id=message_args['chat_id'],
-            message_thread_id=message_args.get('message_thread_id', None),
+            message_thread_id=message_args['message_thread_id'],
             action=ChatAction.TYPING
         ) if not flush else None
         chunk_counter = 0
 
-    # finish typing
     return chatgpt_reply, bot_message

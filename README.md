@@ -61,6 +61,7 @@ erDiagram
     Topic |o--o{ Message : contains
     Chat ||--o{ Topic : has
     User |o--o{ Message : sends
+    Message ||--o{ Message : replies_to
     Chat {
         int id
     }
