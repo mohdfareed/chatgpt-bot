@@ -62,6 +62,9 @@ def parse_user(user: User) -> models.User:
 
     # create user
     db_user.id = user.id
-    db_user.username = user.username
+    if user.username:
+        db_user.username = user.username
+    else:  # use first and last name if no username
+        db_user.username = f'{user.first_name}{" " + str(user.last_name)}'
 
     return db_user
