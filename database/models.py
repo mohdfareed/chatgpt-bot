@@ -18,10 +18,6 @@ class Chat(Base):
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     """The chat's ID."""
-    messages: Mapped[List["Message"]] = relationship(back_populates="chat")
-    """The chat's messages. This is the general topic for forums."""
-    topics: Mapped[List["Topic"]] = relationship(back_populates="chat")
-    """The chat's topics."""
     usage: Mapped[int] = mapped_column(BigInteger, default=0)
     """The chat's cumulative token usage."""
 
@@ -40,13 +36,6 @@ class Topic(Base):
 
     chat: Mapped[Chat] = relationship(back_populates="topics")
     """The chat the topic was created in."""
-    messages: Mapped[List["Message"]] = relationship(
-        primaryjoin=("Message.topic_id == Topic.id and "
-                     "Message.chat_id == Topic.chat_id"),
-        overlaps="messages",
-        back_populates="topic")
-    """The topic's messages."""
-
     usage: Mapped[int] = mapped_column(BigInteger, default=0)
     """The topic's cumulative token usage."""
 
@@ -64,10 +53,6 @@ class User(Base):
     """The user's Telegram username."""
     usage: Mapped[int] = mapped_column(BigInteger, default=0)
     """The user's cumulative token usage."""
-
-    # relationships
-    messages: Mapped[List["Message"]] = relationship(back_populates="user")
-    """The user's messages."""
 
     def __repr__(self):
         return f"<Topic(id={self.id}, username={self.username})>"
@@ -101,10 +86,6 @@ class Message(Base):
         primaryjoin=reply_id == id and chat_id == chat_id,
         remote_side=[id], back_populates="replies")
     """The message this message is a reply to, if any."""
-    replies: Mapped[List["Message"]] = relationship(
-        primaryjoin=id == reply_id and chat_id == chat_id,
-        back_populates="reply_to")
-    """The messages that are replies to this message."""
 
     # user
     user_id: Mapped[Optional[int]] = mapped_column(ForeignKey(User.id))
