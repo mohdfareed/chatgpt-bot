@@ -1,7 +1,6 @@
 """The bot's core functionality and Telegram callbacks."""
 
-import asyncio
-import time
+import html
 
 from chatgpt.chat import Chat as GPTChat
 from chatgpt.completions import ChatCompletion as GPTCompletion
@@ -9,13 +8,15 @@ from chatgpt.messages import Message as GPTMessage
 from chatgpt.messages import Reply as GPTReply
 from telegram import Message
 from telegram.constants import ChatAction, ParseMode
-from telegram.error import Forbidden
 from telegram.ext import ExtBot
 from telegram.helpers import escape_markdown
 
 from chatgpt_bot import bot_prompt, logger, utils
 from database import models
 from database import utils as db
+
+SPECIAL_CHARS = ['_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-',
+                 '=', '|', '{', '}', '.', '!', '\\']
 
 
 def store_message(message: Message) -> models.Message:
@@ -67,7 +68,6 @@ async def reply_to_message(message: Message, bot: ExtBot):
     message_args['chat_id'] = message.chat_id
     message_args['reply_to_message_id'] = message.message_id
     message_args['message_thread_id'] = None
-    message_args['text'] = ''
     message_args['parse_mode'] = ParseMode.MARKDOWN_V2
     if message.is_topic_message and message.message_thread_id:
         message_args['message_thread_id'] = message.message_thread_id
@@ -81,8 +81,8 @@ async def reply_to_message(message: Message, bot: ExtBot):
 
     # set chat history
     gpt_chat = _get_history(message.chat_id, message_args['message_thread_id'])
-    gpt_chat.history.insert(0, bot_prompt)
-    gpt_chat.history.insert(1, sys_prompt)
+    gpt_chat.history.insert(0, sys_prompt)
+    gpt_chat.history.insert(-1, bot_prompt)
 
     try:  # stream the reply
         chatgpt = GPTCompletion()
@@ -115,7 +115,7 @@ def _get_history(chat_id, topic_id) -> GPTChat:
         if not message.text:
             continue
         # add username to message text
-        if message.role != GPTReply.Role.CHATGPT and message.user:
+        if message.user:
             message.text = f"{message.user.username}: {message.text}"
         # add message id to message text
         message.text = f"[{message.id}]{message.text}"
@@ -158,6 +158,7 @@ async def _stream_message(request, bot: ExtBot, message_args):
     chunk_counter = 0
     chunk = ''
 
+    message_text = ''
     async for packet in request:
         # flush when the model reply is ready
         if flush := isinstance(packet, GPTReply):
@@ -170,17 +171,29 @@ async def _stream_message(request, bot: ExtBot, message_args):
         if not flush and chunk_counter % chunk_size != 0:
             continue
 
-        # send the message chunk
-        message_args['text'] += chunk
-        message_args['text'].escape_markdown()
+        # send the message chunk formatted as markdown
+        message_text += chunk
+        md_text = _format_text(message_text)
+        # md_text = escape_markdown(message_text, version=2)
         if chunk and not bot_message:  # send initial message
-            bot_message = await bot.send_message(**message_args)
+            bot_message = await bot.send_message(**message_args, text=md_text)
         elif chunk:  # edit message if new chunk was received
-            # sleep for a bit to avoid rate limiting
-            await asyncio.sleep(0.1)
-            await bot_message.edit_text(text=message_args['text'])
+            # TODO: prevent flood wait errors
+            await bot_message.edit_text(
+                text=md_text, parse_mode=message_args['parse_mode']
+            )
 
         chunk_counter = 0
         chunk = ''
 
     return chatgpt_reply, bot_message
+
+
+def _format_text(text: str) -> str:
+    # escape markdown characters
+    text = escape_markdown(text, version=2)
+
+    # for char in SPECIAL_CHARS:
+    #     text = text.replace(char, f"\\{char}")
+
+    return text

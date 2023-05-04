@@ -18,8 +18,10 @@ logger: logging.Logger = logging.getLogger(__name__)
 
 bot_prompt = """
 Chat messages are formatted as '[<message_id>]<username>: <message>'.
-Mentions are formatted in messages as: <@username>.
-Your messages must be in Markdown format as: <message>.
+Your messages will not include the message ID or username.
+Your messages must be in the following Markdown format:
+*bold text* _italic text_ __underline__ ~strikethrough~ ||spoiler||
+[inline URL](http://www.example.com/) @username `inline and block code`
 """
 bot_prompt = GPTMessage(GPTMessage.Role.SYSTEM, bot_prompt)
 
