@@ -18,16 +18,25 @@ def run():
     logger.info("starting telegram bot...")
     app = Application.builder().token(BOT_TOKEN).build()
 
-    # add handlers
+    # add error/command handlers
     app.add_error_handler(error_handler)
     app.add_handler(CommandHandler('dummy', dummy_callback))
     app.add_handler(CommandHandler('delete', delete_history))
-    app.add_handler(MessageHandler(filters.ChatType.PRIVATE,
-                                   callback=private_callback))
-    app.add_handler(MessageHandler(filters.Entity(MessageEntityType.MENTION),
-                                   callback=mention_callback))
-    app.add_handler(MessageHandler(filters.ALL,
-                                   callback=store_update))
+
+    # add message handlers
+    app.add_handler(MessageHandler(
+        filters.ChatType.PRIVATE, block=False,
+        callback=private_callback)
+    )
+    app.add_handler(MessageHandler(
+        filters.Entity(MessageEntityType.MENTION), block=False,
+        callback=mention_callback)
+    )
+    app.add_handler(MessageHandler(
+        filters.ALL, block=False,
+        callback=store_update)
+    )
+
     # start the bot
     app.run_polling()
     logger.info("telegram bot has stopped")

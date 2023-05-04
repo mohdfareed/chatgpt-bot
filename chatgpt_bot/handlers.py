@@ -3,7 +3,7 @@ executing core module functionality."""
 
 
 from telegram import Update
-from telegram.ext import ContextTypes
+from telegram.ext import ApplicationHandlerStop, ContextTypes
 
 from chatgpt_bot import core, logger
 from database import utils as db
@@ -85,3 +85,9 @@ async def delete_history(update: Update, _: ContextTypes.DEFAULT_TYPE):
         topic_id = update.effective_message.message_thread_id
 
     db.delete_messages(chat_id, topic_id)
+    raise ApplicationHandlerStop  # don't handle elsewhere
+
+
+async def bot_updated(update: Update, _: ContextTypes.DEFAULT_TYPE):
+    # update.my_chat_member  # bot member status changed
+    pass

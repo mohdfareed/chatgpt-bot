@@ -30,6 +30,7 @@ def main(debug: bool = False, log: bool = False, clean: bool = False) -> None:
     format = '[%(levelname)s] %(message)s - %(name)s (%(filename)s:%(lineno)d)'
     level = logging.DEBUG if debug else logging.INFO
     logging.basicConfig(filename=file, level=level, format=format)
+    logging.captureWarnings(True)
 
     import database.core as db
     from chatgpt_bot import bot
