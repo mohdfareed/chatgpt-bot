@@ -6,9 +6,8 @@ from telegram.ext import (Application, CommandHandler, ContextTypes,
                           MessageHandler, filters)
 
 from chatgpt_bot import BOT_TOKEN, logger
-from chatgpt_bot.handlers import (delete_history, dummy_callback,
-                                  mention_callback, private_callback,
-                                  store_update)
+from chatgpt_bot.handlers import (delete_history, mention_callback,
+                                  private_callback, send_usage, store_update)
 
 
 def run():
@@ -20,22 +19,22 @@ def run():
 
     # add error/command handlers
     app.add_error_handler(error_handler)
-    app.add_handler(CommandHandler('dummy', dummy_callback))
     app.add_handler(CommandHandler('delete', delete_history))
+    app.add_handler(CommandHandler('usage', send_usage))
 
     # add message handlers
     app.add_handler(MessageHandler(
         filters.ChatType.PRIVATE, block=False,
-        callback=private_callback)
-    )
+        callback=private_callback
+    ))
     app.add_handler(MessageHandler(
         filters.Entity(MessageEntityType.MENTION), block=False,
-        callback=mention_callback)
-    )
+        callback=mention_callback
+    ))
     app.add_handler(MessageHandler(
         filters.ALL, block=False,
-        callback=store_update)
-    )
+        callback=store_update
+    ))
 
     # start the bot
     app.run_polling()

@@ -17,11 +17,15 @@ logger: logging.Logger = logging.getLogger(__name__)
 """The bot logger."""
 
 bot_prompt = """
-Chat messages are formatted as '[<message_id>]<username>: <message>'.
-Your messages will not include the message ID or username.
-Your messages must be in the following Markdown format:
-*bold text* _italic text_ __underline__ ~strikethrough~ ||spoiler||
-[inline URL](http://www.example.com/) @username `inline and block code`
+Mention a user with '@username'.
+Only the following syntax is allowed:
+*bold* _italic_ ~strikethrough~ ||spoiler|| `code`
+[inline URL](http://www.example.com/)
+
+You have access to the chat history, with the following metadata embedded:
+<MessageID>-<InReplyToID>---<Username>
+The `<InReplyToID>` is the ID of the message to which the message is replying.
+It is `0` if the message is not a reply or it doesn't exist.
 """
 bot_prompt = GPTMessage(GPTMessage.Role.SYSTEM, bot_prompt)
 

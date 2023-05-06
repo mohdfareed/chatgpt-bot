@@ -21,12 +21,7 @@ def parse_message(message: Message) -> models.Message:
         db_message.user_id = user.id
     # fill-in reply message if any
     if reply := message.reply_to_message:
-        if message.is_topic_message:
-            # don't include the reply if it's the topic creation message
-            if reply.message_id != message.message_thread_id:
-                db_message.reply_id = reply.message_id
-        else:
-            db_message.reply_id = reply.message_id
+        db_message.reply_id = reply.message_id
     # fill-in the text if any
     if text := message.text:
         db_message.text = text
@@ -65,6 +60,6 @@ def parse_user(user: User) -> models.User:
     if user.username:
         db_user.username = user.username
     else:  # use first and last name if no username
-        db_user.username = f'{user.first_name}{" " + str(user.last_name)}'
+        db_user.username = f'{user.first_name}{str(user.last_name or "")}'
 
     return db_user
