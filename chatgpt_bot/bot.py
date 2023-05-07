@@ -6,8 +6,9 @@ from telegram.ext import (Application, CommandHandler, ContextTypes,
                           MessageHandler, filters)
 
 from chatgpt_bot import BOT_TOKEN, logger
-from chatgpt_bot.handlers import (delete_history, mention_callback,
-                                  private_callback, send_usage, store_update)
+from chatgpt_bot.handlers import (delete_history, dummy_callback, edit_sys,
+                                  get_sys, mention_callback, private_callback,
+                                  send_usage, store_update)
 
 
 def run():
@@ -21,6 +22,9 @@ def run():
     app.add_error_handler(error_handler)
     app.add_handler(CommandHandler('delete', delete_history))
     app.add_handler(CommandHandler('usage', send_usage))
+    app.add_handler(CommandHandler('start', dummy_callback))
+    app.add_handler(CommandHandler('sys', get_sys))
+    app.add_handler(CommandHandler('edit', edit_sys))
 
     # add message handlers
     app.add_handler(MessageHandler(
@@ -45,3 +49,4 @@ async def error_handler(_, context: ContextTypes.DEFAULT_TYPE):
     """Log Errors caused by Updates."""
     logger.debug(context.error.__traceback__.__str__())
     logger.error(f"error: {context.error}")
+    raise

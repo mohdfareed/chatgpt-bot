@@ -77,3 +77,25 @@ erDiagram
         int chat_id
     }
 ```
+
+## Pre-Made System Prompts
+
+The bot comes with a few pre-made prompts that can be presented to the user.
+The prompts are stored in `chatgpt_bot/prompts.txt`. Text proceeding the first
+title is considered the default prompt for the bot. The default's prompt's
+name is `Default`, unless changed in the source code. Each prompt starts with
+a title and is followed by the prompt itself. The file has the following format:
+
+```markdown
+# Default (optional)
+The default prompt's content.
+
+# Title
+The prompt's content.
+
+# Another Title
+Another prompt's content.
+```
+
+The prompts' content is trimmed of leading and trailing whitespace, allowing
+for better organization of the prompts in the file.

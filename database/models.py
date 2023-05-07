@@ -49,7 +49,7 @@ class User(Base):
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     """The user's ID."""
-    username: Mapped[str] = mapped_column(default="unknown")
+    username: Mapped[Optional[str]] = mapped_column()
     """The user's Telegram username."""
     usage: Mapped[int] = mapped_column(BigInteger, default=0)
     """The user's cumulative token usage."""
@@ -59,7 +59,7 @@ class User(Base):
 
 
 class Message(Base):
-    """A message sent in a chat."""
+    """A message sent in a chat. Chat prompts have negative IDs."""
     __tablename__ = "message"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
@@ -74,7 +74,7 @@ class Message(Base):
     # topic
     topic_id: Mapped[Optional[int]] = mapped_column()
     """The ID of the chat the message was sent in."""
-    topic: Mapped[Topic] = relationship(
+    topic: Mapped[Optional[Topic]] = relationship(
         primaryjoin=(topic_id == Topic.id and chat_id == Topic.chat_id)
     )
     """The topic the message was sent in, if any."""
@@ -102,6 +102,8 @@ class Message(Base):
     """The number of tokens in the prompt."""
     reply_tokens: Mapped[Optional[int]] = mapped_column()
     """The number of tokens in the reply."""
+    name: Mapped[Optional[str]] = mapped_column()
+    """The name of the OpenAI message, if any."""
 
     # telegram data
     text: Mapped[Optional[str]] = mapped_column()

@@ -120,17 +120,16 @@ def add_message(message: Message) -> None:
         message (Message): The message to add or update.
     """
 
-    # create user if none exists
-    if message.user_id and not message.user:
-        message.user = get_user(message.user_id)
     # create chat if none exists
-    if not message.chat:
-        message.chat = get_chat(message.chat_id)
+    message.chat = get_chat(message.chat_id)
     # create topic if none exists
-    if message.topic_id and not message.topic:
+    if message.topic_id:
         message.topic = get_topic(message.topic_id, message.chat_id)
+    # create user if none exists
+    if message.user_id:
+        message.user = get_user(message.user_id)
     # create reply message in same topic if none exists
-    if message.reply_id and not message.reply_to:
+    if message.reply_id:
         message.reply_to = get_message(message.reply_id, message.chat_id)
         message.reply_to.topic_id = message.topic_id
 
@@ -161,12 +160,26 @@ def get_messages(chat_id: int, topic_id: int | None = None) -> list[Message]:
             Message.chat_id == chat_id).options(selectinload('*'))
         if topic_id:  # filter by topic if given
             query = query.filter(Message.topic_id == topic_id)
+        else:  # get general chat messages if no topic given
+            query = query.filter(Message.topic_id == None)
         query = query.order_by(Message.id)
         return query.all()
 
 
+def get_system_message(chat_id: int, topic_id: int | None = None) -> Message:
+    """Get the system message for a chat or topic.
+
+    Args:
+        chat_id (int): The ID of the chat containing the messages.
+        topic_id (int, optional): The ID of the topic containing the messages,
+        if any.
+    """
+
+    return get_message(-(topic_id or 0), chat_id)
+
+
 def delete_messages(chat_id: int, topic_id: Optional[int] = None) -> None:
-    """Delete all messages in a chat or topic.
+    """Delete all messages in a chat or topic. Does not delete system messages.
 
     Args:
         chat_id (int): The ID of the chat containing the messages.
@@ -176,6 +189,7 @@ def delete_messages(chat_id: int, topic_id: Optional[int] = None) -> None:
 
     with Session(db.engine) as session:
         query = session.query(Message).filter(Message.chat_id == chat_id)
+        query = query.filter(Message.id > 0)
         if topic_id:
             query = query.filter(Message.topic_id == topic_id)
         else:
