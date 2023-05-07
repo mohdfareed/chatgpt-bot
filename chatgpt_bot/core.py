@@ -166,30 +166,30 @@ async def _request_completion(model: GPTCompletion, bot: ExtBot,
     try:  # stream the message
         args = request, bot, message_args
         chatgpt_reply, bot_message, text = await _stream_message(*args)
-    except:
+    except Exception as e:
+        logger.error(f"error streaming chatgpt reply: {e}")
         raise
     finally:  # cancel the model request
         model.cancel()
         # store the bot's reply message if sent
-        if not bot_message:
-            return 0
-        db_message = store_message(bot_message)
-        db_message.role = GPTMessage.Role.CHATGPT
-        db_message.finish_reason = FinishReason.UNDEFINED
-        db.add_message(db_message)
-        # fill in message text if generated
-        if text:
-            db_message.text = text
-        db.add_message(db_message)
-        # fill-in chatgpt reply fields if generated
-        if not chatgpt_reply:
-            return 0
-        db_message.finish_reason = chatgpt_reply.finish_reason
-        db_message.prompt_tokens = chatgpt_reply.prompt_tokens
-        db_message.reply_tokens = chatgpt_reply.reply_tokens
-        # store message and return completion usage
-        db.add_message(db_message)
-        return db_message.prompt_tokens + db_message.reply_tokens
+        if bot_message:
+            db_message = store_message(bot_message)
+            db_message.role = GPTMessage.Role.CHATGPT
+            db_message.finish_reason = FinishReason.UNDEFINED
+            db.add_message(db_message)
+            # fill in message text if generated
+            if text:
+                db_message.text = text
+            db.add_message(db_message)
+            # fill-in chatgpt reply fields if generated
+            if not chatgpt_reply:
+                db_message.finish_reason = chatgpt_reply.finish_reason
+                db_message.prompt_tokens = chatgpt_reply.prompt_tokens
+                db_message.reply_tokens = chatgpt_reply.reply_tokens
+            # store message and return completion usage
+                db.add_message(db_message)
+                return db_message.prompt_tokens + db_message.reply_tokens
+    return 0
 
 
 async def _stream_message(request, bot: ExtBot, message_args):
@@ -246,6 +246,9 @@ def _format_text(text: str) -> str:
     }
     # parse the text
     for tag in (html_soup := BeautifulSoup(text, 'html.parser')).find_all():
+        # replace reserved characters with HTML entities
+        for string in tag.strings:
+            string = html.escape(string)
         # remove the tag if it's not valid
         if tag.name not in valid_tags:
             tag.unwrap()
@@ -253,7 +256,4 @@ def _format_text(text: str) -> str:
             for attr in tag.attrs.copy():
                 if attr not in valid_attrs.get(tag.name, []):
                     del tag[attr]
-        # replace reserved characters with HTML entities
-        for string in tag.strings:
-            string.replace_with(html.escape(string))
     return str(html_soup)

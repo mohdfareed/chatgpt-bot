@@ -82,7 +82,6 @@ async def delete_history(update: Update, _: ContextTypes.DEFAULT_TYPE):
     if not update.effective_chat:
         return
 
-    logger.info(f"deleting chat: {update.effective_chat.id}")
     chat_id, topic_id = update.effective_chat.id, None
     if update.effective_message and update.effective_message.is_topic_message:
         topic_id = update.effective_message.message_thread_id
