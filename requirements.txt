@@ -1,9 +1,12 @@
 --extra-index-url https://test.pypi.org/simple/
+# telegram and chatgpt
 chatgpt-mohdfareed
-python-dotenv
 python-telegram-bot
+bs4
 # postgresql
 docker
 psycopg2-binary
 sqlalchemy
 sqlalchemy_utils
+# env
+python-dotenv
