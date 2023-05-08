@@ -3,9 +3,8 @@ executing core module functionality."""
 
 import html
 import re
-from email import message
 
-from chatgpt.messages import Message as GPTMessage
+from chatgpt.types import MessageRole
 from telegram import Update
 from telegram.constants import ParseMode
 from telegram.ext import ApplicationHandlerStop, ContextTypes
@@ -87,9 +86,9 @@ async def delete_history(update: Update, _: ContextTypes.DEFAULT_TYPE):
         topic_id = update.effective_message.message_thread_id
 
     db.delete_messages(chat_id, topic_id)
-    await update.get_bot().send_message(
+    await _.bot.send_message(
         chat_id=update.effective_chat.id,
-        message_thread_id=topic_id,
+        message_thread_id=topic_id,  # type: ignore
         text="Chat history deleted."
     )
     raise ApplicationHandlerStop  # don't handle elsewhere
@@ -113,11 +112,11 @@ async def send_usage(update: Update, _: ContextTypes.DEFAULT_TYPE):
         thread_id = None
 
     user_usage = db.get_user(update.effective_user.id).usage
-    await update.get_bot().send_message(
+    await _.bot.send_message(
         chat_id=update.effective_chat.id,
         text=(f"User usage: {user_usage}\n" +
               f"Chat usage: {chat_usage}"),
-        message_thread_id=thread_id,
+        message_thread_id=thread_id,  # type: ignore
         reply_to_message_id=update.effective_message.message_id
     )
 
@@ -175,7 +174,7 @@ async def edit_sys(update: Update, _: ContextTypes.DEFAULT_TYPE):
     # create new system message
     sys_message = db.get_message(-(topic_id or 0), chat_id)
     sys_message.topic_id = topic_id
-    sys_message.role = GPTMessage.Role.SYSTEM
+    sys_message.role = MessageRole.SYSTEM
     sys_message.text = text
     sys_message.name = name
     db.add_message(sys_message)
@@ -202,9 +201,9 @@ async def get_sys(update: Update, _: ContextTypes.DEFAULT_TYPE):
     if sys_message.text:
         text += f"<code>{html.escape(sys_message.text or '')}</code>"
 
-    await update.get_bot().send_message(
+    await _.bot.send_message(
         chat_id=update.effective_chat.id,
-        message_thread_id=topic_id,
+        message_thread_id=topic_id,  # type: ignore
         text=(text or "No system message found."),
         parse_mode=ParseMode.HTML
     )

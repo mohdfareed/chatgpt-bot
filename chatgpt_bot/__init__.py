@@ -2,9 +2,8 @@
 
 import logging
 import os
-from email.policy import default
 
-from chatgpt.messages import Message as GPTMessage
+from chatgpt.types import GPTMessage, MessageRole
 from dotenv import load_dotenv
 
 _root = os.path.dirname(os.path.realpath(__file__))
@@ -24,7 +23,7 @@ Messages in the chat history are embedded with the following:
 The `<InReplyToID>` is the ID of the message to which the message is replying.
 It is `0` if the message is not a reply or replying to an unknown message.
 Mention a another user with: @username
-Format messages using the following Telegram HTML tags:
+Don't use markdown. Format messages using the following Telegram HTML tags:
 <b>bold</b> <i>italic</i> <u>underline</u> <s>strikethrough</s>
 <tg-spoiler>spoiler</tg-spoiler> <a href="https://example.com">links</a>
 <code>code</code>
@@ -32,7 +31,7 @@ Format messages using the following Telegram HTML tags:
 pre-formatted fixed-width code block written in the Python programming language
 </code></pre>
 """
-bot_prompt = GPTMessage(GPTMessage.Role.SYSTEM, bot_prompt)
+bot_prompt = GPTMessage(bot_prompt, MessageRole.SYSTEM)
 """The main prompt for the bot. It explains the bot's capabilities."""
 
 prompts: dict[str, str] = {}

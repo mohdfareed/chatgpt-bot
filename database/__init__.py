@@ -28,18 +28,18 @@ logger = logging.getLogger(__name__)
 
 # docker database container configuration
 backup_path = os.path.join(_root, 'chatgpt_db.sql')
-container_config = {
-    'image': IMAGE_NAME,
-    'name': CONTAINER_NAME,
-    'environment': {
-        'POSTGRES_USER': USERNAME,
-        'POSTGRES_PASSWORD': PASSWORD,
-        'POSTGRES_DB': DATABASE,
-    },
-    'volumes': {backup_path: {'bind': f'/backup.sql'}},
-    'ports': {'5432': 5432},
-    'detach': True  # run container in background
-}
+container_config = dict(
+    image=IMAGE_NAME,
+    name=CONTAINER_NAME,
+    environment=dict(
+        POSTGRES_USER=USERNAME,
+        POSTGRES_PASSWORD=PASSWORD,
+        POSTGRES_DB=DATABASE,
+    ),
+    volumes={backup_path: dict(bind=f'/backup.sql')},
+    ports={'5432': 5432},
+    detach=True  # run container in background
+)
 
 # validate database environment variables
 if not all([USERNAME, PASSWORD, DATABASE]):

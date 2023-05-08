@@ -37,4 +37,4 @@ if __name__ == "__main__":
     parser.add_argument("-c", "--clean", action="store_true",
                         help="perform a clean setup")
     args = parser.parse_args()
-    main(args.dev)
+    main(args.clean)
