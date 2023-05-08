@@ -46,33 +46,28 @@ async def store_update(update: Update, _: ContextTypes.DEFAULT_TYPE):
     core.store_message(message)
 
 
-async def mention_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Reply to a message."""
-
-    logger.debug("mention_callback")
-    if not (message := update.effective_message):
-        return
-    core.store_message(message)
-
-    if not message.text:
-        return
-    if context.bot.username not in message.text:
-        return
-
-    await core.reply_to_message(message, context.bot)
-
-
 async def private_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Reply to a message."""
+    await store_update(update, context)
 
-    logger.debug("private_callback")
     if not (message := update.effective_message):
         return
     if not message.text:
         return
 
-    core.store_message(message)
-    await core.reply_to_message(message, context.bot)
+    await core.reply_to_message(message)
+
+
+async def mention_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Reply to a message."""
+    await store_update(update, context)
+
+    if not update.effective_message.text:
+        return
+    if context.bot.username not in update.effective_message.text:
+        return
+
+    await private_callback(update, context)
 
 
 async def delete_history(update: Update, _: ContextTypes.DEFAULT_TYPE):
@@ -86,10 +81,8 @@ async def delete_history(update: Update, _: ContextTypes.DEFAULT_TYPE):
         topic_id = update.effective_message.message_thread_id
 
     db.delete_messages(chat_id, topic_id)
-    await _.bot.send_message(
-        chat_id=update.effective_chat.id,
-        message_thread_id=topic_id,  # type: ignore
-        text="Chat history deleted."
+    await update.effective_message.reply_html(
+        text="<code>Chat history deleted.</code>"
     )
     raise ApplicationHandlerStop  # don't handle elsewhere
 
@@ -97,27 +90,23 @@ async def delete_history(update: Update, _: ContextTypes.DEFAULT_TYPE):
 async def send_usage(update: Update, _: ContextTypes.DEFAULT_TYPE):
     """Send usage instructions."""
 
-    if not update.effective_message:
+    if not (message := update.effective_message):
         return
 
-    if (update.effective_message.is_topic_message and
-            update.effective_message.message_thread_id):
+    thread_id: int = None  # type: ignore
+    if message.is_topic_message and message.message_thread_id:
         chat_usage = db.get_topic(
-            update.effective_message.message_thread_id,
-            update.effective_chat.id
+            message.message_thread_id,
+            message.chat_id
         ).usage
-        thread_id = update.effective_message.message_thread_id
+        thread_id = message.message_thread_id
     else:
         chat_usage = db.get_chat(update.effective_chat.id).usage
-        thread_id = None
 
     user_usage = db.get_user(update.effective_user.id).usage
-    await _.bot.send_message(
-        chat_id=update.effective_chat.id,
-        text=(f"User usage: {user_usage}\n" +
-              f"Chat usage: {chat_usage}"),
-        message_thread_id=thread_id,  # type: ignore
-        reply_to_message_id=update.effective_message.message_id
+    await update.effective_message.reply_html(
+        text=(f"<code>User usage: {user_usage}\n" +
+              f"Chat usage: {chat_usage}</code>")
     )
 
 
@@ -207,3 +196,16 @@ async def get_sys(update: Update, _: ContextTypes.DEFAULT_TYPE):
         text=(text or "No system message found."),
         parse_mode=ParseMode.HTML
     )
+
+
+async def cancel_reply(update: Update, _: ContextTypes.DEFAULT_TYPE):
+    if not update.effective_chat or not (msg := update.effective_message):
+        return
+
+    if msg.reply_to_message:
+        cancelled = await core.cancel_reply(msg.reply_to_message)
+    else:
+        cancelled = await core.cancel_all(msg)
+    # react to message
+    if cancelled:
+        await msg.reply_html(text="<code>Cancelled.</code>")

@@ -18,12 +18,10 @@ logger: logging.Logger = logging.getLogger(__name__)
 """The bot logger."""
 
 bot_prompt = """
-Messages in the chat history are embedded with the following:
-<MessageID>-<InReplyToID>-<Username>
-The `<InReplyToID>` is the ID of the message to which the message is replying.
-It is `0` if the message is not a reply or replying to an unknown message.
-Mention a another user with: @username
-Don't use markdown. Format messages using the following Telegram HTML tags:
+Messages are followed by <message id>-<reply id>-<username>.
+Reply ID is 0 if the message is not a reply or replying to an unknown message.
+You cannot use Markdown. Mention a another user with: @username
+Format messages using the following Telegram HTML tags:
 <b>bold</b> <i>italic</i> <u>underline</u> <s>strikethrough</s>
 <tg-spoiler>spoiler</tg-spoiler> <a href="https://example.com">links</a>
 <code>code</code>

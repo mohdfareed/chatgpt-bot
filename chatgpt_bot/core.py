@@ -3,7 +3,7 @@
 import asyncio
 import html
 import re
-import time
+from typing import AsyncGenerator
 
 from bs4 import BeautifulSoup
 from chatgpt.completion import ChatCompletion
@@ -13,7 +13,6 @@ from chatgpt.types import GPTChat, GPTMessage, GPTReply, MessageRole
 from telegram import Message
 from telegram.constants import ChatAction, ParseMode
 from telegram.error import TelegramError
-from telegram.ext import ExtBot
 
 from chatgpt_bot import DEFAULT_PROMPT, bot_prompt, logger, prompts, utils
 from database import models
@@ -21,6 +20,37 @@ from database import utils as db
 
 _edit_timer = .0
 """Timer since the last edit message request."""
+_requests: dict[str, AsyncGenerator] = dict()
+"""Dictionary of reply generators."""
+
+
+async def cancel_reply(message: Message) -> bool:
+    """Cancel a reply to a message."""
+
+    # cancel reply request
+    reply = _requests.get(_get_request_id(message), None)
+    if not reply:
+        return False
+    await reply.aclose()
+    del _requests[_get_request_id(message)]
+    return True
+
+
+async def cancel_all(message: Message) -> bool:
+    """Cancel all requests in chat or topic of message."""
+
+    # get request id pattern
+    pattern = f"{message.chat_id}:"
+    if message.is_topic_message:
+        pattern += f"{message.message_thread_id}:"
+    # cancel all requests with pattern
+    has_cancelled = False
+    for request_id, reply in _requests.copy().items():
+        if request_id.startswith(pattern):
+            await reply.aclose()
+            del _requests[request_id]
+            has_cancelled = True
+    return has_cancelled
 
 
 def store_message(message: Message) -> models.Message:
@@ -42,82 +72,48 @@ def store_message(message: Message) -> models.Message:
     return db_message
 
 
-async def reply_to_message(message: Message, bot: ExtBot):
+async def reply_to_message(message: Message):
     """Reply to a message using a bot."""
 
-    # bot message arguments
-    message_args = dict()
-    message_args['chat_id'] = message.chat_id
-    message_args['reply_to_message_id'] = message.message_id
-    message_args['message_thread_id'] = None
-    message_args['parse_mode'] = ParseMode.HTML
-    if message.is_topic_message and message.message_thread_id:
-        message_args['message_thread_id'] = message.message_thread_id
-
     # set typing status
-    await bot.send_chat_action(
-        chat_id=message_args['chat_id'],
-        message_thread_id=message_args['message_thread_id'],  # type: ignore
-        action=ChatAction.TYPING
-    )
-
+    topic_id: int = None  # type: ignore
+    if message.is_topic_message and message.message_thread_id:
+        topic_id = message.message_thread_id
+    await message.chat.send_action(ChatAction.TYPING, topic_id)
     # set model and chat history
     model = ChatGPT()
     model.temperature = 1.25
-    gpt_chat: GPTChat = _get_history(
-        message.chat_id,
-        message_args['message_thread_id']
-    )
+    gpt_chat: GPTChat = _get_history(message.chat_id, topic_id)
     gpt_chat.insert(0, bot_prompt)
-
-    try:  # stream the reply
-        chatgpt = ChatCompletion(model)
-        usage = await _stream_completion(chatgpt, bot, gpt_chat, message_args)
-    except ConnectionError as e:
-        msg = "Connection to OpenAI lost..."
-        return await bot.send_message(**message_args, text=msg)
-    except TokenLimitError as e:
-        msg = "Context limit reached."
-        return await bot.send_message(**message_args, text=msg)
-    except CompletionError as e:
-        msg = "Failed to request completion."
-        return await bot.send_message(**message_args, text=msg)
-    except TelegramError as e:
-        logger.error(f"telegram error replying to message: {e}")
-        msg = "Failed to stream reply to Telegram."
-        return bot.send_message(**message_args, text=msg)
-    except Exception as e:
-        logger.error(f"unknown error replying to message: {e}")
-        raise
+    # stream the reply
+    chatgpt = ChatCompletion(model)
+    usage = await _stream_reply(chatgpt, message, gpt_chat)
 
     # count usage towards the user
     if user := db.get_user(message.from_user.id):
         user.usage = usage if not user.usage else user.usage + usage
         db.add_user(user)
-    # count usage towards the topic, if any
-    if topic_id := message_args['message_thread_id']:
-        if topic := db.get_topic(topic_id, message.chat_id):
-            topic.usage = usage if not topic.usage else topic.usage + usage
-            db.add_topic(topic)
-    else:  # count usage towards the chat if no topic
+    # count usage towards the chat if not a topic message
+    if not topic_id:
         chat = db.get_chat(message.chat_id)
         chat.usage = usage if not chat.usage else chat.usage + usage
         db.add_chat(chat)
+    # count usage towards the topic if a topic message
+    else:
+        topic = db.get_topic(topic_id, message.chat_id)
+        topic.usage = usage if not topic.usage else topic.usage + usage
+        db.add_topic(topic)
 
 
 def _get_history(chat_id, topic_id) -> GPTChat:
     # load chat history from database
     db_messages = db.get_messages(chat_id, topic_id)
-    ids = {}  # map of local message ids to global message ids
-    id = 0  # id counter
-
     # construct chatgpt messages
     chatgpt_messages: list[GPTMessage] = []
     has_system_message = False
     for db_message in db_messages:
         if not db_message.text:
             continue
-
         # construct system message
         if db_message.role == MessageRole.SYSTEM:
             chatgpt_messages.append(GPTMessage(
@@ -127,27 +123,16 @@ def _get_history(chat_id, topic_id) -> GPTChat:
             ))
             has_system_message = True
             continue
-
         # create metadata
-        ids[db_message.id] = (id := id+1)
-        try:  # add reply id to metadata
-            reply_id = ids[db_message.reply_id]
-        except KeyError:
-            reply_id = 0
-        # add username to metadata
         if db_message.user and db_message.user.username:
             username = db_message.user.username
             username = re.sub(r'^[^a-zA-Z0-9_-]{1,64}$', '', username)
         else:
             username = 'unknown'
-        metadata = f"{id}-{reply_id}-{username}"
-
-        # create message
-        chatgpt_messages.append(GPTMessage(
-            db_message.text,
-            db_message.role,
-            name=metadata
-        ))
+        metadata = f"{id}-{db_message.reply_id}-{username}"
+        # create message and its metadata
+        chatgpt_messages.append(GPTMessage(db_message.text, db_message.role))
+        chatgpt_messages.append(GPTMessage(metadata, MessageRole.SYSTEM))
 
     # add default system message if none
     if not has_system_message:
@@ -159,21 +144,26 @@ def _get_history(chat_id, topic_id) -> GPTChat:
     return GPTChat(chatgpt_messages)
 
 
-async def _stream_completion(chat: ChatCompletion, bot: ExtBot,
-                             chat_history: GPTChat, message_args) -> int:
-    # openai completion request and bot message
-    request = chat.stream(chat_history)
-    bot_message: Message = None  # type: ignore
-    chatgpt_reply: GPTReply = None  # type: ignore
+async def _stream_reply(chat: ChatCompletion, message, history) -> int:
+    global _requests
+    # openai completion request
+    request = chat.stream(history)
+    # streamed output
+    chatgpt_reply: GPTReply | None = None
+    bot_message: Message | None = None
 
     # get the model reply and the bot message when ready
     logger.debug('streaming chatgpt reply...')
     try:  # stream the message
-        args = request, bot, message_args
-        chatgpt_reply, bot_message = await _stream_message(*args)
+        chatgpt_reply, bot_message = await _stream_message(request, message)
+    except Exception as e:
+        await _handle_streaming_exception(e, bot_message)
     finally:  # cancel the model request
-        request.aclose()
+        if not bot_message:
+            return 0
+        await cancel_reply(bot_message)
 
+    # store the reply in the database
     db_message = store_message(bot_message)
     db_message.role = chatgpt_reply.role
     db_message.finish_reason = chatgpt_reply.finish_reason
@@ -184,48 +174,34 @@ async def _stream_completion(chat: ChatCompletion, bot: ExtBot,
     return db_message.prompt_tokens + db_message.reply_tokens
 
 
-async def _stream_message(request, bot: ExtBot, message_args):
-    global _edit_timer
+async def _stream_message(request: AsyncGenerator, message: Message):
+    global _edit_timer, _requests
 
-    chatgpt_reply = GPTReply("")
-    bot_message: Message = None  # type: ignore
-    last_message = None
-
+    reply = GPTReply("")
+    bot_message: Message | None = None
+    last_message = ""
     # send message packets in chunks
     chunk_size = 10
     chunk_counter = 0
 
-    async for packet in request:
-        chunk_counter += 1
-        chatgpt_reply = packet
-        # wait for the chunk to be filled
-        if chunk_counter % chunk_size != 0:
-            continue
-        # send the message chunk formatted as markdown
-        html = _format_text(str(chatgpt_reply))
-
-        if not bot_message:  # send initial message
-            bot_message = await bot.send_message(**message_args, text=html)
-            last_message = html
-        # update the bot message if text changed
-        elif html != last_message:
-            # TODO: prevent flood wait errors
-            if (elapsed_time := time.monotonic() - _edit_timer) < 1:
-                await asyncio.sleep(1 - elapsed_time)
-            _edit_timer = time.monotonic()
-            # edit the bot message
-            await bot_message.edit_text(
-                text=html, parse_mode=message_args['parse_mode']
+    try:  # send the message chunks
+        async for packet in request:
+            chunk_counter += 1
+            reply = packet if isinstance(packet, GPTReply) else reply
+            # wait for the chunk to be filled
+            if chunk_counter % chunk_size != 0:
+                continue
+            # send the chunk
+            chunk_counter = 0
+            bot_message, last_message = await _send_chunk(
+                reply, bot_message or message, last_message, request
             )
-            last_message = html
-        chunk_counter = 0
-
-    # add the final message chunk
-    if (html := _format_text(str(chatgpt_reply))) != last_message:
-        await bot_message.edit_text(
-            text=html, parse_mode=message_args['parse_mode']
+    finally:
+        # send the final message chunk
+        bot_message, _ = await _send_chunk(
+            reply, bot_message or message, last_message, request
         )
-    return chatgpt_reply, bot_message
+        return reply, bot_message
 
 
 def _format_text(text: str) -> str:
@@ -250,3 +226,47 @@ def _format_text(text: str) -> str:
                 if attr not in valid_attrs.get(tag.name, []):
                     del tag[attr]
     return str(html_soup)
+
+
+def _get_request_id(message: Message) -> str:
+    topic_id = None
+    if message.is_topic_message:
+        topic_id = message.message_thread_id
+    return f"{message.chat.id}:{topic_id or ''}:{message.message_id}"
+
+
+async def _send_chunk(reply, message: Message, last_message: str, request):
+    # send the new message formatted as markdown
+    html = _format_text(str(reply))
+    if html == last_message:  # check if the message changed
+        return message, last_message
+
+     # send initial message
+    if not message.from_user.is_bot:
+        message = await message.reply_html(text=html)
+        _requests[_get_request_id(message)] = request  # store request
+        last_message = html
+    else:  # update the bot message by editing it
+        await asyncio.sleep(0.1)  # prevent flood wait error
+        await message.edit_text(html, parse_mode=ParseMode.HTML)
+        last_message = html
+    return message, last_message
+
+
+async def _handle_streaming_exception(e: Exception, bot_msg) -> None:
+    msg = None
+    try:
+        if isinstance(e, ConnectionError):
+            msg = "Connection to OpenAI lost..."
+        elif isinstance(e, TokenLimitError):
+            msg = "Context limit reached."
+        elif isinstance(e, (CompletionError, TelegramError)):
+            logger.error(f"streaming error: {e}")
+            msg = "Error generating reply..."
+        else:
+            logger.error(f"unknown error: {e}")
+            msg = "Unknown error encountered."
+            raise e
+    finally:
+        if isinstance(bot_msg, Message) and msg:
+            await bot_msg.reply_html(text=msg)

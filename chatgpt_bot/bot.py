@@ -6,9 +6,7 @@ from telegram.ext import (Application, CommandHandler, ContextTypes,
                           MessageHandler, filters)
 
 from chatgpt_bot import BOT_TOKEN, logger
-from chatgpt_bot.handlers import (delete_history, dummy_callback, edit_sys,
-                                  get_sys, mention_callback, private_callback,
-                                  send_usage, store_update)
+from chatgpt_bot.handlers import *
 
 
 def run():
@@ -25,6 +23,7 @@ def run():
     app.add_handler(CommandHandler('start', dummy_callback))
     app.add_handler(CommandHandler('sys', get_sys))
     app.add_handler(CommandHandler('edit', edit_sys))
+    app.add_handler(CommandHandler('cancel', cancel_reply))
 
     # add message handlers
     app.add_handler(MessageHandler(
