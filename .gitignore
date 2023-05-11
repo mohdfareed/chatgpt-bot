@@ -1,6 +1,6 @@
 *__pycache__*
 .venv/
 .vscode/
-*.sql
-*.env
-*.log
+logs/
+.env
+fly.toml

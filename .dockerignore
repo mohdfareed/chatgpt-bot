@@ -1,0 +1,13 @@
+**
+# build files
+!dockerfile
+!requirements.txt
+# chatgpt bot
+!/chatgpt_bot/**
+!/chatgpt_bot/
+# database
+!/database/**
+!/database/
+# scripts
+!/scripts/**
+!/scripts/

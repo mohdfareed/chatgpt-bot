@@ -4,11 +4,6 @@ import os
 import sys
 from datetime import datetime
 
-# set working directory to the directory of this project
-os.chdir(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
-# add the project directory to the path
-sys.path.append(os.getcwd())
-
 
 def main(debug: bool = False, log: bool = False, clean: bool = False) -> None:
     """Instantiates and runs the app. This function sets up logging and
@@ -19,6 +14,8 @@ def main(debug: bool = False, log: bool = False, clean: bool = False) -> None:
         log (bool, optional): Whether to log to a file. Defaults to console.
         clean (bool, optional): Whether to start a clean database.
     """
+    print(f"\033[0;32m{'starting chatgpt bot...'}\033[0m")
+    _setup()
 
     if log:  # set up logging to file
         logs_dir = os.path.join(os.getcwd(), "logs")
@@ -43,6 +40,16 @@ def main(debug: bool = False, log: bool = False, clean: bool = False) -> None:
     finally:
         db.stop()
 
+def _setup():
+    """Sets up the environment for the bot."""
+    from dotenv import load_dotenv
+
+    # set working directory to the directory of this project
+    os.chdir(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+    # add the bot directory to the path
+    sys.path.append(os.getcwd())
+    # load environment variables
+    load_dotenv()
 
 if __name__ == "__main__":
     import argparse
