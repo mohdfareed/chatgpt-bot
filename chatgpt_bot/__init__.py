@@ -4,15 +4,11 @@ import logging
 import os
 
 from chatgpt.types import GPTMessage, MessageRole
-from dotenv import load_dotenv
 
 _root = os.path.dirname(os.path.realpath(__file__))
-load_dotenv()
 
-BOT_TOKEN = os.getenv('BOT_TOKEN', '')
+BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', '')
 """Telegram bot token."""
-OPENAI_KEY = os.getenv('OPENAI_KEY', '')
-"""OpenAI API key."""
 
 logger: logging.Logger = logging.getLogger(__name__)
 """The bot logger."""
@@ -38,7 +34,7 @@ DEFAULT_PROMPT: str = 'Default'
 """The default system prompt to use."""
 
 if not BOT_TOKEN:
-    raise ValueError("'BOT_TOKEN' environment variable not set")
+    raise ValueError("'TELEGRAM_BOT_TOKEN' environment variable not set")
 
 # parse pre-made prompts
 prompts[DEFAULT_PROMPT] = ""

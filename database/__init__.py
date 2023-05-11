@@ -3,19 +3,16 @@
 import logging
 import os
 
-from dotenv import load_dotenv
-
 _root = os.path.dirname(os.path.realpath(__file__))
-load_dotenv()
 
 # postgres
-USERNAME = os.getenv('DATABASE_USER', '')
-"""The database user."""
-PASSWORD = os.getenv('DATABASE_PASSWORD', '')
+_PASSWORD = os.environ.get('DB_PASSWORD', '')
 """The database password."""
-DATABASE = os.getenv('DATABASE_NAME', '')
+DATABASE = 'chatgpt-db'
 """The database name."""
-URL = f"postgresql://{USERNAME}:{PASSWORD}@localhost/{DATABASE}"
+USERNAME = 'chatgpt'
+"""The database user."""
+URL = f"postgresql://{USERNAME}:{_PASSWORD}@localhost/{DATABASE}"
 """The database URL."""
 # docker
 IMAGE_NAME = 'postgres:latest'  # official postgres image
@@ -32,15 +29,14 @@ container_config = dict(
     image=IMAGE_NAME,
     name=CONTAINER_NAME,
     environment=dict(
-        POSTGRES_USER=USERNAME,
-        POSTGRES_PASSWORD=PASSWORD,
         POSTGRES_DB=DATABASE,
+        POSTGRES_USER=USERNAME,
+        POSTGRES_PASSWORD=_PASSWORD
     ),
     volumes={backup_path: dict(bind=f'/backup.sql')},
     ports={'5432': 5432},
     detach=True  # run container in background
 )
 
-# validate database environment variables
-if not all([USERNAME, PASSWORD, DATABASE]):
-    raise ValueError("environment variables not set")
+if not _PASSWORD:
+    raise ValueError("'DB_PASSWORD' environment variable not set")
