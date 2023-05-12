@@ -7,8 +7,11 @@ ChatGPT interface using Telegram's bot API. The bot is currently hosted at
 
 ### Requirements
 
-- Python
-- Docker
+The following environment variables are required:
+
+- `OPENAI_API_KEY`
+- `TELEGRAM_BOT_TOKEN`
+- `DATABASE_URL`: Postgres database URL
 
 ### Installation
 
@@ -26,12 +29,37 @@ Fill in the provided example environment file and renamed it to `.env`.
 
 ### For local development
 
-If developing `chatgpt` alongside the bot locally, run:
+If developing `chatgpt` with the bot locally, install local `chatgpt` using:
 
 ```sh
 cd path/to/chatgpt-telegram
 source .venv/bin/activate
 pip install -e /path/to/chatgpt
+```
+
+Run Postgres database docker container at `localhost:5432` if not already
+running using:
+
+```sh
+docker run -d -p 5432:5432 -e POSTGRES_PASSWORD={db_password} \
+--name chatgpt-db postgres
+```
+
+Set the following environment variables in `.env`:
+
+```sh
+OPENAI_API_KEY='sk-{...}'
+TELEGRAM_BOT_TOKEN='{...}:{...}'
+DATABASE_URL="postgresql://postgres:{db_password}@localhost/postgres"
+PYTHONPATH='/path/to/chatgpt'
+```
+
+Run the bot using the container:
+
+```sh
+cd path/to/chatgpt-telegram
+docker build -t chatgpt-bot .
+docker run --rm --env-file .env chatgpt-bot
 ```
 
 ## Usage
@@ -48,6 +76,31 @@ source .venv/bin/activate
 - `--log`: flag will log messages to a file. Defaults to logging to stdout.
 - `--clean`: flag will remove the existing database docker container and will
     not restore the database from a backup.
+
+### Deployment to [Fly.io](https://fly.io)
+
+The bot is deployed to Fly.io using GitHub Actions. To deploy the bot to Fly.io
+manually, install
+[Fly CLI](https://fly.io/docs/getting-started/installing-flyctl/), configure
+`fly.toml` file, and run:
+
+```sh
+cd path/to/chatgpt-telegram
+fly auth signup # `fly auth login` if already signed up
+fly launch  # `fly deploy` if already launched
+```
+
+Deployment is triggered on push to the `deploy` branch. The following repo
+secrets are required:
+
+- `FLY_API_TOKEN`
+- `FLY_APP_NAME`
+
+The app on Fly.io needs to have the following environment variables set:
+
+- `OPENAI_API_KEY`
+- `TELEGRAM_BOT_TOKEN`
+- `DATABASE_URL`
 
 ## Database
 
