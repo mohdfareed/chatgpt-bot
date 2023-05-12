@@ -2,13 +2,23 @@
 
 import logging
 import os
-
 from chatgpt.types import GPTMessage, MessageRole
-
-_root = os.path.dirname(os.path.realpath(__file__))
 
 BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', '')
 """Telegram bot token."""
+WEBHOOK_ADDR = os.getenv('WEBHOOK_ADDR', '')
+"""Telegram webhook IP address."""
+WEBHOOK_PORT = int(os.getenv('WEBHOOK_PORT', '-1'))
+"""Telegram webhook port."""
+WEBHOOK = os.getenv('WEBHOOK', '')
+"""Telegram webhook URL."""
+DEV = False
+"""Whether the bot is running in development mode."""
+
+if not BOT_TOKEN:
+    raise ValueError("environment variables not set")
+if not all([WEBHOOK_ADDR, (False if WEBHOOK_PORT < 0 else True), WEBHOOK]):
+    DEV = True
 
 logger: logging.Logger = logging.getLogger(__name__)
 """The bot logger."""
@@ -33,10 +43,9 @@ prompts: dict[str, str] = {}
 DEFAULT_PROMPT: str = 'Default'
 """The default system prompt to use."""
 
-if not BOT_TOKEN:
-    raise ValueError("'TELEGRAM_BOT_TOKEN' environment variable not set")
 
 # parse pre-made prompts
+_root = os.path.dirname(os.path.realpath(__file__))
 prompts[DEFAULT_PROMPT] = ""
 with open(os.path.join(_root, 'prompts.txt'), 'r') as _f:
     prompt = DEFAULT_PROMPT

@@ -1,11 +1,13 @@
 """The ChatGPT Telegram bot. This module contains the bot's entry point. It
 manages the bot's lifecycle and tunneling updates to the handlers."""
 
+import secrets
+
 from telegram.constants import MessageEntityType
 from telegram.ext import (Application, CommandHandler, ContextTypes,
                           MessageHandler, filters)
 
-from chatgpt_bot import BOT_TOKEN, logger
+from chatgpt_bot import BOT_TOKEN, WEBHOOK, WEBHOOK_ADDR, WEBHOOK_PORT, DEV
 from chatgpt_bot.handlers import *
 
 
@@ -40,7 +42,16 @@ def run():
     ))
 
     # start the bot
-    app.run_polling()
+    if not DEV:
+        app.run_webhook(
+            listen=WEBHOOK_ADDR,
+            port=WEBHOOK_PORT,
+            webhook_url=WEBHOOK,
+            secret_token=secrets.token_hex(32)
+        )
+    else:  # run in polling mode for development
+        logger.warning("running in development mode")
+        app.run_polling()
     logger.info("telegram bot has stopped")
 
 

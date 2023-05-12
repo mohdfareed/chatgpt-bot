@@ -40,6 +40,7 @@ def main(debug: bool = False, log: bool = False, clean: bool = False) -> None:
     finally:
         db.stop()
 
+
 def _setup():
     """Sets up the environment for the bot."""
     from dotenv import load_dotenv
@@ -49,7 +50,8 @@ def _setup():
     # add the bot directory to the path
     sys.path.append(os.getcwd())
     # load environment variables
-    load_dotenv()
+    load_dotenv(override=True)
+
 
 if __name__ == "__main__":
     import argparse

@@ -90,11 +90,8 @@ fly auth signup # `fly auth login` if already signed up
 fly launch  # `fly deploy` if already launched
 ```
 
-Deployment is triggered on push to the `deploy` branch. The following repo
-secrets are required:
-
-- `FLY_API_TOKEN`
-- `FLY_APP_NAME`
+Deployment is triggered on push to the `deployment` branch. The following repo
+secrets is required: `FLY_API_TOKEN`
 
 The app on Fly.io needs to have the following environment variables set:
 

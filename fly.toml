@@ -1,8 +1,10 @@
+# app config
 app = "chatgpt-telegram-bot"
 primary_region = "ewr"  # Secaucus, NJ
 
+# webhook
 [http_service]
-  internal_port = 8080
-  force_https = true
-  auto_stop_machines = true
-  auto_start_machines = true
+[env]
+  WEBHOOK_ADDR = "0.0.0.0"
+  WEBHOOK_PORT = "8080"
+  WEBHOOK = "https://chatgpt-telegram-bot.fly.dev/"
