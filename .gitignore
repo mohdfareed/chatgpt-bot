@@ -3,4 +3,3 @@
 .vscode/
 logs/
 .env
-fly.toml
