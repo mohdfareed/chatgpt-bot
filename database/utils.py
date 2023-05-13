@@ -13,7 +13,7 @@ from psycopg2 import OperationalError
 from database.models import Chat, Message, Topic, User
 
 _retry_on_db_error = tenacity.retry(
-    wait=tenacity.wait_fixed(1),
+    wait=tenacity.wait_fixed(0.1),
     stop=tenacity.stop_after_attempt(5),
     retry=tenacity.retry_if_exception_type(OperationalError),
     before_sleep=tenacity.before_sleep_log(logger, logging.WARN),
