@@ -32,7 +32,7 @@ def main(debug: bool = False, log: bool = False, clean: bool = False) -> None:
     import database.core as db
     from chatgpt_bot import bot
     try:  # start the database and run the bot
-        db.start(clean)
+        db.start()
         bot.run()
     except Exception as e:
         print(f"\033[0;31m{'error:'}\033[0m {e}")

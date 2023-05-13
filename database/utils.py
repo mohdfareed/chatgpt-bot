@@ -2,26 +2,13 @@
 objects in the database."""
 
 from typing import Optional
-import logging
 
-import tenacity
 from sqlalchemy.orm import Session, selectinload
 
 from database import core as db
-from database import logger
-from psycopg2 import OperationalError
 from database.models import Chat, Message, Topic, User
 
-_retry_on_db_error = tenacity.retry(
-    wait=tenacity.wait_fixed(0.1),
-    stop=tenacity.stop_after_attempt(5),
-    retry=tenacity.retry_if_exception_type(OperationalError),
-    before_sleep=tenacity.before_sleep_log(logger, logging.WARN),
-    reraise=True
-)
 
-
-@_retry_on_db_error
 def get_chat(chat_id: int) -> Chat:
     """Get the chat with the given ID if it exists.
 
@@ -32,11 +19,11 @@ def get_chat(chat_id: int) -> Chat:
         Chat: The chat with the given ID, or a new chat if it does not exist.
     """
 
+    db.validate_connection()
     with Session(db.engine) as session:
         return session.get(Chat, chat_id) or Chat(id=chat_id)
 
 
-@_retry_on_db_error
 def add_chat(chat: Chat) -> None:
     """Add a new chat or update an existing one.
 
@@ -44,12 +31,12 @@ def add_chat(chat: Chat) -> None:
         chat (Chat): The chat to add or update.
     """
 
+    db.validate_connection()
     with Session(db.engine) as session:
         session.merge(chat)
         session.commit()
 
 
-@_retry_on_db_error
 def get_topic(topic_id: int, chat_id: int) -> Topic:
     """Get the forum topic with the given chat ID and topic ID if it exists.
 
@@ -62,13 +49,13 @@ def get_topic(topic_id: int, chat_id: int) -> Topic:
         it does not exist.
     """
 
+    db.validate_connection()
     # get new topic if topic doesn't exist
     with Session(db.engine) as session:
         return (session.get(Topic, (chat_id, topic_id)) or
                 Topic(id=topic_id, chat_id=chat_id))
 
 
-@_retry_on_db_error
 def add_topic(topic: Topic) -> None:
     """Add or update a forum topic.
 
@@ -76,6 +63,7 @@ def add_topic(topic: Topic) -> None:
         topic (Topic): The topic to add or update.
     """
 
+    db.validate_connection()
     # create chat if none exists
     if not topic.chat:
         topic.chat = Chat(id=topic.chat_id)
@@ -85,7 +73,6 @@ def add_topic(topic: Topic) -> None:
         session.commit()
 
 
-@_retry_on_db_error
 def get_user(user_id: int) -> User:
     """Get the user with the given ID if it exists.
 
@@ -96,11 +83,11 @@ def get_user(user_id: int) -> User:
         User: The user with the given ID, or a new user if it does not exist.
     """
 
+    db.validate_connection()
     with Session(db.engine) as session:
         return session.get(User, user_id) or User(id=user_id)
 
 
-@_retry_on_db_error
 def add_user(user: User) -> None:
     """Add or update a user.
 
@@ -108,12 +95,12 @@ def add_user(user: User) -> None:
         user (User): The user to add or update.
     """
 
+    db.validate_connection()
     with Session(db.engine) as session:
         session.merge(user)
         session.commit()
 
 
-@_retry_on_db_error
 def get_message(message_id: int, chat_id: int) -> Message:
     """Get the message with the given ID and chat ID if it exists.
 
@@ -126,12 +113,12 @@ def get_message(message_id: int, chat_id: int) -> Message:
         it does not exist.
     """
 
+    db.validate_connection()
     with Session(db.engine) as session:
         return (session.get(Message, (message_id, chat_id)) or
                 Message(id=message_id, chat_id=chat_id))
 
 
-@_retry_on_db_error
 def add_message(message: Message) -> None:
     """Add or update a message. Creates new chat if none exists. It created new
     user, chat, topic, and reply message objects if any do not exist.
@@ -140,6 +127,7 @@ def add_message(message: Message) -> None:
         message (Message): The message to add or update.
     """
 
+    db.validate_connection()
     # create chat if none exists
     message.chat = get_chat(message.chat_id)
     # create topic if none exists
@@ -164,7 +152,6 @@ def add_message(message: Message) -> None:
         session.commit()
 
 
-@_retry_on_db_error
 def get_messages(chat_id: int, topic_id: int | None = None) -> list[Message]:
     """Get all messages in a chat or topic. The messages are sorted by their
     message ID.
@@ -175,6 +162,7 @@ def get_messages(chat_id: int, topic_id: int | None = None) -> list[Message]:
         if any.
     """
 
+    db.validate_connection()
     with Session(db.engine) as session:
         # load all messages in chat
         query = session.query(Message).filter(
@@ -187,7 +175,6 @@ def get_messages(chat_id: int, topic_id: int | None = None) -> list[Message]:
         return query.all()
 
 
-@_retry_on_db_error
 def get_system_message(chat_id: int, topic_id: int | None = None) -> Message:
     """Get the system message for a chat or topic.
 
@@ -197,10 +184,10 @@ def get_system_message(chat_id: int, topic_id: int | None = None) -> Message:
         if any.
     """
 
+    db.validate_connection()
     return get_message(-(topic_id or 0), chat_id)
 
 
-@_retry_on_db_error
 def delete_messages(chat_id: int, topic_id: Optional[int] = None) -> None:
     """Delete all messages in a chat or topic. Does not delete system messages.
 
@@ -210,6 +197,7 @@ def delete_messages(chat_id: int, topic_id: Optional[int] = None) -> None:
         if any.
     """
 
+    db.validate_connection()
     with Session(db.engine) as session:
         query = session.query(Message).filter(Message.chat_id == chat_id)
         query = query.filter(Message.id > 0)
