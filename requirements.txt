@@ -4,7 +4,6 @@ chatgpt-mohdfareed
 python-telegram-bot[webhooks]
 beautifulsoup4
 # database
-docker
 psycopg2-binary
 sqlalchemy
 sqlalchemy_utils

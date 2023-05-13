@@ -1,28 +1,16 @@
 """Database core functionality. It is responsible for managing the database
 within a Docker container."""
 
-import logging
-
 import tenacity
 from sqlalchemy import Engine, create_engine
-from sqlalchemy_utils import database_exists
 
 from database import URL, logger
 from database.models import Base
-
-_retry_on_db_error = tenacity.retry(
-    wait=tenacity.wait_fixed(1),
-    stop=tenacity.stop_after_attempt(5),
-    retry=tenacity.retry_if_exception_type(ConnectionError),
-    before_sleep=tenacity.before_sleep_log(logger, logging.INFO),
-    reraise=True
-)
 
 engine: Engine
 """The database engine."""
 
 
-@_retry_on_db_error
 def start() -> None:
     """Initialize the database in a Docker container."""
     global engine
@@ -43,7 +31,13 @@ def stop() -> None:
     logger.info("database has stopped")
 
 
-@_retry_on_db_error
+@tenacity.retry(
+    # retry every second for 5 seconds on connection errors
+    wait=tenacity.wait_fixed(1),
+    stop=tenacity.stop_after_attempt(5),
+    retry=tenacity.retry_if_exception_type(ConnectionError),
+    reraise=True
+)
 def validate_connection() -> None:
     """Check if the database is connected.
 

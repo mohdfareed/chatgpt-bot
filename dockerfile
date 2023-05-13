@@ -9,4 +9,4 @@ COPY requirements.txt ./
 RUN pip install -r requirements.txt
 # start the bot
 COPY scripts ./scripts
-CMD [ "python", "scripts/start.py", "--debug" ]
+CMD [ "python", "scripts/start.py" ]
