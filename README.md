@@ -49,7 +49,7 @@ Set the following environment variables in `.env`:
 
 ```sh
 OPENAI_API_KEY='sk-{...}'
-TELEGRAM_BOT_TOKEN='{...}:{...}'
+TELEGRAM_BOT_TOKEN='{...}:{...}'  # use separate token for development
 DATABASE_URL="postgresql://postgres:{db_password}@localhost/postgres"
 PYTHONPATH='/path/to/chatgpt'
 ```

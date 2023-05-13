@@ -2,13 +2,26 @@
 objects in the database."""
 
 from typing import Optional
+import logging
 
+import tenacity
 from sqlalchemy.orm import Session, selectinload
 
 from database import core as db
+from database import logger
+from psycopg2 import OperationalError
 from database.models import Chat, Message, Topic, User
 
+_retry_on_db_error = tenacity.retry(
+    wait=tenacity.wait_fixed(1),
+    stop=tenacity.stop_after_attempt(5),
+    retry=tenacity.retry_if_exception_type(OperationalError),
+    before_sleep=tenacity.before_sleep_log(logger, logging.WARN),
+    reraise=True
+)
 
+
+@_retry_on_db_error
 def get_chat(chat_id: int) -> Chat:
     """Get the chat with the given ID if it exists.
 
@@ -23,6 +36,7 @@ def get_chat(chat_id: int) -> Chat:
         return session.get(Chat, chat_id) or Chat(id=chat_id)
 
 
+@_retry_on_db_error
 def add_chat(chat: Chat) -> None:
     """Add a new chat or update an existing one.
 
@@ -35,6 +49,7 @@ def add_chat(chat: Chat) -> None:
         session.commit()
 
 
+@_retry_on_db_error
 def get_topic(topic_id: int, chat_id: int) -> Topic:
     """Get the forum topic with the given chat ID and topic ID if it exists.
 
@@ -53,6 +68,7 @@ def get_topic(topic_id: int, chat_id: int) -> Topic:
                 Topic(id=topic_id, chat_id=chat_id))
 
 
+@_retry_on_db_error
 def add_topic(topic: Topic) -> None:
     """Add or update a forum topic.
 
@@ -69,6 +85,7 @@ def add_topic(topic: Topic) -> None:
         session.commit()
 
 
+@_retry_on_db_error
 def get_user(user_id: int) -> User:
     """Get the user with the given ID if it exists.
 
@@ -83,6 +100,7 @@ def get_user(user_id: int) -> User:
         return session.get(User, user_id) or User(id=user_id)
 
 
+@_retry_on_db_error
 def add_user(user: User) -> None:
     """Add or update a user.
 
@@ -95,6 +113,7 @@ def add_user(user: User) -> None:
         session.commit()
 
 
+@_retry_on_db_error
 def get_message(message_id: int, chat_id: int) -> Message:
     """Get the message with the given ID and chat ID if it exists.
 
@@ -112,6 +131,7 @@ def get_message(message_id: int, chat_id: int) -> Message:
                 Message(id=message_id, chat_id=chat_id))
 
 
+@_retry_on_db_error
 def add_message(message: Message) -> None:
     """Add or update a message. Creates new chat if none exists. It created new
     user, chat, topic, and reply message objects if any do not exist.
@@ -144,6 +164,7 @@ def add_message(message: Message) -> None:
         session.commit()
 
 
+@_retry_on_db_error
 def get_messages(chat_id: int, topic_id: int | None = None) -> list[Message]:
     """Get all messages in a chat or topic. The messages are sorted by their
     message ID.
@@ -166,6 +187,7 @@ def get_messages(chat_id: int, topic_id: int | None = None) -> list[Message]:
         return query.all()
 
 
+@_retry_on_db_error
 def get_system_message(chat_id: int, topic_id: int | None = None) -> Message:
     """Get the system message for a chat or topic.
 
@@ -178,6 +200,7 @@ def get_system_message(chat_id: int, topic_id: int | None = None) -> Message:
     return get_message(-(topic_id or 0), chat_id)
 
 
+@_retry_on_db_error
 def delete_messages(chat_id: int, topic_id: Optional[int] = None) -> None:
     """Delete all messages in a chat or topic. Does not delete system messages.
 

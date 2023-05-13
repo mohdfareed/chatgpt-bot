@@ -8,5 +8,6 @@ docker
 psycopg2-binary
 sqlalchemy
 sqlalchemy_utils
+tenacity
 # environment
 python-dotenv

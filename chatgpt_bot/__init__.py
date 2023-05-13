@@ -6,12 +6,12 @@ from chatgpt.types import GPTMessage, MessageRole
 
 BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', '')
 """Telegram bot token."""
+WEBHOOK = os.getenv('WEBHOOK', '')
+"""Telegram webhook URL."""
 WEBHOOK_ADDR = os.getenv('WEBHOOK_ADDR', '')
 """Telegram webhook IP address."""
 WEBHOOK_PORT = int(os.getenv('WEBHOOK_PORT', '-1'))
 """Telegram webhook port."""
-WEBHOOK = os.getenv('WEBHOOK', '')
-"""Telegram webhook URL."""
 DEV = False
 """Whether the bot is running in development mode."""
 
