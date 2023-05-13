@@ -58,4 +58,4 @@ def run():
 async def error_handler(_, context: ContextTypes.DEFAULT_TYPE):
     """Log Errors caused by Updates."""
     logger.debug(context.error.__traceback__.__str__())
-    logger.error(f"unhandled error: {context.error}")
+    logger.error(context.error)

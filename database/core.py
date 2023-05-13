@@ -31,7 +31,7 @@ def start() -> None:
 
     # initialize database
     logger.info("initializing database...")
-    engine = create_engine(URL)
+    engine = create_engine(URL, pool_pre_ping=True)
     while not database_exists(URL):
         raise ConnectionError("failed to connect to database")
 
@@ -59,3 +59,6 @@ def validate_connection() -> None:
     # check connection to database
     if not database_exists(engine.url):
         raise ConnectionError("failed to connect to database")
+    with engine.connect():
+        # if the connection succeeds, return
+        return
