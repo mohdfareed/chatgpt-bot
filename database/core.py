@@ -3,6 +3,7 @@ within a Docker container."""
 
 import tenacity
 from sqlalchemy import Engine, create_engine
+from sqlalchemy.orm import Session
 
 from database import URL, logger
 from database.models import Base
@@ -48,5 +49,6 @@ def validate_connection() -> None:
 
     try:  # check connection to database
         engine.connect()
+        Session(engine).close()
     except Exception:
         raise ConnectionError("failed to connect to database")
