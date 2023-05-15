@@ -5,7 +5,7 @@ import html
 import re
 
 from chatgpt.types import MessageRole
-from telegram import Update
+from telegram import Message, Update
 from telegram.constants import ParseMode
 from telegram.ext import ApplicationHandlerStop, ContextTypes
 
@@ -13,34 +13,30 @@ from chatgpt_bot import core, logger
 from database import utils as db
 
 dummy_message = """
-<b>bold</b>, <strong>bold</strong>
-<i>italic</i>, <em>italic</em>
-<u>underline</u>, <ins>underline</ins>
-
-
-<s>strikethrough</s>, <strike>strikethrough</strike>, <del>strikethrough</del>
-<span class="tg-spoiler">spoiler</span>, <tg-spoiler>spoiler</tg-spoiler>
-<b>bold <i>italic bold <s>italic bold strikethrough <span class="tg-spoiler">italic bold strikethrough spoiler</span></s> <u>underline italic bold</u></i> bold</b>
-<a href="http://www.example.com/">inline URL</a>
-<a href="tg://user?id=123456789">inline mention of a user</a>
-<tg-emoji emoji-id="5368324170671202286">👍</tg-emoji>
-<code>inline fixed-width code</code>
-<pre>pre-formatted fixed-width code block</pre>
-<pre><code class="language-python">pre-formatted fixed-width code block written in the Python programming language</code></pre>
+<b>bold</b>, <i>italic</i>, <u>underline</u>, <s>strikethrough</s>
+<tg-spoiler>spoiler</tg-spoiler>, <code>inline fixed-width code</code>
+<a href="http://www.example.com/">inline URL</a>, @{bot}
 """
 
 
-async def dummy_callback(update: Update, _: ContextTypes.DEFAULT_TYPE):
+async def error_handler(_, context: ContextTypes.DEFAULT_TYPE):
+    logger.debug(context.error.__traceback__.__str__())
+    logger.error(context.error)
+
+
+async def dummy_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global dummy_message
+    dummy_message = dummy_message.format(context.bot.username)
     dummy_message = core._format_text(dummy_message)
-    await _.bot.send_message(
+    await context.bot.send_message(
         chat_id=update.effective_chat.id,
         text=dummy_message,
-        parse_mode="HTML"
+        parse_mode=ParseMode.HTML
     )
 
 
 async def store_update(update: Update, _: ContextTypes.DEFAULT_TYPE):
+    await check_file(update, _)
     if not (message := update.effective_message):
         return
     core.store_message(message)
@@ -209,3 +205,45 @@ async def cancel_reply(update: Update, _: ContextTypes.DEFAULT_TYPE):
     # react to message
     if cancelled:
         await msg.reply_html(text="<code>Cancelled.</code>")
+
+
+async def check_file(update: Update, _: ContextTypes.DEFAULT_TYPE):
+    if not update.effective_message:
+        return
+    if not update.effective_message.text:
+        return
+
+    from chatgpt.langchain import agents, memory, prompts
+
+    import database
+
+    agent_memory = memory.ChatMemory(
+        token_limit=3200, url=database.URL,
+        session_id=str(update.effective_message.chat_id)
+    )
+    agent = agents.ChatGPT(
+        instructions=prompts.TELEGRAM_HTML_INSTRUCTIONS,
+        memory=agent_memory, debug=True
+    )
+
+    msg = await update.effective_message.reply_html('<code>Thinking...</code>')
+    prompt = construct_prompt(update.effective_message)
+    prompt += construct_prompt(msg)
+    response = await agent.generate(prompt)
+    await msg.edit_text(core._format_text(response), parse_mode=ParseMode.HTML)
+    raise
+
+
+def construct_prompt(message: Message) -> str:
+    """Construct a prompt for the given message."""
+    from io import StringIO
+    prompt = StringIO('\n')
+
+    prompt.write(f"username: {message.from_user.username}\n")
+    prompt.write(f"message_id: {message.message_id}\n")
+    if message.from_user.is_bot:
+        prompt.write(f"message: ")
+    else:
+        prompt.write(f"message: {message.text}\n")
+
+    return prompt.getvalue()

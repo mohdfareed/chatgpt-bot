@@ -76,7 +76,7 @@ class Message(Base):
     """The ID of the chat the message was sent in."""
     topic: Mapped[Optional[Topic]] = relationship(
         primaryjoin=(topic_id == Topic.id and  # type: ignore
-                     chat_id == Topic.chat_id) # type: ignore
+                     chat_id == Topic.chat_id)  # type: ignore
     )
     """The topic the message was sent in, if any."""
 
@@ -85,7 +85,7 @@ class Message(Base):
     """The ID of the message this message is a reply to, if any."""
     reply_to: Mapped[Optional["Message"]] = relationship(
         primaryjoin=(reply_id == id and  # type: ignore
-                     chat_id == chat_id), # type: ignore
+                     chat_id == chat_id),  # type: ignore
         remote_side=[id]
     )
     """The message this message is a reply to, if any."""

@@ -99,7 +99,7 @@ The app on Fly.io needs to have the following environment variables set:
 - `TELEGRAM_BOT_TOKEN`
 - `DATABASE_URL`
 
-Monitor the logs using:
+Monitor the bot's logs using:
 
 ```sh
 fly logs -a {app name}
