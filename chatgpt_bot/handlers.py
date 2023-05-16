@@ -3,10 +3,11 @@ executing core module functionality."""
 
 import html
 import re
+import traceback
 
 from chatgpt.types import MessageRole
 from telegram import Message, Update
-from telegram.constants import ParseMode
+from telegram.constants import ChatAction, ParseMode
 from telegram.ext import ApplicationHandlerStop, ContextTypes
 
 from chatgpt_bot import core, logger
@@ -20,13 +21,14 @@ dummy_message = """
 
 
 async def error_handler(_, context: ContextTypes.DEFAULT_TYPE):
-    logger.debug(context.error.__traceback__.__str__())
     logger.error(context.error)
+    traceback_str = ''.join(traceback.format_tb(context.error.__traceback__))
+    logger.error("traceback:\n%s", traceback_str)
 
 
 async def dummy_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global dummy_message
-    dummy_message = dummy_message.format(context.bot.username)
+    dummy_message = dummy_message.format(bot=context.bot.username)
     dummy_message = core._format_text(dummy_message)
     await context.bot.send_message(
         chat_id=update.effective_chat.id,
@@ -37,6 +39,7 @@ async def dummy_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def store_update(update: Update, _: ContextTypes.DEFAULT_TYPE):
     await check_file(update, _)
+    return
     if not (message := update.effective_message):
         return
     core.store_message(message)
@@ -45,6 +48,7 @@ async def store_update(update: Update, _: ContextTypes.DEFAULT_TYPE):
 async def private_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Reply to a message."""
     await store_update(update, context)
+    return
 
     if not (message := update.effective_message):
         return
@@ -208,7 +212,7 @@ async def cancel_reply(update: Update, _: ContextTypes.DEFAULT_TYPE):
 
 
 async def check_file(update: Update, _: ContextTypes.DEFAULT_TYPE):
-    if not update.effective_message:
+    if not (message := update.effective_message):
         return
     if not update.effective_message.text:
         return
@@ -216,34 +220,44 @@ async def check_file(update: Update, _: ContextTypes.DEFAULT_TYPE):
     from chatgpt.langchain import agents, memory, prompts
 
     import database
+    update.message.reply_to_message
 
+    # set typing status
+    bot_message = await message.reply_text('<code>Thinking...</code>')
+    topic_id: int = None  # type: ignore
+    if message.is_topic_message and message.message_thread_id:
+        topic_id = message.message_thread_id
+    await message.chat.send_action(ChatAction.TYPING, topic_id)
+
+    # set up agent
     agent_memory = memory.ChatMemory(
         token_limit=3200, url=database.URL,
-        session_id=str(update.effective_message.chat_id)
+        session_id=str(message.chat_id)
     )
     agent = agents.ChatGPT(
-        instructions=prompts.TELEGRAM_HTML_INSTRUCTIONS,
-        memory=agent_memory, debug=True
+        memory=agent_memory,
+        instructions=prompts.TELEGRAM_INSTRUCTIONS,
+        system_prompt=prompts.CHADGPT_PROMPT,
     )
 
-    msg = await update.effective_message.reply_html('<code>Thinking...</code>')
-    prompt = construct_prompt(update.effective_message)
-    prompt += construct_prompt(msg)
+    # generate response
+    prompt = construct_prompt(message)
+    prompt += construct_prompt(bot_message)
     response = await agent.generate(prompt)
-    await msg.edit_text(core._format_text(response), parse_mode=ParseMode.HTML)
-    raise
+    await bot_message.edit_text(core._format_text(response))
+    # raise
 
 
 def construct_prompt(message: Message) -> str:
     """Construct a prompt for the given message."""
     from io import StringIO
-    prompt = StringIO('\n')
 
-    prompt.write(f"username: {message.from_user.username}\n")
-    prompt.write(f"message_id: {message.message_id}\n")
-    if message.from_user.is_bot:
-        prompt.write(f"message: ")
-    else:
-        prompt.write(f"message: {message.text}\n")
+    prompt = StringIO()
+    prompt.write(f"\n\nusername: {message.from_user.username}")
+    prompt.write(f"\nid: {message.message_id}\n")
+    if message.reply_to_message:
+        prompt.write(f"\nreply_to_id: {message.reply_to_message.id}\n")
+    if not message.from_user.is_bot:
+        prompt.write(f"Message: {message.text}")
 
     return prompt.getvalue()
