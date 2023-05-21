@@ -10,13 +10,30 @@ from telegram import Message, Update
 from telegram.constants import ChatAction, ParseMode
 from telegram.ext import ApplicationHandlerStop, ContextTypes
 
-from chatgpt_bot import core, logger
+from chatgpt_bot import core, formatter, logger
 from database import utils as db
 
 dummy_message = """
-<b>bold</b>, <i>italic</i>, <u>underline</u>, <s>strikethrough</s>
-<tg-spoiler>spoiler</tg-spoiler>, <code>inline fixed-width code</code>
-<a href="http://www.example.com/">inline URL</a>, @{bot}
+<b>bold</b>, <i>italic</i>, <u>underline < ><s>strikethrough</s> </u>, <s>strikethrough</s>
+<tg-spoiler>spo&iler</tg-spoiler>, <code>inline fixed-width code</code>
+<a href="http://www.example.com/">inline <&> >> URL</a>, @{bot}
+
+&
+&&&
+<
+>>>
+
+<b>bold <i>italic bold <s>italic bold strikethrough <tg-spoiler>italic bold strikethrough spoiler</tg-spoiler></s> <u>underline italic bold</u></i> bold</b>
+
+<bad tag>some & text</bad tag>
+<b>bold & test <>>>><< &<test>&</b>
+<test><tst>te&st</tst></test>
+
+&lt;test&gt;some & text&lt;/test&gt;
+<test>;some & text</test>;
+
+<tst>te&st</tst>
+<a test="http://www.example.com/">inline <&> >> URL</a>
 """
 
 
@@ -28,11 +45,12 @@ async def error_handler(_, context: ContextTypes.DEFAULT_TYPE):
 
 async def dummy_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global dummy_message
-    dummy_message = dummy_message.format(bot=context.bot.username)
-    dummy_message = core._format_text(dummy_message)
+    # dummy_message = dummy_message.format(bot=context.bot.username)
+    # dummy_message = core._format_text(dummy_message)
+    dummy_message = formatter._parse_html(dummy_message)
     await context.bot.send_message(
         chat_id=update.effective_chat.id,
-        text=dummy_message,
+        text=dummy_message.format(bot=context.bot.username),
         parse_mode=ParseMode.HTML
     )
 
@@ -217,9 +235,10 @@ async def check_file(update: Update, _: ContextTypes.DEFAULT_TYPE):
     if not update.effective_message.text:
         return
 
-    from chatgpt.langchain import agents, memory, prompts
+    from chatgpt.langchain import agent, memory, tools
 
     import database
+    from chatgpt_bot.formatter import markdown_to_html
     update.message.reply_to_message
 
     # set typing status
@@ -229,35 +248,48 @@ async def check_file(update: Update, _: ContextTypes.DEFAULT_TYPE):
         topic_id = message.message_thread_id
     await message.chat.send_action(ChatAction.TYPING, topic_id)
 
-    # set up agent
+    # set up agent components
     agent_memory = memory.ChatMemory(
-        token_limit=3200, url=database.URL,
+        token_limit=2500, url=database.URL,
         session_id=str(message.chat_id)
     )
-    agent = agents.ChatGPT(
+    agent_tools = [
+        tools.InternetSearch(),
+        tools.WikiSearch(),
+        tools.Calculator()
+    ]
+    chat_agent = agent.ChatGPT(
+        tools=agent_tools,
         memory=agent_memory,
-        instructions=prompts.TELEGRAM_INSTRUCTIONS,
-        system_prompt=prompts.CHADGPT_PROMPT,
+        # system_prompt=prompts.CHADGPT_PROMPT,
     )
 
+    # setup message metadata
+    metadata = dict(
+        id=str(message.message_id),
+
+        username=message.from_user.username or message.from_user.first_name
+        if message.from_user.username else None,
+
+        reply_to=str(message.reply_to_message.message_id)
+        if message.reply_to_message else None,
+    )
+    # clear None values
+    metadata = {k: v for k, v in metadata.items() if v is not None}
+
+    # set bot message metadata
+    reply_metadata = dict(
+        id=str(bot_message.message_id),
+        username=bot_message.from_user.username,
+
+        reply_to=str(bot_message.reply_to_message.message_id)
+        if bot_message.reply_to_message else None,
+    )
+    # clear None values
+    reply_metadata = {k: v for k, v in reply_metadata.items() if v is not None}
+
     # generate response
-    prompt = construct_prompt(message)
-    prompt += construct_prompt(bot_message)
-    response = await agent.generate(prompt)
-    await bot_message.edit_text(core._format_text(response))
+    content = message.text or message.caption or ""
+    response = await chat_agent.generate(content, metadata, reply_metadata)
+    await bot_message.edit_text(markdown_to_html(response))
     # raise
-
-
-def construct_prompt(message: Message) -> str:
-    """Construct a prompt for the given message."""
-    from io import StringIO
-
-    prompt = StringIO()
-    prompt.write(f"\n\nusername: {message.from_user.username}")
-    prompt.write(f"\nid: {message.message_id}\n")
-    if message.reply_to_message:
-        prompt.write(f"\nreply_to_id: {message.reply_to_message.id}\n")
-    if not message.from_user.is_bot:
-        prompt.write(f"Message: {message.text}")
-
-    return prompt.getvalue()
