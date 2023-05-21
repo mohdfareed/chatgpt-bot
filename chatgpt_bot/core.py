@@ -10,11 +10,12 @@ from chatgpt.completion import ChatCompletion
 from chatgpt.errors import CompletionError, ConnectionError, TokenLimitError
 from chatgpt.model import ChatGPT
 from chatgpt.types import GPTChat, GPTMessage, GPTReply, MessageRole
+from markdown import markdown
 from telegram import Message
 from telegram.constants import ChatAction, ParseMode
 from telegram.error import TelegramError
 
-from chatgpt_bot import DEFAULT_PROMPT, bot_prompt, logger, prompts, utils
+from chatgpt_bot import logger, utils
 from database import models
 from database import utils as db
 
@@ -84,7 +85,7 @@ async def reply_to_message(message: Message):
     model = ChatGPT()
     model.temperature = 1.25
     gpt_chat: GPTChat = _get_history(message.chat_id, topic_id)
-    gpt_chat.insert(0, bot_prompt)
+    # gpt_chat.insert(0, bot_prompt)
     # stream the reply
     chatgpt = ChatCompletion(model)
     usage = await _stream_reply(chatgpt, message, gpt_chat)
@@ -137,7 +138,7 @@ def _get_history(chat_id, topic_id) -> GPTChat:
     # add default system message if none
     if not has_system_message:
         chatgpt_messages.insert(0, GPTMessage(
-            prompts[DEFAULT_PROMPT],
+            # prompts[DEFAULT_PROMPT],
             MessageRole.SYSTEM
         ))
 
@@ -205,6 +206,7 @@ async def _stream_message(request: AsyncGenerator, message: Message):
 
 
 def _format_text(text: str) -> str:
+    text = markdown((text))
     # constraints
     valid_tags = ['b', 'strong', 'i', 'em', 'u', 'ins', 's', 'strike', 'del',
                   'span', 'a', 'tg-emoji', 'tg-spoiler', 'code']
