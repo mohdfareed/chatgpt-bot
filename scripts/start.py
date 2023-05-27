@@ -48,7 +48,7 @@ def _setup(to_file: bool = False, debug: bool = False):
     # create console logger and set format
     logger = logging.getLogger()
     logger.setLevel(logging.DEBUG)
-    format = "%(message)s [italic bright_black](%(name)s)[/]"
+    format = "%(message)s [italic black](%(name)s)[/]"
     formatter = logging.Formatter(format)
 
     # create handler
@@ -92,4 +92,5 @@ if __name__ == "__main__":
         "-l", "--log", action="store_true", help="log to a file"
     )
     args = parser.parse_args()
+    main(args.debug, args.log)
     main(args.debug, args.log)
