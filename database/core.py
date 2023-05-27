@@ -24,20 +24,12 @@ def start() -> None:
     Base.metadata.create_all(engine)
 
 
-def stop() -> None:
-    """Stop the database engine."""
-    global engine
-
-    engine.dispose() if engine else None
-    logger.info("database has stopped")
-
-
 @tenacity.retry(
     # retry every second for 5 seconds on connection errors
     wait=tenacity.wait_fixed(1),
     stop=tenacity.stop_after_attempt(5),
     retry=tenacity.retry_if_exception_type(ConnectionError),
-    reraise=True
+    reraise=True,
 )
 def validate_connection() -> None:
     """Check if the database is connected.
