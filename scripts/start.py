@@ -53,7 +53,9 @@ def _setup(to_file: bool = False, debug: bool = False):
 
     # create handler
     console_handler = RichHandler(
-        markup=True, rich_tracebacks=True, log_time_format="[%Y-%m-%d %H:%M:%S]"
+        markup=True,
+        rich_tracebacks=True,
+        log_time_format="[%Y-%m-%d %H:%M:%S]",
     )
     console_handler.setLevel(level)
     console_handler.setFormatter(formatter)
@@ -83,7 +85,11 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser("chatgpt_bot")
-    parser.add_argument("-d", "--debug", action="store_true", help="log debug messages")
-    parser.add_argument("-l", "--log", action="store_true", help="log to a file")
+    parser.add_argument(
+        "-d", "--debug", action="store_true", help="log debug messages"
+    )
+    parser.add_argument(
+        "-l", "--log", action="store_true", help="log to a file"
+    )
     args = parser.parse_args()
     main(args.debug, args.log)
