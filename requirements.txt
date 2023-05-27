@@ -10,3 +10,4 @@ sqlalchemy_utils
 tenacity
 # environment
 python-dotenv
+rich
