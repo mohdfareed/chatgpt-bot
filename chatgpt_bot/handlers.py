@@ -275,8 +275,9 @@ async def check_file(update: Update, _: ContextTypes.DEFAULT_TYPE):
         chunk_counter = (chunk_counter + 1) % 10
         if chunk_counter != 0 and not flush:
             return
-        if reply_text != bot_message.text:
-            await bot_message.edit_text(markdown_to_html(reply_text))
+        message_text = markdown_to_html(reply_text)
+        if message_text != bot_message.text:
+            await bot_message.edit_text(message_text)
             await asyncio.sleep(0.25)
 
     # set up agent components
