@@ -19,7 +19,7 @@ from chatgpt_bot import logger, utils
 from database import models
 from database import utils as db
 
-_edit_timer = .0
+_edit_timer = 0.0
 """Timer since the last edit message request."""
 _requests: dict[str, AsyncGenerator] = dict()
 """Dictionary of reply generators."""
@@ -117,19 +117,19 @@ def _get_history(chat_id, topic_id) -> GPTChat:
             continue
         # construct system message
         if db_message.role == MessageRole.SYSTEM:
-            chatgpt_messages.append(GPTMessage(
-                db_message.text,
-                db_message.role,
-                db_message.name or ''
-            ))
+            chatgpt_messages.append(
+                GPTMessage(
+                    db_message.text, db_message.role, db_message.name or ""
+                )
+            )
             has_system_message = True
             continue
         # create metadata
         if db_message.user and db_message.user.username:
             username = db_message.user.username
-            username = re.sub(r'^[^a-zA-Z0-9_-]{1,64}$', '', username)
+            username = re.sub(r"^[^a-zA-Z0-9_-]{1,64}$", "", username)
         else:
-            username = 'unknown'
+            username = "unknown"
         metadata = f"{id}-{db_message.reply_id}-{username}"
         # create message and its metadata
         chatgpt_messages.append(GPTMessage(db_message.text, db_message.role))
@@ -137,10 +137,13 @@ def _get_history(chat_id, topic_id) -> GPTChat:
 
     # add default system message if none
     if not has_system_message:
-        chatgpt_messages.insert(0, GPTMessage(
-            # prompts[DEFAULT_PROMPT],
-            MessageRole.SYSTEM
-        ))
+        chatgpt_messages.insert(
+            0,
+            GPTMessage(
+                # prompts[DEFAULT_PROMPT],
+                MessageRole.SYSTEM
+            ),
+        )
 
     return GPTChat(chatgpt_messages)
 
@@ -154,7 +157,7 @@ async def _stream_reply(chat: ChatCompletion, message, history) -> int:
     bot_message: Message | None = None
 
     # get the model reply and the bot message when ready
-    logger.debug('streaming chatgpt reply...')
+    logger.debug("streaming chatgpt reply...")
     try:  # stream the message
         chatgpt_reply, bot_message = await _stream_message(request, message)
     except Exception as e:
@@ -208,15 +211,29 @@ async def _stream_message(request: AsyncGenerator, message: Message):
 def _format_text(text: str) -> str:
     text = markdown((text))
     # constraints
-    valid_tags = ['b', 'strong', 'i', 'em', 'u', 'ins', 's', 'strike', 'del',
-                  'span', 'a', 'tg-emoji', 'tg-spoiler', 'code']
+    valid_tags = [
+        "b",
+        "strong",
+        "i",
+        "em",
+        "u",
+        "ins",
+        "s",
+        "strike",
+        "del",
+        "span",
+        "a",
+        "tg-emoji",
+        "tg-spoiler",
+        "code",
+    ]
     valid_attrs = {
-        'a': ['href'],
-        'tg-emoji': ['emoji-id'],
-        'span': ['class'],
+        "a": ["href"],
+        "tg-emoji": ["emoji-id"],
+        "span": ["class"],
     }
     # parse the text
-    for tag in (html_soup := BeautifulSoup(text, 'html.parser')).find_all():
+    for tag in (html_soup := BeautifulSoup(text, "html.parser")).find_all():
         # replace reserved characters with HTML entities
         for string in tag.strings:
             string = html.escape(string)
@@ -243,7 +260,7 @@ async def _send_chunk(reply, message: Message, last_message: str, request):
     if html == last_message:  # check if the message changed
         return message, last_message
 
-     # send initial message
+    # send initial message
     if not message.from_user.is_bot:
         message = await message.reply_html(text=html)
         _requests[_get_request_id(message)] = request  # store request
