@@ -140,7 +140,7 @@ def _get_history(chat_id, topic_id) -> GPTChat:
             0,
             GPTMessage(
                 # prompts[DEFAULT_PROMPT],
-                MessageRole.SYSTEM
+                MessageRole.SYSTEM.value
             ),
         )
 
@@ -169,7 +169,7 @@ async def _stream_reply(chat: ChatCompletion, message, history) -> int:
     # store the reply in the database
     db_message = store_message(bot_message)
     db_message.role = chatgpt_reply.role
-    db_message.finish_reason = chatgpt_reply.finish_reason
+    db_message.finish_reason = chatgpt_reply.finish_reason.value
     db_message.text = str(chatgpt_reply)
     db_message.prompt_tokens = chatgpt_reply.prompt_tokens
     db_message.reply_tokens = chatgpt_reply.reply_tokens
