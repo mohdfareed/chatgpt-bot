@@ -10,7 +10,6 @@ from chatgpt.completion import ChatCompletion
 from chatgpt.errors import CompletionError, ConnectionError, TokenLimitError
 from chatgpt.model import ChatGPT
 from chatgpt.types import GPTChat, GPTMessage, GPTReply, MessageRole
-from markdown import markdown
 from telegram import Message
 from telegram.constants import ChatAction, ParseMode
 from telegram.error import TelegramError
@@ -209,7 +208,7 @@ async def _stream_message(request: AsyncGenerator, message: Message):
 
 
 def _format_text(text: str) -> str:
-    text = markdown((text))
+    # text = markdown((text))
     # constraints
     valid_tags = [
         "b",
