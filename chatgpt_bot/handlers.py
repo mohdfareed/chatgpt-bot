@@ -83,8 +83,6 @@ async def private_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def mention_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Reply to a message."""
-    await check_file(update, context)
-    return
 
     await store_update(update, context)
 
@@ -92,6 +90,9 @@ async def mention_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     if context.bot.username not in update.effective_message.text:
         return
+
+    await check_file(update, context)
+    return
 
     await private_callback(update, context)
 
