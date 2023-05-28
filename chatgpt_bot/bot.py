@@ -69,5 +69,5 @@ def _setup_handlers(app: Application):
             callback=mention_callback,
         )
     )
-    app.add_handler(MessageHandler(filters.ALL, callback=store_update))
-    app.add_handler(MessageHandler(filters.ATTACHMENT, callback=check_file))
+    # app.add_handler(MessageHandler(filters.ALL, callback=store_update))
+    # app.add_handler(MessageHandler(filters.ATTACHMENT, callback=check_file))

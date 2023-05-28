@@ -61,8 +61,6 @@ async def dummy_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def store_update(update: Update, _: ContextTypes.DEFAULT_TYPE):
-    await check_file(update, _)
-    return
     if not (message := update.effective_message):
         return
     core.store_message(message)
@@ -70,8 +68,10 @@ async def store_update(update: Update, _: ContextTypes.DEFAULT_TYPE):
 
 async def private_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Reply to a message."""
-    await store_update(update, context)
+    await check_file(update, context)
     return
+
+    await store_update(update, context)
 
     if not (message := update.effective_message):
         return
@@ -83,6 +83,9 @@ async def private_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def mention_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Reply to a message."""
+    await check_file(update, context)
+    return
+
     await store_update(update, context)
 
     if not update.effective_message.text:
