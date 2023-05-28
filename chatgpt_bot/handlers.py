@@ -11,6 +11,7 @@ from telegram import Message, Update
 from telegram.constants import ChatAction, ParseMode
 from telegram.ext import ApplicationHandlerStop, ContextTypes
 
+import database
 from chatgpt_bot import core, formatter, logger
 from database import utils as db
 
@@ -36,6 +37,9 @@ dummy_message = """
 <tst>te&st</tst>
 <a test="http://www.example.com/">inline <&> >> URL</a>
 """
+
+
+_sessions_prompts = dict()
 
 
 async def error_handler(_, context: ContextTypes.DEFAULT_TYPE):
@@ -98,6 +102,11 @@ async def delete_history(update: Update, _: ContextTypes.DEFAULT_TYPE):
     chat_id, topic_id = update.effective_chat.id, None
     if update.effective_message and update.effective_message.is_topic_message:
         topic_id = update.effective_message.message_thread_id
+
+    from chatgpt.langchain import agent, memory, tools
+
+    session = f"{chat_id}-{topic_id or 0}"
+    memory.ChatMemory.delete(database.URL, session)
 
     db.delete_messages(chat_id, topic_id)
     await update.effective_message.reply_html(
@@ -188,6 +197,7 @@ async def edit_sys(update: Update, _: ContextTypes.DEFAULT_TYPE):
     sys_message.role = MessageRole.SYSTEM
     sys_message.text = text
     sys_message.name = name
+    _sessions_prompts[f"{chat_id}-{topic_id or 0}"] = text
     db.add_message(sys_message)
 
 
@@ -212,10 +222,12 @@ async def get_sys(update: Update, _: ContextTypes.DEFAULT_TYPE):
     if sys_message.text:
         text += f"<code>{html.escape(sys_message.text or '')}</code>"
 
+    session = f"{chat_id}-{topic_id or 0}"
+    text = _get_session_prompt(session) or "No system message found."
     await _.bot.send_message(
         chat_id=update.effective_chat.id,
         message_thread_id=topic_id,  # type: ignore
-        text=(text or "No system message found."),
+        text=f"<code>{text}</code>",
         parse_mode=ParseMode.HTML,
     )
 
@@ -248,10 +260,10 @@ async def check_file(update: Update, _: ContextTypes.DEFAULT_TYPE):
 
     # set typing status
     bot_message = await message.reply_text("<code>Thinking...</code>")
-    topic_id: int = None  # type: ignore
+    topic_id: int = 0
     if message.is_topic_message and message.message_thread_id:
         topic_id = message.message_thread_id
-    await message.chat.send_action(ChatAction.TYPING, topic_id)
+    await message.chat.send_action(ChatAction.TYPING, topic_id or None)  # type: ignore
     reply_text = ""
     chunk_counter = 0
 
@@ -268,8 +280,9 @@ async def check_file(update: Update, _: ContextTypes.DEFAULT_TYPE):
             await asyncio.sleep(0.25)
 
     # set up agent components
+    session = f"{message.chat_id}-{topic_id or 0}"
     agent_memory = memory.ChatMemory(
-        token_limit=3000, url=database.URL, session_id=str(message.chat_id)
+        token_limit=2600, url=database.URL, session_id=session
     )
     # agent_tools = [
     #     tools.InternetSearch(),
@@ -280,7 +293,7 @@ async def check_file(update: Update, _: ContextTypes.DEFAULT_TYPE):
         # tools=agent_tools,
         token_handler=send_packet,
         memory=agent_memory,
-        # system_prompt=prompts.CHADGPT_PROMPT,
+        system_prompt=_get_session_prompt(session),
     )
 
     # setup message metadata
@@ -311,3 +324,23 @@ async def check_file(update: Update, _: ContextTypes.DEFAULT_TYPE):
     content = message.text or message.caption or ""
     response = await chat_agent.generate(content, metadata, reply_metadata)
     # await bot_message.edit_text(markdown_to_html(response.text))
+
+
+async def set_chad(update: Update, _: ContextTypes.DEFAULT_TYPE):
+    from chatgpt.langchain import prompts
+
+    if not (message := update.effective_message):
+        return
+
+    topic_id: int = 0
+    if message.is_topic_message and message.message_thread_id:
+        topic_id = message.message_thread_id
+
+    session = f"{message.chat_id}-{topic_id or 0}"
+    _sessions_prompts[session] = prompts.CHADGPT_PROMPT
+
+
+def _get_session_prompt(session: str):
+    from chatgpt.langchain import prompts
+
+    return _sessions_prompts.get(session, prompts.ASSISTANT_PROMPT)
