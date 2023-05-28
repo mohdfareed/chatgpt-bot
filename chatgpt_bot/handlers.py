@@ -1,6 +1,7 @@
 """Handlers for telegram updates. It is responsible for parsing updates and
 executing core module functionality."""
 
+import asyncio
 import html
 import re
 import traceback
@@ -39,7 +40,7 @@ dummy_message = """
 
 async def error_handler(_, context: ContextTypes.DEFAULT_TYPE):
     logger.error(context.error)
-    traceback_str = ''.join(traceback.format_tb(context.error.__traceback__))
+    traceback_str = "".join(traceback.format_tb(context.error.__traceback__))
     logger.error("traceback:\n%s", traceback_str)
 
 
@@ -51,7 +52,7 @@ async def dummy_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(
         chat_id=update.effective_chat.id,
         text=dummy_message.format(bot=context.bot.username),
-        parse_mode=ParseMode.HTML
+        parse_mode=ParseMode.HTML,
     )
 
 
@@ -114,8 +115,7 @@ async def send_usage(update: Update, _: ContextTypes.DEFAULT_TYPE):
     thread_id: int = None  # type: ignore
     if message.is_topic_message and message.message_thread_id:
         chat_usage = db.get_topic(
-            message.message_thread_id,
-            message.chat_id
+            message.message_thread_id, message.chat_id
         ).usage
         thread_id = message.message_thread_id
     else:
@@ -123,8 +123,10 @@ async def send_usage(update: Update, _: ContextTypes.DEFAULT_TYPE):
 
     user_usage = db.get_user(update.effective_user.id).usage
     await update.effective_message.reply_html(
-        text=(f"<code>User usage: {user_usage}\n" +
-              f"Chat usage: {chat_usage}</code>")
+        text=(
+            f"<code>User usage: {user_usage}\n"
+            + f"Chat usage: {chat_usage}</code>"
+        )
     )
 
 
@@ -149,10 +151,10 @@ async def edit_sys(update: Update, _: ContextTypes.DEFAULT_TYPE):
 
     name, text = None, None
     try:  # parse the message in the format `/command name\ncontent`
-        _msg = update.effective_message.text.split(' ', 1)[1]
-        if _msg.startswith('$'):
-            name = _msg.split('$', 1)[1].split('\n', 1)[0]
-            text = _msg.split('\n', 1)[1]
+        _msg = update.effective_message.text.split(" ", 1)[1]
+        if _msg.startswith("$"):
+            name = _msg.split("$", 1)[1].split("\n", 1)[0]
+            text = _msg.split("\n", 1)[1]
         else:
             name = None
             text = _msg
@@ -162,14 +164,16 @@ async def edit_sys(update: Update, _: ContextTypes.DEFAULT_TYPE):
     # parse text from reply
     if not text:
         if update.effective_message.is_topic_message:
-            if (update.effective_message.message_thread_id !=
-                    update.effective_message.reply_to_message.message_id):
+            if (
+                update.effective_message.message_thread_id
+                != update.effective_message.reply_to_message.message_id
+            ):
                 text = update.effective_message.reply_to_message.text
         elif update.effective_message.reply_to_message:
             text = update.effective_message.reply_to_message.text
 
     # check validity of the name and text
-    if name and len(re.findall(r'^[^a-zA-Z0-9_-]{1,64}$', name)) > 0:
+    if name and len(re.findall(r"^[^a-zA-Z0-9_-]{1,64}$", name)) > 0:
         raise ValueError("invalid name for system message")
     if not text:
         raise ValueError("no text found to update system message")
@@ -212,7 +216,7 @@ async def get_sys(update: Update, _: ContextTypes.DEFAULT_TYPE):
         chat_id=update.effective_chat.id,
         message_thread_id=topic_id,  # type: ignore
         text=(text or "No system message found."),
-        parse_mode=ParseMode.HTML
+        parse_mode=ParseMode.HTML,
     )
 
 
@@ -239,27 +243,42 @@ async def check_file(update: Update, _: ContextTypes.DEFAULT_TYPE):
 
     import database
     from chatgpt_bot.formatter import markdown_to_html
+
     update.message.reply_to_message
 
     # set typing status
-    bot_message = await message.reply_text('<code>Thinking...</code>')
+    bot_message = await message.reply_text("<code>Thinking...</code>")
     topic_id: int = None  # type: ignore
     if message.is_topic_message and message.message_thread_id:
         topic_id = message.message_thread_id
     await message.chat.send_action(ChatAction.TYPING, topic_id)
+    reply_text = ""
+    chunk_counter = 0
+
+    async def send_packet(packet: str, flush: bool = False):
+        nonlocal reply_text, chunk_counter
+
+        # send packet to chat
+        reply_text = packet if flush else reply_text + packet
+        chunk_counter = (chunk_counter + 1) % 10
+        if chunk_counter != 0 and not flush:
+            return
+        if reply_text != bot_message.text:
+            await bot_message.edit_text(markdown_to_html(reply_text))
+            await asyncio.sleep(0.25)
 
     # set up agent components
     agent_memory = memory.ChatMemory(
-        token_limit=2500, url=database.URL,
-        session_id=str(message.chat_id)
+        token_limit=3000, url=database.URL, session_id=str(message.chat_id)
     )
-    agent_tools = [
-        tools.InternetSearch(),
-        tools.WikiSearch(),
-        tools.Calculator()
-    ]
+    # agent_tools = [
+    #     tools.InternetSearch(),
+    #     tools.WikiSearch(),
+    #     tools.Calculator(),
+    # ]
     chat_agent = agent.ChatGPT(
-        tools=agent_tools,
+        # tools=agent_tools,
+        token_handler=send_packet,
         memory=agent_memory,
         # system_prompt=prompts.CHADGPT_PROMPT,
     )
@@ -267,12 +286,12 @@ async def check_file(update: Update, _: ContextTypes.DEFAULT_TYPE):
     # setup message metadata
     metadata = dict(
         id=str(message.message_id),
-
         username=message.from_user.username or message.from_user.first_name
-        if message.from_user.username else None,
-
+        if message.from_user.username
+        else None,
         reply_to=str(message.reply_to_message.message_id)
-        if message.reply_to_message else None,
+        if message.reply_to_message
+        else None,
     )
     # clear None values
     metadata = {k: v for k, v in metadata.items() if v is not None}
@@ -281,9 +300,9 @@ async def check_file(update: Update, _: ContextTypes.DEFAULT_TYPE):
     reply_metadata = dict(
         id=str(bot_message.message_id),
         username=bot_message.from_user.username,
-
         reply_to=str(bot_message.reply_to_message.message_id)
-        if bot_message.reply_to_message else None,
+        if bot_message.reply_to_message
+        else None,
     )
     # clear None values
     reply_metadata = {k: v for k, v in reply_metadata.items() if v is not None}
@@ -291,5 +310,4 @@ async def check_file(update: Update, _: ContextTypes.DEFAULT_TYPE):
     # generate response
     content = message.text or message.caption or ""
     response = await chat_agent.generate(content, metadata, reply_metadata)
-    await bot_message.edit_text(markdown_to_html(response))
-    # raise
+    # await bot_message.edit_text(markdown_to_html(response.text))
