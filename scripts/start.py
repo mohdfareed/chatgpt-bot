@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-
 import logging
 import os
 import sys
@@ -9,6 +8,12 @@ from datetime import datetime
 from dotenv import load_dotenv
 from rich import print
 from rich.logging import RichHandler
+
+# add bot directory to the path
+os.chdir(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+sys.path.append(os.getcwd())
+import database.core as db
+from chatgpt_bot import bot
 
 
 def main(debug: bool = False, log: bool = False) -> None:
@@ -21,20 +26,14 @@ def main(debug: bool = False, log: bool = False) -> None:
     """
 
     print("[bold green]Starting chatgpt_bot...[/]")
-    # add bot directory to the path
-    os.chdir(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
-    sys.path.append(os.getcwd())
     # load environment variables
     load_dotenv(override=True)
     # setup logging
     _setup(to_file=log, debug=debug)
 
     try:  # start telegram bot
-        import database.core as db
-        from chatgpt_bot import bot
-
-        db.start()  # start database
-        bot.run()  # run bot
+        db.start()
+        bot.run()
     except Exception as e:
         logging.error(e)
         exit(1)

@@ -1,73 +1,141 @@
 """The ChatGPT Telegram bot. This module contains the bot's entry point. It
-manages the bot's lifecycle and tunneling updates to the handlers."""
+manages the bot's lifecycle and tunneling updates to handlers."""
 
-import secrets
+import asyncio as _asyncio
+import secrets as _secrets
 
-from telegram.constants import MessageEntityType, ParseMode
-from telegram.ext import (
-    Application,
-    CommandHandler,
-    Defaults,
-    MessageHandler,
-    filters,
-)
+import telegram.ext as _telegram_extensions
+from telegram import constants as _telegram_constants
 
-from chatgpt_bot import BOT_TOKEN, DEV, WEBHOOK, WEBHOOK_ADDR, WEBHOOK_PORT
-from chatgpt_bot.handlers import *
+import chatgpt_bot as _bot
+import chatgpt_bot.handlers as _handlers
 
 
 def run():
     """Run the bot."""
 
-    # setup the bot
-    defaults = Defaults(  # setup default settings
-        parse_mode=ParseMode.HTML,
+    _asyncio.run(_start_app())
+
+
+async def _start_app():
+    # setup bot settings
+    defaults = _telegram_extensions.Defaults(
+        parse_mode=_telegram_constants.ParseMode.HTML,
         allow_sending_without_reply=True,
         quote=True,
         block=False,
     )
-    app = (  # setup the application
-        Application.builder().token(BOT_TOKEN).defaults(defaults).build()
+
+    # setup the bot application
+    application = (
+        _telegram_extensions.Application.builder()
+        .token(_bot.token)
+        .rate_limiter(
+            _telegram_extensions.AIORateLimiter()
+        )  # TODO: implement custom rate limiter
+        .defaults(defaults)
+        .build()
     )
-    _setup_handlers(app)
+
+    # setup the bot's handlers
+    application.add_error_handler(_handlers.error_handler)
+    _setup_commands(application)
+    _setup_handlers(application)
 
     # start the bot
-    logger.info("starting telegram bot...")
-    if not DEV:
-        app.run_webhook(
-            listen=WEBHOOK_ADDR,
-            port=WEBHOOK_PORT,
-            webhook_url=WEBHOOK,
-            secret_token=secrets.token_hex(32),
+    _bot.logger.info("Starting telegram bot...")
+    await application.start()
+    if not _bot.dev_mode:  # run in webhook mode for production
+        application.run_webhook(
+            listen=_bot.webhook_addr,
+            port=_bot.webhook_port,
+            webhook_url=_bot.webhook,
+            secret_token=_secrets.token_hex(32),
         )
     else:  # run in polling mode for development
-        logger.warning("running in development mode")
-        app.run_polling()
-    logger.info("telegram bot has stopped")
+        application.run_polling()
+
+    # stop the bot
+    await application.stop()
+    await application.shutdown()
+    _bot.logger.info("Telegram bot has stopped.")
 
 
-def _setup_handlers(app: Application):
-    """Setup the bot's update handlers."""
+def _setup_commands(app: _telegram_extensions.Application):
+    # setup command handlers
 
-    # add error/command handlers
-    app.add_error_handler(error_handler)
-    app.add_handler(CommandHandler("delete", delete_history, block=True))
-    app.add_handler(CommandHandler("usage", send_usage))
-    app.add_handler(CommandHandler("start", dummy_callback))
-    app.add_handler(CommandHandler("sys", get_sys))
-    app.add_handler(CommandHandler("edit", edit_sys))
-    app.add_handler(CommandHandler("cancel", cancel_reply))
-    app.add_handler(CommandHandler("chad", set_chad))
-
-    # add message handlers
     app.add_handler(
-        MessageHandler(filters.ChatType.PRIVATE, callback=private_callback)
-    )
-    app.add_handler(
-        MessageHandler(
-            filters.Entity(MessageEntityType.MENTION),
-            callback=mention_callback,
+        _telegram_extensions.CommandHandler(
+            command="delete",
+            callback=_handlers.delete_history,
         )
     )
-    # app.add_handler(MessageHandler(filters.ALL, callback=store_update))
-    # app.add_handler(MessageHandler(filters.ATTACHMENT, callback=check_file))
+
+    app.add_handler(
+        _telegram_extensions.CommandHandler(
+            command="usage",
+            callback=_handlers.send_usage,
+        )
+    )
+
+    app.add_handler(
+        _telegram_extensions.CommandHandler(
+            command="start",
+            callback=_handlers.dummy_callback,
+        )
+    )
+
+    app.add_handler(
+        _telegram_extensions.CommandHandler(
+            command="sys",
+            callback=_handlers.get_sys,
+        )
+    )
+
+    app.add_handler(
+        _telegram_extensions.CommandHandler(
+            command="edit",
+            callback=_handlers.edit_sys,
+        )
+    )
+
+    app.add_handler(
+        _telegram_extensions.CommandHandler(
+            command="cancel",
+            callback=_handlers.cancel_reply,
+        )
+    )
+
+    app.add_handler(
+        _telegram_extensions.CommandHandler(
+            command="chad",
+            callback=_handlers.set_chad,
+        )
+    )
+
+
+def _setup_handlers(app: _telegram_extensions.Application):
+    # setup message handlers
+
+    app.add_handler(
+        _telegram_extensions.MessageHandler(
+            filters=_telegram_extensions.filters.ChatType.PRIVATE,
+            callback=_handlers.private_callback,
+        )
+    )
+
+    app.add_handler(
+        _telegram_extensions.MessageHandler(
+            filters=_telegram_extensions.filters.Entity(
+                _telegram_constants.MessageEntityType.MENTION
+            ),
+            callback=_handlers.mention_callback,
+        )
+    )
+
+    app.add_handler(
+        _telegram_extensions.MessageHandler(
+            filters=_telegram_extensions.filters.ALL,
+            callback=_handlers.store_update,
+        )
+    )

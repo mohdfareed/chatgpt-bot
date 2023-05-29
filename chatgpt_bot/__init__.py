@@ -1,23 +1,33 @@
 """ChatGPT based Telegram bot."""
 
-import logging
-import os
+import logging as _logging
+import os as _os
 
-BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', '')
-"""Telegram bot token."""
-WEBHOOK = os.getenv('WEBHOOK', '')
-"""Telegram webhook URL."""
-WEBHOOK_ADDR = os.getenv('WEBHOOK_ADDR', '')
-"""Telegram webhook IP address."""
-WEBHOOK_PORT = int(os.getenv('WEBHOOK_PORT', '-1'))
-"""Telegram webhook port."""
-DEV = False
-"""Whether the bot is running in development mode."""
+import requests as _requests
 
-if not BOT_TOKEN:
-    raise ValueError("environment variables not set")
-if not all([WEBHOOK_ADDR, (False if WEBHOOK_PORT < 0 else True), WEBHOOK]):
-    DEV = True
-
-logger: logging.Logger = logging.getLogger(__name__)
+logger: _logging.Logger = _logging.getLogger(__name__)
 """The bot logger."""
+token = _os.getenv("TELEGRAM_BOT_TOKEN") or ""
+"""Telegram bot token."""
+webhook = _os.getenv("WEBHOOK") or ""
+"""Telegram webhook URL."""
+webhook_addr = _os.getenv("WEBHOOK_ADDR") or ""
+"""Telegram webhook IP address."""
+webhook_port = int(_os.getenv("WEBHOOK_PORT") or -1)
+"""Telegram webhook port."""
+dev_mode = not (webhook and webhook_addr and (webhook_port > -1))
+"""Whether the bot is running in development mode (polling mode)."""
+
+
+# validate token
+if not token:
+    raise ValueError("Environment variable 'TELEGRAM_BOT_TOKEN' is not set.")
+url = f"https://api.telegram.org/bot{token}/getMe"
+if _requests.get(url).status_code != 200:  # invalid token
+    raise ValueError(f"Invalid Telegram bot token: {token}")
+
+# log webhook settings
+if not dev_mode:
+    logger.info(f"Using webhook: {webhook} [{webhook_addr}:{webhook_port}]")
+else:
+    logger.warning("Running in development mode.")
