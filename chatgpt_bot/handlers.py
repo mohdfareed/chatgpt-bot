@@ -61,9 +61,31 @@ async def dummy_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def store_update(update: Update, _: ContextTypes.DEFAULT_TYPE):
+    from chatgpt.langchain import agent, memory
+
     if not (message := update.effective_message):
         return
     core.store_message(message)
+    if not message.text:
+        return
+
+    chat_id, topic_id = update.effective_chat.id, None
+    if update.effective_message and update.effective_message.is_topic_message:
+        topic_id = update.effective_message.message_thread_id
+
+    # setup message metadata
+    metadata = dict(
+        id=str(message.message_id),
+        username=message.from_user.username or message.from_user.first_name
+        if message.from_user.username
+        else None,
+        reply_to=str(message.reply_to_message.message_id)
+        if message.reply_to_message
+        else None,
+    )
+    text = agent.parse_message(message.text, metadata, "other")
+    session = f"{chat_id}-{topic_id or 0}"
+    memory.ChatMemory.store(text, database.URL, session)
 
 
 async def private_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -84,7 +106,7 @@ async def private_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def mention_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Reply to a message."""
 
-    await store_update(update, context)
+    # await store_update(update, context)
 
     if not update.effective_message.text:
         return
@@ -280,7 +302,7 @@ async def check_file(update: Update, _: ContextTypes.DEFAULT_TYPE):
         if chunk_counter != 0 and not flush:
             return
         message_text = markdown_to_html(reply_text)
-        if message_text != bot_message.text:
+        if message_text != bot_message.text_html:
             await bot_message.edit_text(message_text)
             await asyncio.sleep(0.25)
 

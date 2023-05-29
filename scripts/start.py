@@ -12,6 +12,9 @@ from rich.logging import RichHandler
 # add bot directory to the path
 os.chdir(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 sys.path.append(os.getcwd())
+# load environment variables
+load_dotenv(override=True)
+
 import database.core as db
 from chatgpt_bot import bot
 
@@ -26,8 +29,6 @@ def main(debug: bool = False, log: bool = False) -> None:
     """
 
     print("[bold green]Starting chatgpt_bot...[/]")
-    # load environment variables
-    load_dotenv(override=True)
     # setup logging
     _setup(to_file=log, debug=debug)
 
@@ -91,5 +92,4 @@ if __name__ == "__main__":
         "-l", "--log", action="store_true", help="log to a file"
     )
     args = parser.parse_args()
-    main(args.debug, args.log)
     main(args.debug, args.log)
