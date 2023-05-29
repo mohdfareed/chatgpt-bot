@@ -304,7 +304,6 @@ async def check_file(update: Update, _: ContextTypes.DEFAULT_TYPE):
         message_text = markdown_to_html(reply_text)
         if message_text != bot_message.text_html:
             await bot_message.edit_text(message_text)
-            await asyncio.sleep(0.25)
 
     # set up agent components
     session = f"{message.chat_id}-{topic_id or 0}"
