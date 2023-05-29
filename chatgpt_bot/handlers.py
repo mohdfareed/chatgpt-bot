@@ -1,18 +1,18 @@
 """Handlers for telegram updates. It is responsible for parsing updates and
 executing core module functionality."""
 
-import asyncio
 import html
 import re
 import traceback
 
+from chatgpt.langchain import agent, memory
 from chatgpt.types import MessageRole
 from telegram import Message, Update
 from telegram.constants import ChatAction, ParseMode
 from telegram.ext import ApplicationHandlerStop, ContextTypes
 
 import database
-from chatgpt_bot import core, formatter, logger
+from chatgpt_bot import core, formatter, logger, models
 from database import utils as db
 
 dummy_message = """
@@ -61,52 +61,21 @@ async def dummy_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def store_update(update: Update, _: ContextTypes.DEFAULT_TYPE):
-    from chatgpt.langchain import agent, memory
+    if not (message := update.message or update.channel_post):
+        return  # TODO: update edited messages (user effective message)
+    message = models.TextMessage(message)
 
-    if not (message := update.effective_message):
-        return
-    core.store_message(message)
-    if not message.text:
-        return
-
-    chat_id, topic_id = update.effective_chat.id, None
-    if update.effective_message and update.effective_message.is_topic_message:
-        topic_id = update.effective_message.message_thread_id
-
-    # setup message metadata
-    metadata = dict(
-        id=str(message.message_id),
-        username=message.from_user.username or message.from_user.first_name
-        if message.from_user.username
-        else None,
-        reply_to=str(message.reply_to_message.message_id)
-        if message.reply_to_message
-        else None,
-    )
-    text = agent.parse_message(message.text, metadata, "other")
-    session = f"{chat_id}-{topic_id or 0}"
-    memory.ChatMemory.store(text, database.URL, session)
+    text = agent.parse_message(message.text, message.metadata, "other")
+    memory.ChatMemory.store(text, database.URL, message.session_id)
 
 
 async def private_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Reply to a message."""
     await check_file(update, context)
-    return
-
-    await store_update(update, context)
-
-    if not (message := update.effective_message):
-        return
-    if not message.text:
-        return
-
-    await core.reply_to_message(message)
 
 
 async def mention_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Reply to a message."""
-
-    # await store_update(update, context)
 
     if not update.effective_message.text:
         return
@@ -114,30 +83,16 @@ async def mention_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     await check_file(update, context)
-    return
-
-    await private_callback(update, context)
 
 
 async def delete_history(update: Update, _: ContextTypes.DEFAULT_TYPE):
     """Delete a chat."""
 
-    if not update.effective_chat:
+    if not update.effective_message:
         return
+    message = models.TextMessage(update.effective_message)
 
-    chat_id, topic_id = update.effective_chat.id, None
-    if update.effective_message and update.effective_message.is_topic_message:
-        topic_id = update.effective_message.message_thread_id
-
-    from chatgpt.langchain import agent, memory, tools
-
-    session = f"{chat_id}-{topic_id or 0}"
-    memory.ChatMemory.delete(database.URL, session)
-
-    db.delete_messages(chat_id, topic_id)
-    await update.effective_message.reply_html(
-        text="<code>Chat history deleted.</code>"
-    )
+    memory.ChatMemory.delete(database.URL, message.session_id)
     raise ApplicationHandlerStop  # don't handle elsewhere
 
 
