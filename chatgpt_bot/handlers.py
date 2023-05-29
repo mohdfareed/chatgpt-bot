@@ -1,15 +1,13 @@
 """Handlers for telegram updates. It is responsible for parsing updates and
 executing core module functionality."""
 
-import traceback
-
 from chatgpt.langchain import agent, memory, prompts
 from telegram import Update
 from telegram.constants import ChatAction, ParseMode
 from telegram.ext import ApplicationHandlerStop, ContextTypes
 
 import database as _database
-from chatgpt_bot import formatter, logger, models
+from chatgpt_bot import formatter, logger, models, utils
 from chatgpt_bot.formatter import markdown_to_html
 from database import models as _db_models
 
@@ -26,14 +24,9 @@ _sessions_prompts = dict()
 
 async def error_handler(update, context: ContextTypes.DEFAULT_TYPE):
     logger.exception(context.error)
-    if not isinstance(update, Update):
-        return
 
-    # send error to user if possible
-    if update.effective_message:
-        await update.effective_message.reply_html(
-            text=f"<code>{context.error}</code>"
-        )
+    if isinstance(update, Update):
+        await utils.reply_code(update.effective_message, context.error)
 
 
 async def dummy_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -82,6 +75,7 @@ async def delete_history(update: Update, _: ContextTypes.DEFAULT_TYPE):
     message = models.TextMessage(update_message)
 
     memory.ChatMemory.delete(_database.url, message.session)
+    await utils.reply_code(update_message, "Chat history deleted")
     # raise ApplicationHandlerStop  # don't handle elsewhere
 
 
@@ -94,11 +88,9 @@ async def send_usage(update: Update, _: ContextTypes.DEFAULT_TYPE):
     db_user = _db_models.User.get(message.user.id)
     db_chat = _db_models.Chat.get(message.chat.id)
 
-    await update.effective_message.reply_html(
-        text=(
-            f"<code>User usage: {db_user.usage}</code>\n"
-            f"<code>Chat usage: {db_chat.usage}</code>"
-        )
+    await utils.reply_code(
+        update_message,
+        f"User usage: {db_user.usage}\nChat usage: {db_chat.usage}",
     )
 
 
@@ -126,6 +118,10 @@ async def edit_sys(update: Update, _: ContextTypes.DEFAULT_TYPE):
 
     # create new system message
     _sessions_prompts[message.session] = sys_message
+    await utils.reply_code(
+        update_message,
+        f"<b>New system message:</b>\n{sys_message}",
+    )
 
 
 async def get_sys(update: Update, _: ContextTypes.DEFAULT_TYPE):
@@ -133,8 +129,11 @@ async def get_sys(update: Update, _: ContextTypes.DEFAULT_TYPE):
         return
     message = models.TextMessage(update_message)
 
-    text = _get_session_prompt(message.session) or "No system message found."
-    await update_message.reply_html(f"<code>{text}</code>")
+    text = (
+        utils.get_prompt(message.session, _sessions_prompts)
+        or "No system message found."
+    )
+    await utils.reply_code(update_message, text)
 
 
 async def check_file(update: Update, _: ContextTypes.DEFAULT_TYPE):
@@ -188,7 +187,7 @@ async def check_file(update: Update, _: ContextTypes.DEFAULT_TYPE):
         # tools=agent_tools,
         token_handler=send_packet,
         memory=agent_memory,
-        system_prompt=_get_session_prompt(message.session),
+        system_prompt=utils.get_prompt(message.session, _sessions_prompts),
     )
     # generate response
     await chat_agent.generate(message.text, message.metadata, reply.metadata)
@@ -207,16 +206,8 @@ async def check_file(update: Update, _: ContextTypes.DEFAULT_TYPE):
 
 
 async def set_chad(update: Update, _: ContextTypes.DEFAULT_TYPE):
-    if not (message := update.effective_message):
+    if not (update_message := update.effective_message):
         return
-
-    topic_id: int = 0
-    if message.is_topic_message and message.message_thread_id:
-        topic_id = message.message_thread_id
-
-    session = f"{message.chat_id}-{topic_id or 0}"
-    _sessions_prompts[session] = prompts.CHADGPT_PROMPT
-
-
-def _get_session_prompt(session: str):
-    return _sessions_prompts.get(session, prompts.ASSISTANT_PROMPT)
+    message = models.TextMessage(update_message)
+    _sessions_prompts[message.session] = prompts.CHADGPT_PROMPT
+    await utils.reply_code(update_message, "Mode activated")
