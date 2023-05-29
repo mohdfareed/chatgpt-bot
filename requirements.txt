@@ -4,6 +4,7 @@ chatgpt-mohdfareed
 python-telegram-bot[webhooks,rate-limiter]
 beautifulsoup4
 # database
+chromadb
 psycopg2-binary
 sqlalchemy
 sqlalchemy_utils

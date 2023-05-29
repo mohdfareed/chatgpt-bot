@@ -26,19 +26,23 @@ def main(clean: bool = False) -> None:
 
     # remove virtual environment if it exists and clean is set
     if os.path.exists(venv) and clean:
+        print("Cleaning environment...")
         if sys.platform == "win32":
             os.system(f"rmdir /s /q {venv}")
         else:
             os.system(f"rm -rf {venv}")
 
     # create virtual environment
+    print("Setting up environment...")
     os.system(f"python3 -m venv {venv}")
     # update package manager
+    print("Updating pip...")
     os.system(f"{python} -m pip install --upgrade pip")
     # install dependencies, upgrade if already installed
+    print("Installing dependencies...")
     os.system(f"{python} -m pip install -r {req} --upgrade")
 
-    print("\nsetup complete")
+    print("\nSetup complete")
 
 
 if __name__ == "__main__":

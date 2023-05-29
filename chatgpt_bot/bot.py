@@ -30,9 +30,9 @@ async def _start_app():
     application = (
         _telegram_extensions.Application.builder()
         .token(_bot.token)
-        .rate_limiter(
-            _telegram_extensions.AIORateLimiter()
-        )  # TODO: implement custom rate limiter
+        # .rate_limiter(
+        #     _telegram_extensions.AIORateLimiter()
+        # )  # TODO: implement custom rate limiter
         .defaults(defaults)
         .build()
     )
@@ -44,8 +44,11 @@ async def _start_app():
 
     # start the bot
     _bot.logger.info("Starting telegram bot...")
-    await application.start()
     if not _bot.dev_mode:  # run in webhook mode for production
+        _bot.logger.info(
+            f"Using webhook: {_bot.webhook} "
+            f"[{_bot.webhook_addr}:{_bot.webhook_port}]"
+        )
         application.run_webhook(
             listen=_bot.webhook_addr,
             port=_bot.webhook_port,
@@ -53,12 +56,9 @@ async def _start_app():
             secret_token=_secrets.token_hex(32),
         )
     else:  # run in polling mode for development
+        _bot.logger.warning("Running in development mode")
         application.run_polling()
-
-    # stop the bot
-    await application.stop()
-    await application.shutdown()
-    _bot.logger.info("Telegram bot has stopped.")
+    _bot.logger.info("Telegram bot has stopped")
 
 
 def _setup_commands(app: _telegram_extensions.Application):

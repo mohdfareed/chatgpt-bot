@@ -78,7 +78,7 @@ def _setup(to_file: bool = False, debug: bool = False):
         file_handler.setLevel(level)
         file_handler.setFormatter(formatter)
         logger.addHandler(file_handler)
-        logger.info(f"logging to file: {file}")
+        logger.info(f"Logging to file: {file}")
 
 
 if __name__ == "__main__":
