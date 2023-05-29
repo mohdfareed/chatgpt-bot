@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 
-
 import os
 import sys
+
+REQUIREMENTS = os.path.join(os.getcwd(), "requirements.txt")
+"""Path to the requirements file."""
 
 
 def main(clean: bool = False) -> None:
@@ -12,11 +14,9 @@ def main(clean: bool = False) -> None:
         clean (bool, optional): Clean the environment. No-op for development.
     """
 
-    # set working directory to the directory of this project
+    # set working directory and virtual environment path
     os.chdir(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
-    # set paths to virtual environment and requirements
     venv = os.path.join(os.getcwd(), ".venv")
-    req = os.path.join(os.getcwd(), "requirements.txt")
 
     # set path to python executable depending on OS
     if sys.platform == "win32":
@@ -40,7 +40,7 @@ def main(clean: bool = False) -> None:
     os.system(f"{python} -m pip install --upgrade pip")
     # install dependencies, upgrade if already installed
     print("Installing dependencies...")
-    os.system(f"{python} -m pip install -r {req} --upgrade")
+    os.system(f"{python} -m pip install -r {REQUIREMENTS} --upgrade")
 
     print("\nSetup complete")
 
@@ -52,5 +52,6 @@ if __name__ == "__main__":
     parser.add_argument(
         "-c", "--clean", action="store_true", help="perform a clean setup"
     )
+
     args = parser.parse_args()
     main(args.clean)

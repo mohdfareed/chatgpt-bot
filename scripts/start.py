@@ -18,6 +18,11 @@ load_dotenv(override=True)
 import database.core as db
 from chatgpt_bot import bot
 
+DEFAULT_LOGGING_LEVEL = logging.INFO
+"""Default logging level."""
+LOGGING_DIR = os.path.join(os.getcwd(), "logs")
+"""Path to the logging directory."""
+
 
 def main(debug: bool = False, log: bool = False) -> None:
     """Instantiates and runs the app. This function sets up logging and
@@ -29,8 +34,11 @@ def main(debug: bool = False, log: bool = False) -> None:
     """
 
     print("[bold green]Starting chatgpt_bot...[/]")
+
     # setup logging
-    _setup(to_file=log, debug=debug)
+    level = logging.DEBUG if debug else logging.INFO
+    _configure_logging(level=level)
+    _setup(to_file=log)
 
     try:  # start telegram bot
         db.start()
@@ -40,45 +48,59 @@ def main(debug: bool = False, log: bool = False) -> None:
         exit(1)
 
 
-def _setup(to_file: bool = False, debug: bool = False):
-    # configure logging
-    logging.captureWarnings(True)
-    level = logging.DEBUG if debug else logging.INFO
+def _setup(to_file: bool = False):
+    root_logger = logging.getLogger()
 
-    # create console logger and set format
-    logger = logging.getLogger()
-    logger.setLevel(logging.DEBUG)
-    format = "%(message)s [italic bright_black](%(name)s)[/]"
-    formatter = logging.Formatter(format)
-
-    # create handler
+    # create console handler
     console_handler = RichHandler(
         markup=True,
         rich_tracebacks=True,
         log_time_format="[%Y-%m-%d %H:%M:%S]",
     )
-    console_handler.setLevel(level)
+
+    # setup formatting
+    format = "%(message)s [italic bright_black](%(name)s)[/]"
+    formatter = logging.Formatter(format)
+
+    # setup handler
     console_handler.setFormatter(formatter)
-    logger.addHandler(console_handler)
+    root_logger.addHandler(console_handler)
 
     if to_file:  # set up logging to file
-        logs_dir = os.path.join(os.getcwd(), "logs")
-        os.makedirs(logs_dir, exist_ok=True)
-        file = os.path.join(logs_dir, f"{datetime.now():%y%m%d_%H%M%S}.log")
+        os.makedirs(LOGGING_DIR, exist_ok=True)
+        filename = f"{datetime.now():%y%m%d_%H%M%S}.log"
+        file = os.path.join(LOGGING_DIR, filename)
+        file_handler = logging.FileHandler(file)
 
-        # set file format
+        # setup formatting
         format = (
             "[%(asctime)s] %(levelname)-8s "
             "%(message)s (%(name)s) - %(filename)s:%(lineno)d"
         )
         formatter = logging.Formatter(format, "%Y-%m-%d %H:%M:%S")
 
-        # create file handler
-        file_handler = logging.FileHandler(file)
-        file_handler.setLevel(level)
+        # setup handler
+        root_logger.addHandler(file_handler)
         file_handler.setFormatter(formatter)
-        logger.addHandler(file_handler)
-        logger.info(f"Logging to file: {file}")
+        root_logger.info(f"Logging to file: {file}")
+
+
+def _configure_logging(level: int = DEFAULT_LOGGING_LEVEL):
+    # configure logging
+    logging.captureWarnings(True)
+    logging.getLogger().level = level
+    # don't exclude modules if debugging
+    if level == logging.DEBUG:
+        return
+
+    # exclude modules from logging
+    excluded_modules = [
+        "httpx",
+        "numexpr.utils",
+        "openai",
+    ]
+    for module in excluded_modules:
+        logging.getLogger(module).setLevel(logging.WARNING)
 
 
 if __name__ == "__main__":
@@ -91,5 +113,6 @@ if __name__ == "__main__":
     parser.add_argument(
         "-l", "--log", action="store_true", help="log to a file"
     )
+
     args = parser.parse_args()
     main(args.debug, args.log)

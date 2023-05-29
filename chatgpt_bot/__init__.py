@@ -25,9 +25,3 @@ if not token:
 url = f"https://api.telegram.org/bot{token}/getMe"
 if _requests.get(url).status_code != 200:  # invalid token
     raise ValueError(f"Invalid Telegram bot token: {token}")
-
-# log webhook settings
-if not dev_mode:
-    logger.info(f"Using webhook: {webhook} [{webhook_addr}:{webhook_port}]")
-else:
-    logger.warning("Running in development mode.")

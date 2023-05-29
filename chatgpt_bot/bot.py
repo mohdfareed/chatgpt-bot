@@ -12,12 +12,8 @@ import chatgpt_bot.handlers as _handlers
 
 
 def run():
-    """Run the bot."""
+    """Setup and run the bot."""
 
-    _asyncio.run(_start_app())
-
-
-async def _start_app():
     # setup bot settings
     defaults = _telegram_extensions.Defaults(
         parse_mode=_telegram_constants.ParseMode.HTML,
