@@ -18,7 +18,6 @@ webhook_port = int(_os.getenv("WEBHOOK_PORT") or -1)
 dev_mode = not (webhook and webhook_addr and (webhook_port > -1))
 """Whether the bot is running in development mode (polling mode)."""
 
-
 # validate token
 if not token:
     raise ValueError("Environment variable 'TELEGRAM_BOT_TOKEN' is not set.")

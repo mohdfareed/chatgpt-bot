@@ -9,15 +9,6 @@ from dotenv import load_dotenv
 from rich import print
 from rich.logging import RichHandler
 
-# add bot directory to the path
-os.chdir(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
-sys.path.append(os.getcwd())
-# load environment variables
-load_dotenv(override=True)
-
-import database.core as db
-from chatgpt_bot import bot
-
 DEFAULT_LOGGING_LEVEL = logging.INFO
 """Default logging level."""
 LOGGING_DIR = os.path.join(os.getcwd(), "logs")
@@ -39,10 +30,20 @@ def main(debug: bool = False, log: bool = False) -> None:
     level = logging.DEBUG if debug else logging.INFO
     _configure_logging(level=level)
     _setup(to_file=log)
+    # add bot directory to the path
+    os.chdir(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+    sys.path.append(os.getcwd())
+    # load environment variables
+    load_dotenv(override=True)
 
-    try:  # start telegram bot
-        db.start()
-        bot.run()
+    try:
+        # import database and bot
+        import database.core as database
+        from chatgpt_bot import bot as telegram_bot
+
+        # start database and bot
+        database.start()
+        telegram_bot.run()
     except Exception as e:
         logging.error(e)
         exit(1)

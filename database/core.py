@@ -1,14 +1,15 @@
 """Database core functionality. It is responsible for managing the database
 within a Docker container."""
 
-import tenacity
-from sqlalchemy import Engine, create_engine
-from sqlalchemy.orm import Session
+import tenacity as _tenacity
+from sqlalchemy import Engine as _Engine
+from sqlalchemy import create_engine as _create_engine
+from sqlalchemy.orm import Session as _Session
 
-from database import URL, logger
+from database import logger, url
 from database.models import Base
 
-engine: Engine
+engine: _Engine
 """The database engine."""
 
 
@@ -17,18 +18,18 @@ def start() -> None:
     global engine
 
     # initialize database
-    logger.info("initializing database...")
-    engine = create_engine(URL)
+    logger.info("Initializing database...")
+    engine = _create_engine(url)
     validate_connection()
     # initialize tables
     Base.metadata.create_all(engine)
 
 
-@tenacity.retry(
-    # retry every second for 5 seconds on connection errors
-    wait=tenacity.wait_fixed(1),
-    stop=tenacity.stop_after_attempt(5),
-    retry=tenacity.retry_if_exception_type(ConnectionError),
+@_tenacity.retry(
+    # retry on connection errors
+    wait=_tenacity.wait_fixed(1),  # retry every second
+    stop=_tenacity.stop_after_attempt(5),  # for 5 seconds
+    retry=_tenacity.retry_if_exception_type(ConnectionError),
     reraise=True,
 )
 def validate_connection() -> None:
@@ -41,6 +42,6 @@ def validate_connection() -> None:
 
     try:  # check connection to database
         engine.connect()
-        Session(engine).close()
+        _Session(engine).close()
     except Exception:
-        raise ConnectionError("failed to connect to database")
+        raise ConnectionError("Failed to connect to database")
