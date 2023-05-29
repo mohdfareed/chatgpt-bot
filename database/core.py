@@ -6,8 +6,9 @@ from sqlalchemy import Engine as _Engine
 from sqlalchemy import create_engine as _create_engine
 from sqlalchemy.orm import Session as _Session
 
-from database import logger, url
-from database.models import Base
+from database import logger as _logger
+from database import url as _db_url
+from database.models import metadata as _db_metadata
 
 engine: _Engine
 """The database engine."""
@@ -18,11 +19,11 @@ def start() -> None:
     global engine
 
     # initialize database
-    logger.info("Initializing database...")
-    engine = _create_engine(url)
+    _logger.info("Initializing database...")
+    engine = _create_engine(_db_url)
     validate_connection()
     # initialize tables
-    Base.metadata.create_all(engine)
+    _db_metadata.create_all(engine)
 
 
 @_tenacity.retry(
