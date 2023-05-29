@@ -45,7 +45,7 @@ def main(debug: bool = False, log: bool = False) -> None:
         database.start()
         telegram_bot.run()
     except Exception as e:
-        logging.error(e)
+        logging.exception(e)
         exit(1)
 
 

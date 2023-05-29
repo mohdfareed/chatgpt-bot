@@ -97,13 +97,6 @@ def _setup_commands(app: _telegram_extensions.Application):
 
     app.add_handler(
         _telegram_extensions.CommandHandler(
-            command="cancel",
-            callback=_handlers.cancel_reply,
-        )
-    )
-
-    app.add_handler(
-        _telegram_extensions.CommandHandler(
             command="chad",
             callback=_handlers.set_chad,
         )

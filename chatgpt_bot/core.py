@@ -14,9 +14,8 @@ from telegram import Message
 from telegram.constants import ChatAction, ParseMode
 from telegram.error import TelegramError
 
-from chatgpt_bot import logger, utils
+from chatgpt_bot import logger
 from database import models
-from database import utils as db
 
 _edit_timer = 0.0
 """Timer since the last edit message request."""
@@ -53,25 +52,6 @@ async def cancel_all(message: Message) -> bool:
     return has_cancelled
 
 
-def store_message(message: Message) -> models.Message:
-    """Parse a telegram message, store it in the database, and return it."""
-
-    # add chat to database
-    db.add_chat(utils.parse_chat(message.chat))
-    # add topic to database
-    if message.is_topic_message:
-        db.add_topic(utils.parse_topic(message))
-    # add user to database
-    if user := message.from_user:
-        db.add_user(utils.parse_user(user))
-    # add sender chat to database
-    if sender := message.sender_chat:
-        db.add_chat(utils.parse_chat(sender))
-    # add message to database and return it
-    db.add_message(db_message := utils.parse_message(message))
-    return db_message
-
-
 async def reply_to_message(message: Message):
     """Reply to a message using a bot."""
 
@@ -89,25 +69,25 @@ async def reply_to_message(message: Message):
     chatgpt = ChatCompletion(model)
     usage = await _stream_reply(chatgpt, message, gpt_chat)
 
-    # count usage towards the user
-    if user := db.get_user(message.from_user.id):
-        user.usage = usage if not user.usage else user.usage + usage
-        db.add_user(user)
-    # count usage towards the chat if not a topic message
-    if not topic_id:
-        chat = db.get_chat(message.chat_id)
-        chat.usage = usage if not chat.usage else chat.usage + usage
-        db.add_chat(chat)
-    # count usage towards the topic if a topic message
-    else:
-        topic = db.get_topic(topic_id, message.chat_id)
-        topic.usage = usage if not topic.usage else topic.usage + usage
-        db.add_topic(topic)
+    # # count usage towards the user
+    # if user := db.get_user(message.from_user.id):
+    #     user.usage = usage if not user.usage else user.usage + usage
+    #     db.add_user(user)
+    # # count usage towards the chat if not a topic message
+    # if not topic_id:
+    #     chat = db.get_chat(message.chat_id)
+    #     chat.usage = usage if not chat.usage else chat.usage + usage
+    #     db.add_chat(chat)
+    # # count usage towards the topic if a topic message
+    # else:
+    #     topic = db.get_topic(topic_id, message.chat_id)
+    #     topic.usage = usage if not topic.usage else topic.usage + usage
+    #     db.add_topic(topic)
 
 
 def _get_history(chat_id, topic_id) -> GPTChat:
     # load chat history from database
-    db_messages = db.get_messages(chat_id, topic_id)
+    db_messages = []
     # construct chatgpt messages
     chatgpt_messages: list[GPTMessage] = []
     has_system_message = False
@@ -167,14 +147,14 @@ async def _stream_reply(chat: ChatCompletion, message, history) -> int:
         await cancel_reply(bot_message)
 
     # store the reply in the database
-    db_message = store_message(bot_message)
-    db_message.role = chatgpt_reply.role
-    db_message.finish_reason = chatgpt_reply.finish_reason.value
-    db_message.text = str(chatgpt_reply)
-    db_message.prompt_tokens = chatgpt_reply.prompt_tokens
-    db_message.reply_tokens = chatgpt_reply.reply_tokens
-    db.add_message(db_message)
-    return db_message.prompt_tokens + db_message.reply_tokens
+    # db_message = store_message(bot_message)
+    # db_message.role = chatgpt_reply.role
+    # db_message.finish_reason = chatgpt_reply.finish_reason.value
+    # db_message.text = str(chatgpt_reply)
+    # db_message.prompt_tokens = chatgpt_reply.prompt_tokens
+    # db_message.reply_tokens = chatgpt_reply.reply_tokens
+    # db.add_message(db_message)
+    return 0
 
 
 async def _stream_message(request: AsyncGenerator, message: Message):

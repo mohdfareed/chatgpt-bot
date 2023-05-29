@@ -1,57 +1,44 @@
 """Handlers for telegram updates. It is responsible for parsing updates and
 executing core module functionality."""
 
-import html
-import re
 import traceback
 
-from chatgpt.langchain import agent, memory
-from chatgpt.types import MessageRole
-from telegram import Message, Update
+from chatgpt.langchain import agent, memory, prompts
+from telegram import Update
 from telegram.constants import ChatAction, ParseMode
 from telegram.ext import ApplicationHandlerStop, ContextTypes
 
-import database
-from chatgpt_bot import core, formatter, logger, models
-from database import utils as db
+import database as _database
+from chatgpt_bot import formatter, logger, models
+from chatgpt_bot.formatter import markdown_to_html
+from database import models as _db_models
 
 dummy_message = """
-<b>bold</b>, <i>italic</i>, <u>underline < ><s>strikethrough</s> </u>, <s>strikethrough</s>
-<tg-spoiler>spo&iler</tg-spoiler>, <code>inline fixed-width code</code>
-<a href="http://www.example.com/">inline <&> >> URL</a>, @{bot}
-
-&
-&&&
-<
->>>
-
-<b>bold <i>italic bold <s>italic bold strikethrough <tg-spoiler>italic bold strikethrough spoiler</tg-spoiler></s> <u>underline italic bold</u></i> bold</b>
-
-<bad tag>some & text</bad tag>
-<b>bold & test <>>>><< &<test>&</b>
-<test><tst>te&st</tst></test>
-
-&lt;test&gt;some & text&lt;/test&gt;
-<test>;some & text</test>;
-
-<tst>te&st</tst>
-<a test="http://www.example.com/">inline <&> >> URL</a>
+<b>bold</b>, <i>italic</i>, <u>underline</u>, <s>strikethrough</s>, \
+<tg-spoiler>spoiler</tg-spoiler>, <code>inline fixed-width code</code>
+<a href="http://www.example.com/">Inline URL</a>
+@{bot}
 """
 
 
 _sessions_prompts = dict()
 
 
-async def error_handler(_, context: ContextTypes.DEFAULT_TYPE):
-    logger.error(context.error)
-    traceback_str = "".join(traceback.format_tb(context.error.__traceback__))
-    logger.error("traceback:\n%s", traceback_str)
+async def error_handler(update, context: ContextTypes.DEFAULT_TYPE):
+    logger.exception(context.error)
+    if not isinstance(update, Update):
+        return
+
+    # send error to user if possible
+    if update.effective_message:
+        await update.effective_message.reply_html(
+            text=f"<code>{context.error}</code>"
+        )
 
 
 async def dummy_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global dummy_message
-    # dummy_message = dummy_message.format(bot=context.bot.username)
-    # dummy_message = core._format_text(dummy_message)
+
     dummy_message = formatter._parse_html(dummy_message)
     await context.bot.send_message(
         chat_id=update.effective_chat.id,
@@ -61,12 +48,12 @@ async def dummy_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def store_update(update: Update, _: ContextTypes.DEFAULT_TYPE):
-    if not (message := update.message or update.channel_post):
+    if not (update_message := update.message or update.channel_post):
         return  # TODO: update edited messages (user effective message)
-    message = models.TextMessage(message)
+    message = models.TextMessage(update_message)
 
     text = agent.parse_message(message.text, message.metadata, "other")
-    memory.ChatMemory.store(text, database.URL, message.session_id)
+    memory.ChatMemory.store(text, _database.url, message.session)
 
 
 async def private_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -77,9 +64,11 @@ async def private_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def mention_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Reply to a message."""
 
-    if not update.effective_message.text:
+    if not (update_message := update.effective_message):
         return
-    if context.bot.username not in update.effective_message.text:
+    message = models.TextMessage(update_message)
+
+    if context.bot.username not in message.text:
         return
 
     await check_file(update, context)
@@ -88,34 +77,27 @@ async def mention_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def delete_history(update: Update, _: ContextTypes.DEFAULT_TYPE):
     """Delete a chat."""
 
-    if not update.effective_message:
+    if not (update_message := update.effective_message):
         return
-    message = models.TextMessage(update.effective_message)
+    message = models.TextMessage(update_message)
 
-    memory.ChatMemory.delete(database.URL, message.session_id)
-    raise ApplicationHandlerStop  # don't handle elsewhere
+    memory.ChatMemory.delete(_database.url, message.session)
+    # raise ApplicationHandlerStop  # don't handle elsewhere
 
 
 async def send_usage(update: Update, _: ContextTypes.DEFAULT_TYPE):
     """Send usage instructions."""
 
-    if not (message := update.effective_message):
+    if not (update_message := update.effective_message):
         return
+    message = models.TextMessage(update_message)
+    db_user = _db_models.User.get(message.user.id)
+    db_chat = _db_models.Chat.get(message.chat.id)
 
-    thread_id: int = None  # type: ignore
-    if message.is_topic_message and message.message_thread_id:
-        chat_usage = db.get_topic(
-            message.message_thread_id, message.chat_id
-        ).usage
-        thread_id = message.message_thread_id
-    else:
-        chat_usage = db.get_chat(update.effective_chat.id).usage
-
-    user_usage = db.get_user(update.effective_user.id).usage
     await update.effective_message.reply_html(
         text=(
-            f"<code>User usage: {user_usage}\n"
-            + f"Chat usage: {chat_usage}</code>"
+            f"<code>User usage: {db_user.usage}</code>\n"
+            f"<code>Chat usage: {db_chat.usage}</code>"
         )
     )
 
@@ -126,190 +108,105 @@ async def bot_updated(update: Update, _: ContextTypes.DEFAULT_TYPE):
 
 
 async def edit_sys(update: Update, _: ContextTypes.DEFAULT_TYPE):
-    if not (update.effective_chat and update.effective_message):
+    if not (update_message := update.effective_message):
         return
-    if not update.effective_message.text:
-        return
+    message = models.TextMessage(update_message)
 
-    # get the chat and topic
-    chat_id = update.effective_chat.id
-    topic_id = None
-    if update.effective_message.is_topic_message:
-        topic_id = update.effective_message.message_thread_id
-    # create new system message
-    sys_message = db.get_message(-(topic_id or 0), chat_id)
-
-    name, text = None, None
-    try:  # parse the message in the format `/command name\ncontent`
-        _msg = update.effective_message.text.split(" ", 1)[1]
-        if _msg.startswith("$"):
-            name = _msg.split("$", 1)[1].split("\n", 1)[0]
-            text = _msg.split("\n", 1)[1]
-        else:
-            name = None
-            text = _msg
+    sys_message = None
+    try:  # parse the message in the format `/command content`
+        sys_message = update.effective_message.text.split(" ", 1)[1].strip()
     except IndexError:
         pass
 
-    # parse text from reply
-    if not text:
-        if update.effective_message.is_topic_message:
-            if (
-                update.effective_message.message_thread_id
-                != update.effective_message.reply_to_message.message_id
-            ):
-                text = update.effective_message.reply_to_message.text
-        elif update.effective_message.reply_to_message:
-            text = update.effective_message.reply_to_message.text
+    # parse text from reply if no text was found in message
+    if not sys_message and message.reply:
+        sys_message = message.reply.text
+    if not sys_message:
+        raise ValueError("No text found to update system message")
 
-    # check validity of the name and text
-    if name and len(re.findall(r"^[^a-zA-Z0-9_-]{1,64}$", name)) > 0:
-        raise ValueError("invalid name for system message")
-    if not text:
-        raise ValueError("no text found to update system message")
-    # get the chat and topic
-    chat_id = update.effective_chat.id
-    topic_id = None
-    if update.effective_message.is_topic_message:
-        topic_id = update.effective_message.message_thread_id
     # create new system message
-    sys_message = db.get_message(-(topic_id or 0), chat_id)
-    sys_message.topic_id = topic_id
-    sys_message.role = MessageRole.SYSTEM
-    sys_message.text = text
-    sys_message.name = name
-    _sessions_prompts[f"{chat_id}-{topic_id or 0}"] = text
-    db.add_message(sys_message)
+    _sessions_prompts[message.session] = sys_message
 
 
 async def get_sys(update: Update, _: ContextTypes.DEFAULT_TYPE):
-    if not (update.effective_chat and update.effective_message):
+    if not (update_message := update.effective_message):
         return
-    if not update.effective_message.text:
-        return
+    message = models.TextMessage(update_message)
 
-    # get the chat and topic
-    chat_id = update.effective_chat.id
-    topic_id = None
-    if update.effective_message.is_topic_message:
-        topic_id = update.effective_message.message_thread_id
-
-    # get the system message's name and text
-    sys_message = db.get_message(-(topic_id or 0), chat_id)
-    # create bot message text
-    text = ""
-    if sys_message.name:
-        text += f"<b>Name</b>: {html.escape(sys_message.name)}\n"
-    if sys_message.text:
-        text += f"<code>{html.escape(sys_message.text or '')}</code>"
-
-    session = f"{chat_id}-{topic_id or 0}"
-    text = _get_session_prompt(session) or "No system message found."
-    await _.bot.send_message(
-        chat_id=update.effective_chat.id,
-        message_thread_id=topic_id,  # type: ignore
-        text=f"<code>{text}</code>",
-        parse_mode=ParseMode.HTML,
-    )
-
-
-async def cancel_reply(update: Update, _: ContextTypes.DEFAULT_TYPE):
-    if not update.effective_chat or not (msg := update.effective_message):
-        return
-
-    if msg.reply_to_message:
-        cancelled = await core.cancel_reply(msg.reply_to_message)
-    else:
-        cancelled = await core.cancel_all(msg)
-    # react to message
-    if cancelled:
-        await msg.reply_html(text="<code>Cancelled.</code>")
+    text = _get_session_prompt(message.session) or "No system message found."
+    await update_message.reply_html(f"<code>{text}</code>")
 
 
 async def check_file(update: Update, _: ContextTypes.DEFAULT_TYPE):
-    if not (message := update.effective_message):
+    if not (update_message := update.effective_message):
         return
-    if not update.effective_message.text:
-        return
-
-    from chatgpt.langchain import agent, memory, tools
-
-    import database
-    from chatgpt_bot.formatter import markdown_to_html
-
-    update.message.reply_to_message
+    message = models.TextMessage(update_message)
 
     # set typing status
-    bot_message = await message.reply_text("<code>Thinking...</code>")
-    topic_id: int = 0
-    if message.is_topic_message and message.message_thread_id:
-        topic_id = message.message_thread_id
-    await message.chat.send_action(ChatAction.TYPING, topic_id or None)  # type: ignore
-    reply_text = ""
-    chunk_counter = 0
+    bot_message = await update_message.reply_text("<code>Thinking...</code>")
+    reply = models.TextMessage(bot_message)
+    await update_message.chat.send_action(ChatAction.TYPING, message.topic_id)  # type: ignore
 
-    async def send_packet(packet: str, flush: bool = False):
-        nonlocal reply_text, chunk_counter
+    # setup streaming variables
+    reply_text = ""
+    chunk = ""
+    chunk_counter = 0
+    chunk_size = 10
+    results: agent.GenerationResults | None = None  # type: ignore
+
+    async def send_packet(packet: str | agent.GenerationResults):
+        nonlocal reply_text, chunk_counter, chunk, results
+        flushing = isinstance(packet, agent.GenerationResults)
+
+        if flushing:  # flush chunk
+            chunk_counter = -1
+            results = packet
+
+        # add packet to reply
+        chunk += packet if not flushing else ""
+        chunk_counter = (chunk_counter + 1) % chunk_size
+        if chunk_counter != 0:
+            return
 
         # send packet to chat
-        reply_text = packet if flush else reply_text + packet
-        chunk_counter = (chunk_counter + 1) % 10
-        if chunk_counter != 0 and not flush:
-            return
-        message_text = markdown_to_html(reply_text)
-        if message_text != bot_message.text_html:
-            await bot_message.edit_text(message_text)
+        new_reply = reply_text + chunk
+        if reply_text != new_reply:
+            await bot_message.edit_text(markdown_to_html(new_reply))
+            reply_text = new_reply
+            chunk = ""
 
-    # set up agent components
-    session = f"{message.chat_id}-{topic_id or 0}"
-    agent_memory = memory.ChatMemory(
-        token_limit=2600, url=database.URL, session_id=session
-    )
     # agent_tools = [
     #     tools.InternetSearch(),
     #     tools.WikiSearch(),
     #     tools.Calculator(),
     # ]
+    # set up agent components
+    agent_memory = memory.ChatMemory(
+        token_limit=2600, url=_database.url, session_id=message.session
+    )
     chat_agent = agent.ChatGPT(
         # tools=agent_tools,
         token_handler=send_packet,
         memory=agent_memory,
-        system_prompt=_get_session_prompt(session),
+        system_prompt=_get_session_prompt(message.session),
     )
-
-    # setup message metadata
-    metadata = dict(
-        id=str(message.message_id),
-        username=message.from_user.username or message.from_user.first_name
-        if message.from_user.username
-        else None,
-        reply_to=str(message.reply_to_message.message_id)
-        if message.reply_to_message
-        else None,
-    )
-    # clear None values
-    metadata = {k: v for k, v in metadata.items() if v is not None}
-
-    # set bot message metadata
-    reply_metadata = dict(
-        id=str(bot_message.message_id),
-        username=bot_message.from_user.username,
-        reply_to=str(bot_message.reply_to_message.message_id)
-        if bot_message.reply_to_message
-        else None,
-    )
-    # clear None values
-    reply_metadata = {k: v for k, v in reply_metadata.items() if v is not None}
-
     # generate response
-    content = message.text or message.caption or ""
-    response = await chat_agent.generate(content, metadata, reply_metadata)
-    # await bot_message.edit_text(markdown_to_html(response.text))
+    await chat_agent.generate(message.text, message.metadata, reply.metadata)
+
+    # count usage if message was sent
+    if isinstance(results, agent.GenerationResults):
+        usage = results.prompt_tokens + results.generated_tokens
+
+        db_user = _db_models.User.get(message.user.id)
+        db_user.usage += usage
+        db_user.store()
+
+        db_chat = _db_models.Chat.get(message.chat.id)
+        db_chat.usage += usage
+        db_chat.store()
 
 
 async def set_chad(update: Update, _: ContextTypes.DEFAULT_TYPE):
-    from chatgpt.langchain import prompts
-
     if not (message := update.effective_message):
         return
 
@@ -322,6 +219,4 @@ async def set_chad(update: Update, _: ContextTypes.DEFAULT_TYPE):
 
 
 def _get_session_prompt(session: str):
-    from chatgpt.langchain import prompts
-
     return _sessions_prompts.get(session, prompts.ASSISTANT_PROMPT)
