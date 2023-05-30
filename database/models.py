@@ -80,20 +80,24 @@ class Chat(_Base):
 
     __tablename__ = "chats"
 
-    _model_id: _orm.Mapped[int | None] = _orm.mapped_column(
+    topic_id: _orm.Mapped[int | None] = _orm.mapped_column(
+        primary_key=True, nullable=True
+    )
+    """The chat's topic ID if any."""
+
+    model_id: _orm.Mapped[int | None] = _orm.mapped_column(
         _sql.ForeignKey(Model.id)
     )
-
-    topic_id: _orm.Mapped[int | None] = _orm.mapped_column(primary_key=True)
-    """The chat's topic ID if any."""
-    token_usage: _orm.Mapped[int] = _orm.mapped_column(default=0)
-    """The chat's cumulative token usage."""
-    usage: _orm.Mapped[float] = _orm.mapped_column(default=0)
-    """The chat's cumulative usage in USD."""
+    """The chat's ChatGPT model ID if any."""
     model: _orm.Mapped[Model | None] = _orm.relationship(
         back_populates="chats"
     )
     """The chat's ChatGPT model."""
+
+    token_usage: _orm.Mapped[int] = _orm.mapped_column(default=0)
+    """The chat's cumulative token usage."""
+    usage: _orm.Mapped[float] = _orm.mapped_column(default=0.0)
+    """The chat's cumulative usage in USD."""
 
     @classmethod
     def get(cls, id: int, topic_id: int | None = None) -> "Chat":

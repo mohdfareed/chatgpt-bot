@@ -22,7 +22,7 @@ class TextMessage:
     @property
     def session(self) -> str:
         """The session ID of the message."""
-        return f"{self.chat.id}_{self.topic_id or '-1'}"
+        return f"{self.chat.id}_{self.topic_id or ''}"
 
     @property
     def metadata(self) -> dict[str, str]:
