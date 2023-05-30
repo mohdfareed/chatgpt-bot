@@ -1,14 +1,16 @@
 """The ChatGPT Telegram bot. This module contains the bot's entry point. It
 manages the bot's lifecycle and tunneling updates to handlers."""
 
-import asyncio as _asyncio
 import secrets as _secrets
 
+import telegram as _telegram
 import telegram.ext as _telegram_extensions
 from telegram import constants as _telegram_constants
 
 import chatgpt_bot as _bot
+import chatgpt_bot.commands as _commands
 import chatgpt_bot.handlers as _handlers
+import chatgpt_bot.utils as _utils
 
 
 def run():
@@ -34,7 +36,7 @@ def run():
     )
 
     # setup the bot's handlers
-    application.add_error_handler(_handlers.error_handler)
+    application.add_error_handler(_error_handler)
     _setup_commands(application)
     _setup_handlers(application)
 
@@ -63,42 +65,42 @@ def _setup_commands(app: _telegram_extensions.Application):
     app.add_handler(
         _telegram_extensions.CommandHandler(
             command="delete",
-            callback=_handlers.delete_history,
+            callback=_commands.delete_history,
         )
     )
 
     app.add_handler(
         _telegram_extensions.CommandHandler(
             command="usage",
-            callback=_handlers.send_usage,
+            callback=_commands.send_usage,
         )
     )
 
     app.add_handler(
         _telegram_extensions.CommandHandler(
             command="start",
-            callback=_handlers.dummy_callback,
+            callback=_commands.dummy_callback,
         )
     )
 
     app.add_handler(
         _telegram_extensions.CommandHandler(
             command="sys",
-            callback=_handlers.get_sys,
+            callback=_commands.get_sys,
         )
     )
 
     app.add_handler(
         _telegram_extensions.CommandHandler(
             command="edit",
-            callback=_handlers.edit_sys,
+            callback=_commands.edit_sys,
         )
     )
 
     app.add_handler(
         _telegram_extensions.CommandHandler(
             command="chad",
-            callback=_handlers.set_chad,
+            callback=_commands.set_chad,
         )
     )
 
@@ -128,3 +130,12 @@ def _setup_handlers(app: _telegram_extensions.Application):
             callback=_handlers.store_update,
         )
     )
+
+
+async def _error_handler(
+    update, context: _telegram_extensions.CallbackContext
+):
+    _bot.logger.exception(context.error)
+
+    if isinstance(update, _telegram.Update):
+        await _utils.reply_code(update.effective_message, context.error)

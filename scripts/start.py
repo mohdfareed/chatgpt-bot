@@ -51,16 +51,18 @@ def main(debug: bool = False, log: bool = False) -> None:
 
 def _setup(to_file: bool = False):
     root_logger = logging.getLogger()
+    format = (
+        r"%(message)s [bright_black]- [italic]%(name)s[/italic] "
+        r"\[[underline]%(filename)s:%(lineno)d[/underline]]"
+    )
 
     # create console handler
     console_handler = RichHandler(
         markup=True,
         rich_tracebacks=True,
         log_time_format="[%Y-%m-%d %H:%M:%S]",
+        show_path=False,
     )
-
-    # setup formatting
-    format = "%(message)s [italic bright_black](%(name)s)[/]"
     formatter = logging.Formatter(format)
 
     # setup handler
@@ -76,7 +78,7 @@ def _setup(to_file: bool = False):
         # setup formatting
         format = (
             "[%(asctime)s] %(levelname)-8s "
-            "%(message)s (%(name)s) - %(filename)s:%(lineno)d"
+            "%(message)s - %(name)s [%(filename)s:%(lineno)d]"
         )
         formatter = logging.Formatter(format, "%Y-%m-%d %H:%M:%S")
 
