@@ -1,48 +1,63 @@
 """Database core functionality. It is responsible for managing the database
-within a Docker container."""
+and its connection."""
 
-import tenacity as _tenacity
-from sqlalchemy import Engine as _Engine
-from sqlalchemy import create_engine as _create_engine
-from sqlalchemy.orm import Session as _Session
+import logging
+import os
 
-from database import logger as _logger
-from database import url as _db_url
-from database.models import metadata as _db_metadata
+import tenacity
+from sqlalchemy import Engine, create_engine
+from sqlalchemy.orm import Session
 
-engine: _Engine
-"""The database engine."""
+# default to sqlite database
+_db_path = os.path.abspath(os.path.dirname(__file__))
+_default_url = f"sqlite:///{_db_path}/database.db"
+_engine: Engine | None = None  # global database engine
 
-
-def start() -> None:
-    """Initialize the database in a Docker container."""
-    global engine
-
-    # initialize database
-    _logger.info("Initializing database...")
-    engine = _create_engine(_db_url)
-    validate_connection()
-    # initialize tables
-    _db_metadata.create_all(engine)
+logger = logging.getLogger(__name__)
+"""The database logger."""
+url = os.environ.get("DATABASE_URL") or _default_url
+"""The database URL."""
 
 
-@_tenacity.retry(
-    # retry on connection errors
-    wait=_tenacity.wait_fixed(1),  # retry every second
-    stop=_tenacity.stop_after_attempt(5),  # for 5 seconds
-    retry=_tenacity.retry_if_exception_type(ConnectionError),
-    reraise=True,
-)
-def validate_connection() -> None:
-    """Check if the database is connected.
+def engine():
+    """Returns the database engine. If it is not initialized, database
+    connection is established and the engine is created.
 
     Raises:
-        ConnectionError: If the database is not connected.
+        ConnectionError: If connection to database could not be established.
     """
-    global engine
+    global _engine
 
-    try:  # check connection to database
-        engine.connect()
-        _Session(engine).close()
+    # start database if no engine is available
+    if not _engine:
+        _engine = _start_engine()
+    # validate and return engine
+    _validate_connection(_engine)
+    return _engine
+
+
+@tenacity.retry(
+    # retry on connection errors
+    wait=tenacity.wait_random_exponential(min=0.5, max=1),
+    stop=tenacity.stop_after_attempt(5),
+    retry=tenacity.retry_if_exception_type(ConnectionError),
+    reraise=True,
+)
+def _validate_connection(engine):
+    try:  # creating a session to validate connection
+        Session(engine).close()
     except Exception:
         raise ConnectionError("Failed to connect to database")
+
+
+def _start_engine():
+    from .db_model import DatabaseModel
+
+    # initialize database
+    logger.info("Initializing database...")
+    engine = create_engine(url)
+    _validate_connection(engine)
+    # create database schema
+    DatabaseModel.metadata.create_all(engine)
+    logger.info(f"Connected to database: {url}")
+    return engine
