@@ -2,6 +2,24 @@ import unittest
 
 import bot.formatter
 
+_complex_md = """
+*bold _italic bold ~italic bold strikethrough ||italic bold strikethrough spoiler||~ __underline italic bold___ bold*
+[inline URL](http://www.example.com/)
+`inline fixed-width code`
+```
+pre-formatted fixed-width code block
+```
+"""
+
+_complex_html = """
+<b>bold <i>italic bold <s>italic bold strikethrough <tg-spoiler>italic bold strikethrough spoiler</tg-spoiler></s> <u>underline italic bold</u></i> bold</b>
+<a href="http://www.example.com/">inline URL</a>
+<code>inline fixed-width code</code>
+<pre>
+pre-formatted fixed-width code block
+</pre>
+"""
+
 
 class TestMarkdownToHtml(unittest.TestCase):
     def test_bold(self):
@@ -76,4 +94,10 @@ class TestMarkdownToHtml(unittest.TestCase):
         self.assertEqual(
             bot.formatter.md_html("This is a _@username_mention."),
             "This is a _@username_mention.",
+        )
+
+    def test_complex(self):
+        self.assertEqual(
+            bot.formatter.md_html(_complex_md),
+            _complex_html,
         )

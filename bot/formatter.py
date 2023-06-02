@@ -31,7 +31,7 @@ _html_syntax = dict(
     spoiler=r"<tg-spoiler>\1</tg-spoiler>",
     link=r'<a href="\2">\1</a>',
     mono=r"<code>\1</code>",
-    code=r"<code>\1</code>",
+    code=r"<pre>\1</pre>",
 )
 
 _valid_tags = [
