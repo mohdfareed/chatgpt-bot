@@ -14,11 +14,11 @@ _inline = r"(?<![@#\\\w]){0}(.+?){0}(?!\w)"
 
 _markdown_patterns = dict(
     bold=_inline.format(r"\*"),
-    italic=_inline.format(r"_"),  # only after underlined
+    italic=_inline.format(r"_(?!_)"),
     underlined=_inline.format(r"__"),
     strikethrough=_inline.format(r"~"),
     spoiler=_inline.format(r"\|\|"),
-    mono=_inline.format(r"`(?!`)"),  # only after code blocks
+    mono=_inline.format(r"`(?!`)"),
     code=r"(?<![@#\\\w])```([\s\S]+?)```(?!\w)",
     link=r"(?<![@#\w])\[(.+?)\]\((.+?)\)(?!\w)",
 )
