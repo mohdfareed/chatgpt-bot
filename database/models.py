@@ -1,10 +1,11 @@
-"""The models defining the database schema."""
+"""The database models defining the database schema."""
 
 
-from chatgpt.langchain import prompts
-from sqlalchemy import ForeignKey, orm
+from chatgpt.langchain.prompts import ASSISTANT_PROMPT
+from sqlalchemy import ForeignKey, PrimaryKeyConstraint
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from .db_model import DatabaseModel
+from database.core import DatabaseModel
 
 
 class Model(DatabaseModel):
@@ -12,18 +13,14 @@ class Model(DatabaseModel):
 
     __tablename__ = "models"
 
-    id: orm.Mapped[int] = orm.mapped_column(
-        primary_key=True, autoincrement=True
-    )
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     """The model's unique ID. It is automatically generated."""
-    prompt: orm.Mapped[str] = orm.mapped_column()
+    prompt: Mapped[str] = mapped_column()
     """The model's system prompt."""
-    chats: orm.Mapped[list["Chat"]] = orm.relationship(back_populates="_model")
+    chats: Mapped[list["Chat"]] = relationship(back_populates="_model")
     """The chats using the model."""
 
-    def __init__(
-        self, id: int | None = None, prompt: str = prompts.ASSISTANT_PROMPT
-    ):
+    def __init__(self, id: int | None = None, prompt: str = ASSISTANT_PROMPT):
         self.id = id or self.id
         self.prompt = prompt
 
@@ -40,11 +37,11 @@ class User(DatabaseModel):
 
     __tablename__ = "users"
 
-    id: orm.Mapped[int] = orm.mapped_column(primary_key=True)
+    id: Mapped[int] = mapped_column(primary_key=True)
     """The user's unique ID."""
-    token_usage: orm.Mapped[int] = orm.mapped_column()
+    token_usage: Mapped[int] = mapped_column()
     """The user's cumulative token usage."""
-    usage: orm.Mapped[float] = orm.mapped_column()
+    usage: Mapped[float] = mapped_column()
     """The user's cumulative usage in USD."""
 
     def __init__(self, id: int, token_usage: int = 0, usage: float = 0):
@@ -57,18 +54,19 @@ class Chat(DatabaseModel):
     """A telegram private chat (user), group chat, forum, or channel."""
 
     __tablename__ = "chats"
-    _model: orm.Mapped[Model | None] = orm.relationship(back_populates="chats")
-    _topic_id: orm.Mapped[int] = orm.mapped_column(
+
+    _model: Mapped[Model | None] = relationship(back_populates="chats")
+    _topic_id: Mapped[int] = mapped_column(
         "topic_id", primary_key=True, default=-1
     )
 
-    id: orm.Mapped[int] = orm.mapped_column(primary_key=True)
+    id: Mapped[int] = mapped_column(primary_key=True)
     """The chat's unique ID."""
-    model_id: orm.Mapped[int | None] = orm.mapped_column(ForeignKey(Model.id))
+    model_id: Mapped[int | None] = mapped_column(ForeignKey(Model.id))
     """The chat's ChatGPT model ID if any."""
-    token_usage: orm.Mapped[int] = orm.mapped_column()
+    token_usage: Mapped[int] = mapped_column()
     """The chat's cumulative token usage."""
-    usage: orm.Mapped[float] = orm.mapped_column()
+    usage: Mapped[float] = mapped_column()
     """The chat's cumulative usage in USD."""
 
     @property
@@ -92,6 +90,7 @@ class Chat(DatabaseModel):
 
     @model.setter
     def model(self, value: Model):
+        # detach old model and attach new one
         self._model.detach(self) if self._model else None
         self._model = value
 
@@ -107,5 +106,10 @@ class Chat(DatabaseModel):
         self.token_usage = token_usage
         self.usage = usage
 
+    @property
     def primary_keys(self):
+        # define primary keys due to changed primary key name
         return (self.id, self._topic_id)
+
+    # define the primary keys order
+    __table_args__ = (PrimaryKeyConstraint(id, _topic_id),)

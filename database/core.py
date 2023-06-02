@@ -1,21 +1,60 @@
 """Database core functionality. It is responsible for managing the database
-and its connection."""
+and its connection. It also provides the base model class for the database
+models, which defines core functionality shared by all models."""
 
-import os
+from os import environ, path
+from typing import Self
 
 import tenacity
-from sqlalchemy import Engine, create_engine
-from sqlalchemy.orm import Session
+from sqlalchemy import Engine, create_engine, inspect
+from sqlalchemy.orm import DeclarativeBase, Session, selectinload
 
 from database import logger
 
 # default to sqlite database
-_db_path = os.path.abspath(os.path.dirname(__file__))
+_db_path = path.abspath(path.dirname(__file__))
 _default_url = f"sqlite:///{_db_path}/database.db"
 _engine: Engine | None = None  # global database engine
 
-url = os.environ.get("DATABASE_URL") or _default_url
+url = environ.get("DATABASE_URL") or _default_url
 """The database URL."""
+
+
+class DatabaseModel(DeclarativeBase):
+    @property
+    def primary_keys(self) -> tuple:
+        # return a tuple of the model's primary keys
+        inspector = inspect(type(self))
+        return (getattr(self, key.name) for key in inspector.primary_key)
+
+    def save(self):
+        """Store the model in the database. Merge if it already exists."""
+
+        with Session(engine()) as session:
+            session.merge(self)
+            session.commit()
+        return self
+
+    def delete(self):
+        """Delete the model from the database."""
+
+        with Session(engine()) as session:
+            session.delete(self)
+            session.commit()
+        return self
+
+    def load(self) -> Self:
+        """Load the model from the database. It has no effect if the model
+        doesn't exist in the database. Returns the loaded model."""
+
+        with Session(engine()) as session:
+            if db_instance := session.get(
+                self.__class__,
+                self.primary_keys,
+                options=[selectinload("*")],
+            ):
+                self = db_instance
+        return self
 
 
 def engine():
@@ -50,8 +89,6 @@ def _validate_connection(engine):
 
 
 def _start_engine():
-    from .db_model import DatabaseModel
-
     # initialize database
     logger.info("Initializing database...")
     engine = create_engine(url)
