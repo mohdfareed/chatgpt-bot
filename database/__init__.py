@@ -1,14 +1,9 @@
 """ChatGPT database controller package."""
 
-import logging
-import os
+import logging as _logging
 
-# postgres database
-URL = os.environ.get('DATABASE_URL', '')
-"""The database URL."""
-
-if not URL:
-    raise ValueError("'DATABASE_URL' environment variables not set")
-
-logger = logging.getLogger(__name__)
+logger = _logging.getLogger(__name__)
 """The database logger."""
+
+from .core import url
+from .models import Chat, Model, User

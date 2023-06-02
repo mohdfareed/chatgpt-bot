@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-
 import logging
 import os
 import sys
@@ -9,6 +8,13 @@ from datetime import datetime
 from dotenv import load_dotenv
 from rich import print
 from rich.logging import RichHandler
+
+# add package directory to the path
+os.chdir(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+sys.path.append(os.getcwd())
+# load environment variables and import the bot
+load_dotenv(override=True)
+import bot as chatgpt_bot
 
 
 def main(debug: bool = False, log: bool = False) -> None:
@@ -21,64 +27,87 @@ def main(debug: bool = False, log: bool = False) -> None:
     """
 
     print("[bold green]Starting chatgpt_bot...[/]")
-    # add bot directory to the path
+
+    # setup logging
+    level = logging.DEBUG if debug else logging.INFO
+    _setup(to_file=log, level=level)
+    # add package directory to the path
     os.chdir(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
     sys.path.append(os.getcwd())
     # load environment variables
     load_dotenv(override=True)
-    # setup logging
-    _setup(to_file=log, debug=debug)
 
-    try:  # start telegram bot
-        import database.core as db
-        from chatgpt_bot import bot
-
-        db.start()  # start database
-        bot.run()  # run bot
+    try:  # run the bot
+        chatgpt_bot.run()
     except Exception as e:
-        logging.error(e)
+        logging.exception(e)
         exit(1)
 
 
-def _setup(to_file: bool = False, debug: bool = False):
+def _setup(to_file, level):
+    _configure_logging(level)
+    root_logger = logging.getLogger()
+    _configure_console_logging(root_logger)
+    if to_file:  # set up logging to file
+        _configure_file_logging(root_logger)
+
+
+def _configure_logging(level):
     # configure logging
     logging.captureWarnings(True)
-    level = logging.DEBUG if debug else logging.INFO
+    logging.getLogger().level = level
+    # don't exclude modules if debugging
+    if level == logging.DEBUG:
+        return
 
-    # create console logger and set format
-    logger = logging.getLogger()
-    logger.setLevel(logging.DEBUG)
-    format = "%(message)s [italic bright_black](%(name)s)[/]"
-    formatter = logging.Formatter(format)
+    # exclude modules from logging
+    excluded_modules = [
+        "httpx",
+        "numexpr.utils",
+        "openai",
+    ]
+    for module in excluded_modules:
+        logging.getLogger(module).setLevel(logging.WARNING)
 
-    # create handler
+
+def _configure_console_logging(logger: logging.Logger):
+    format = (
+        r"%(message)s [bright_black]- [italic]%(name)s[/italic] "
+        r"\[[underline]%(filename)s:%(lineno)d[/underline]]"
+    )
+
+    # create console handler
     console_handler = RichHandler(
         markup=True,
         rich_tracebacks=True,
         log_time_format="[%Y-%m-%d %H:%M:%S]",
+        show_path=False,
     )
-    console_handler.setLevel(level)
+    formatter = logging.Formatter(format)
+
+    # setup handler
     console_handler.setFormatter(formatter)
     logger.addHandler(console_handler)
 
-    if to_file:  # set up logging to file
-        logs_dir = os.path.join(os.getcwd(), "logs")
-        os.makedirs(logs_dir, exist_ok=True)
-        file = os.path.join(logs_dir, f"{datetime.now():%y%m%d_%H%M%S}.log")
 
-        # set file format
-        format = (
-            "[%(asctime)s] %(levelname)-8s "
-            "%(message)s (%(name)s) - %(filename)s:%(lineno)d"
-        )
-        formatter = logging.Formatter(format, "%Y-%m-%d %H:%M:%S")
+def _configure_file_logging(logger: logging.Logger):
+    format = (
+        "[%(asctime)s] %(levelname)-8s "
+        "%(message)s - %(name)s [%(filename)s:%(lineno)d]"
+    )
 
-        # create file handler
-        file_handler = logging.FileHandler(file)
-        file_handler.setLevel(level)
-        file_handler.setFormatter(formatter)
-        logger.addHandler(file_handler)
-        logger.info(f"logging to file: {file}")
+    # create file handler
+    logging_dir = os.path.join(os.getcwd(), "logs")
+    os.makedirs(logging_dir, exist_ok=True)
+    filename = f"{datetime.now():%y%m%d_%H%M%S}.log"
+    file = os.path.join(logging_dir, filename)
+    file_handler = logging.FileHandler(file)
+    formatter = logging.Formatter(format, "%Y-%m-%d %H:%M:%S")
+
+    # setup handler
+    logger.addHandler(file_handler)
+    file_handler.setFormatter(formatter)
+    logger.info(f"Logging to file: {file}")
 
 
 if __name__ == "__main__":
@@ -91,5 +120,6 @@ if __name__ == "__main__":
     parser.add_argument(
         "-l", "--log", action="store_true", help="log to a file"
     )
+
     args = parser.parse_args()
     main(args.debug, args.log)

@@ -1,6 +1,0 @@
-# app config
-app = "chatgpt-telegram-bot"
-primary_region = "ewr"  # Secaucus, NJ
-
-# webhook
-[http_service]

@@ -1,44 +1,48 @@
 #!/usr/bin/env python3
 
-
 import os
 import sys
+
+REQUIREMENTS = os.path.join(os.getcwd(), "requirements.txt")
+"""Path to the requirements file."""
 
 
 def main(clean: bool = False) -> None:
     """Setup an environment for the ChatGPT Telegram bot project.
 
     Args:
-        clean (bool, optional): Clean the environment. No-op for development.
+        clean (bool, optional): Clean the environment.
     """
 
-    # set working directory to the directory of this project
+    # set working directory and virtual environment path
     os.chdir(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
-    # set paths to virtual environment and requirements
     venv = os.path.join(os.getcwd(), ".venv")
-    req = os.path.join(os.getcwd(), "requirements.txt")
 
-    # set path to python executable depending on OS
+    # set os specific path to python executable
     if sys.platform == "win32":
         python = os.path.join(venv, "Scripts", "python.exe")
     else:
         python = os.path.join(venv, "bin", "python")
 
-    # remove virtual environment if it exists and clean is set
+    # remove virtual environment if it exists and it is a clean setup
     if os.path.exists(venv) and clean:
+        print("Cleaning environment...")
         if sys.platform == "win32":
             os.system(f"rmdir /s /q {venv}")
         else:
             os.system(f"rm -rf {venv}")
 
     # create virtual environment
+    print("Setting up environment...")
     os.system(f"python3 -m venv {venv}")
     # update package manager
+    print("Updating pip...")
     os.system(f"{python} -m pip install --upgrade pip")
     # install dependencies, upgrade if already installed
-    os.system(f"{python} -m pip install -r {req} --upgrade")
+    print("Installing dependencies...")
+    os.system(f"{python} -m pip install -r {REQUIREMENTS} --upgrade")
 
-    print("\nsetup complete")
+    print("\nSetup complete")
 
 
 if __name__ == "__main__":
@@ -48,5 +52,6 @@ if __name__ == "__main__":
     parser.add_argument(
         "-c", "--clean", action="store_true", help="perform a clean setup"
     )
+
     args = parser.parse_args()
     main(args.clean)

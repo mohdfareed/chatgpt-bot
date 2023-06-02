@@ -1,7 +1,7 @@
 # ChatGPT Telegram Bot
 
 ChatGPT interface using Telegram's bot API. The bot is currently hosted at
-[@MohdFareed_ChatGPT_Bot](https://t.me/MohdFareed_ChatGPT_Bot).
+[@chatgpt_mohdfareed_bot](https://t.me/MohdFareed_ChatGPT_Bot).
 
 ## Setup
 

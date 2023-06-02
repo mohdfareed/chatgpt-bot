@@ -1,125 +1,119 @@
-"""The models defining the database schema."""
-
-from typing import Optional
-
-from chatgpt.types import MessageRole
-from sqlalchemy import BigInteger, ForeignKey, ForeignKeyConstraint
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+"""The database models defining the database schema."""
 
 
-class Base(DeclarativeBase):
-    """The base class for all database models."""
-    pass
+import sqlalchemy as sql
+import sqlalchemy.orm as orm
+
+from chatgpt.langchain.prompts import ASSISTANT_PROMPT
+from database.core import DatabaseModel
 
 
-class Chat(Base):
-    """A telegram private chat (user), group chat, or channel."""
-    __tablename__ = "chat"
+class Model(DatabaseModel):
+    """A ChatGPT model's parameters. Self-destructs when not in use."""
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    """The chat's ID."""
-    usage: Mapped[int] = mapped_column(BigInteger, default=0)
-    """The chat's cumulative token usage."""
+    __tablename__ = "models"
 
-    def __repr__(self):
-        return f"<Chat(id={self.id})>"
+    id: orm.Mapped[int] = orm.mapped_column(
+        primary_key=True, autoincrement=True
+    )
+    """The model's unique ID. It is automatically generated."""
+    prompt: orm.Mapped[str] = orm.mapped_column()
+    """The model's system prompt."""
+    chats: orm.Mapped[list["Chat"]] = orm.relationship(back_populates="_model")
+    """The chats using the model."""
 
+    def __init__(self, id: int | None = None, prompt: str = ASSISTANT_PROMPT):
+        self.id = id or self.id
+        self.prompt = prompt
 
-class Topic(Base):
-    """A chat forum topic."""
-    __tablename__ = "topic"
+    def detach(self, chat: "Chat"):
+        """Detach the model from a chat. Delete the model when no chats are
+        using it."""
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    """The topic's ID. 0 for general chat."""
-    chat_id: Mapped[int] = mapped_column(ForeignKey(Chat.id), primary_key=True)
-    """The ID of the chat the topic was created in."""
-
-    chat: Mapped[Chat] = relationship()
-    """The chat the topic was created in."""
-    usage: Mapped[int] = mapped_column(BigInteger, default=0)
-    """The topic's cumulative token usage."""
-
-    def __repr__(self):
-        return f"<Topic(topic_id={self.id}, chat_id={self.chat_id})>"
+        self.chats.remove(chat)
+        self.save() if self.chats else self.delete()
 
 
-class User(Base):
+class User(DatabaseModel):
     """A telegram user."""
-    __tablename__ = "user"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    """The user's ID."""
-    username: Mapped[Optional[str]] = mapped_column()
-    """The user's Telegram username."""
-    usage: Mapped[int] = mapped_column(BigInteger, default=0)
+    __tablename__ = "users"
+
+    id: orm.Mapped[int] = orm.mapped_column(primary_key=True)
+    """The user's unique ID."""
+    token_usage: orm.Mapped[int] = orm.mapped_column()
     """The user's cumulative token usage."""
+    usage: orm.Mapped[float] = orm.mapped_column()
+    """The user's cumulative usage in USD."""
 
-    def __repr__(self):
-        return f"<Topic(id={self.id}, username={self.username})>"
+    def __init__(self, id: int, token_usage: int = 0, usage: float = 0):
+        self.id = id
+        self.token_usage = token_usage
+        self.usage = usage
 
 
-class Message(Base):
-    """A message sent in a chat. Chat prompts have negative IDs."""
-    __tablename__ = "message"
+class Chat(DatabaseModel):
+    """A telegram private chat (user), group chat, forum, or channel."""
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    """The ID of the message."""
+    __tablename__ = "chats"
 
-    # chat
-    chat_id: Mapped[int] = mapped_column(ForeignKey(Chat.id), primary_key=True)
-    """The ID of the chat the message was sent in."""
-    chat: Mapped[Chat] = relationship()
-    """The chat the message was sent in."""
-
-    # topic
-    topic_id: Mapped[Optional[int]] = mapped_column()
-    """The ID of the chat the message was sent in."""
-    topic: Mapped[Optional[Topic]] = relationship(
-        primaryjoin=(topic_id == Topic.id and  # type: ignore
-                     chat_id == Topic.chat_id)  # type: ignore
-    )
-    """The topic the message was sent in, if any."""
-
-    # reply
-    reply_id: Mapped[Optional[int]] = mapped_column()
-    """The ID of the message this message is a reply to, if any."""
-    reply_to: Mapped[Optional["Message"]] = relationship(
-        primaryjoin=(reply_id == id and  # type: ignore
-                     chat_id == chat_id),  # type: ignore
-        remote_side=[id]
-    )
-    """The message this message is a reply to, if any."""
-
-    # user
-    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey(User.id))
-    """The ID of the user who sent the message, if any."""
-    user: Mapped[Optional[User]] = relationship()
-    """The user who sent the message, if any."""
-
-    # openai data
-    role: Mapped[MessageRole] = mapped_column(default=MessageRole.USER)
-    """The role under which the message was sent."""
-    finish_reason: Mapped[Optional[str]] = mapped_column()
-    """The reason the message content terminated, if any."""
-    prompt_tokens: Mapped[Optional[int]] = mapped_column()
-    """The number of tokens in the prompt."""
-    reply_tokens: Mapped[Optional[int]] = mapped_column()
-    """The number of tokens in the reply."""
-    name: Mapped[Optional[str]] = mapped_column()
-    """The name of the OpenAI message, if any."""
-
-    # telegram data
-    text: Mapped[Optional[str]] = mapped_column()
-    """The message's text."""
-
-    __table_args__ = (
-        ForeignKeyConstraint(
-            ["topic_id", "chat_id"], ["topic.id", "topic.chat_id"]
-        ),
-        ForeignKeyConstraint(
-            ["reply_id", "chat_id"], ["message.id", "message.chat_id"]
-        )
+    _model: orm.Mapped[Model | None] = orm.relationship(back_populates="chats")
+    _topic_id: orm.Mapped[int] = orm.mapped_column(
+        "topic_id", primary_key=True, default=-1
     )
 
-    def __repr__(self) -> str:
-        return f"<Message(id={self.id}, role={self.role})>"
+    id: orm.Mapped[int] = orm.mapped_column(primary_key=True)
+    """The chat's unique ID."""
+    model_id: orm.Mapped[int | None] = orm.mapped_column(
+        sql.ForeignKey(Model.id)
+    )
+    """The chat's ChatGPT model ID if any."""
+    token_usage: orm.Mapped[int] = orm.mapped_column()
+    """The chat's cumulative token usage."""
+    usage: orm.Mapped[float] = orm.mapped_column()
+    """The chat's cumulative usage in USD."""
+
+    @property
+    def topic_id(self):
+        """The chat's topic ID if any."""
+        return self._topic_id if self._topic_id != -1 else None
+
+    @topic_id.setter
+    def topic_id(self, value: int | None):
+        # only allow positive topic IDs or None
+        # internally store -1 for None
+        if value is not None and value < 0:
+            raise ValueError("Topic ID must be >= 0")
+        self._topic_id = value if value is not None else -1
+
+    @property
+    def model(self):
+        """The chat's ChatGPT model if any. Created on demand."""
+        self._model = self._model or Model()
+        return self._model
+
+    @model.setter
+    def model(self, value: Model):
+        # detach old model and attach new one
+        self._model.detach(self) if self._model else None
+        self._model = value
+
+    def __init__(
+        self,
+        id: int,
+        topic_id: int | None = None,
+        token_usage: int = 0,
+        usage: float = 0,
+    ):
+        self.id = id
+        self.topic_id = topic_id
+        self.token_usage = token_usage
+        self.usage = usage
+
+    @property
+    def primary_keys(self):
+        # define primary keys due to changed primary key name
+        return (self.id, self._topic_id)
+
+    # define the primary keys order
+    __table_args__ = (sql.PrimaryKeyConstraint(id, _topic_id),)

@@ -2,7 +2,8 @@ FROM python
 
 # copy bot files
 WORKDIR /usr/src/bot
-COPY chatgpt_bot ./chatgpt_bot
+COPY chatgpt_bot ./bot
+COPY chatgpt_bot ./chatgpt
 COPY database ./database
 # install dependencies
 COPY requirements.txt ./
