@@ -8,7 +8,7 @@ from .db_model import DatabaseModel
 
 
 class Model(DatabaseModel):
-    """A ChatGPT model's parameters."""
+    """A ChatGPT model's parameters. Self-destructs when not in use."""
 
     __tablename__ = "models"
 
@@ -16,19 +16,20 @@ class Model(DatabaseModel):
         primary_key=True, autoincrement=True
     )
     """The model's unique ID. It is automatically generated."""
-
     prompt: orm.Mapped[str] = orm.mapped_column()
     """The model's system prompt."""
-    chats: orm.Mapped[list["Chat"]] = orm.relationship(back_populates="model")
+    chats: orm.Mapped[list["Chat"]] = orm.relationship(back_populates="_model")
     """The chats using the model."""
 
-    def __init__(self, id: int | None, prompt: str = prompts.ASSISTANT_PROMPT):
+    def __init__(
+        self, id: int | None = None, prompt: str = prompts.ASSISTANT_PROMPT
+    ):
         self.id = id or self.id
         self.prompt = prompt
 
     def detach(self, chat: "Chat"):
-        """Detach the model from a chat. Delete the model no chats are using
-        it."""
+        """Detach the model from a chat. Delete the model when no chats are
+        using it."""
 
         self.chats.remove(chat)
         self.save() if self.chats else self.delete()
@@ -56,12 +57,19 @@ class Chat(DatabaseModel):
     """A telegram private chat (user), group chat, forum, or channel."""
 
     __tablename__ = "chats"
+    _model: orm.Mapped[Model | None] = orm.relationship(back_populates="chats")
     _topic_id: orm.Mapped[int] = orm.mapped_column(
         "topic_id", primary_key=True, default=-1
     )
 
     id: orm.Mapped[int] = orm.mapped_column(primary_key=True)
     """The chat's unique ID."""
+    model_id: orm.Mapped[int | None] = orm.mapped_column(ForeignKey(Model.id))
+    """The chat's ChatGPT model ID if any."""
+    token_usage: orm.Mapped[int] = orm.mapped_column()
+    """The chat's cumulative token usage."""
+    usage: orm.Mapped[float] = orm.mapped_column()
+    """The chat's cumulative usage in USD."""
 
     @property
     def topic_id(self):
@@ -76,15 +84,16 @@ class Chat(DatabaseModel):
             raise ValueError("Topic ID must be >= 0")
         self._topic_id = value if value is not None else -1
 
-    token_usage: orm.Mapped[int] = orm.mapped_column()
-    """The chat's cumulative token usage."""
-    usage: orm.Mapped[float] = orm.mapped_column()
-    """The chat's cumulative usage in USD."""
+    @property
+    def model(self):
+        """The chat's ChatGPT model if any. Created on demand."""
+        self._model = self._model or Model()
+        return self._model
 
-    model_id: orm.Mapped[int | None] = orm.mapped_column(ForeignKey(Model.id))
-    """The chat's ChatGPT model ID if any."""
-    model: orm.Mapped[Model | None] = orm.relationship(back_populates="chats")
-    """The chat's ChatGPT model."""
+    @model.setter
+    def model(self, value: Model):
+        self._model.detach(self) if self._model else None
+        self._model = value
 
     def __init__(
         self,
@@ -98,12 +107,5 @@ class Chat(DatabaseModel):
         self.token_usage = token_usage
         self.usage = usage
 
-    def set_model(self, model: Model) -> None:
-        """Set the chat's ChatGPT model."""
-
-        # detach from old model
-        self.load()
-        self.model.detach(self) if self.model else None
-        # set new model
-        self.model = model
-        self.save()
+    def primary_keys(self):
+        return (self.id, self._topic_id)

@@ -1,8 +1,6 @@
 """The base model of the database. Defines methods and attributes shared by
 all models."""
 
-from typing import Any
-
 from sqlalchemy import inspect, orm
 
 from .core import engine
@@ -17,12 +15,13 @@ class DatabaseModel(orm.DeclarativeBase):
             session.commit()
         return self
 
-    def delete(self) -> None:
+    def delete(self):
         """Delete the model from the database."""
 
         with orm.Session(engine()) as session:
             session.delete(self)
             session.commit()
+        return self
 
     def load(self):
         """Load the model from the database. It has no effect if the model
@@ -30,15 +29,16 @@ class DatabaseModel(orm.DeclarativeBase):
 
         loader = orm.selectinload
         with orm.Session(engine()) as session:
+            # FIXME: failing to retrieve the model
             if db_instance := session.get(
-                type(self),
+                self.__class__,  # type: ignore
                 self.primary_keys(),
                 options=[loader("*")],
-            ):
-                self = db_instance
-        return self.save()
+            ):  # type: ignore
+                self = db_instance  # type: ignore
+        return self
 
-    def primary_keys(self) -> tuple[Any, ...]:
+    def primary_keys(self) -> tuple:
         # return a tuple of the model's primary keys
         inspector = inspect(type(self))
         return tuple(column.name for column in inspector.primary_key)

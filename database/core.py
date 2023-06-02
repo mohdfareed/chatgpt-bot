@@ -1,20 +1,19 @@
 """Database core functionality. It is responsible for managing the database
 and its connection."""
 
-import logging
 import os
 
 import tenacity
 from sqlalchemy import Engine, create_engine
 from sqlalchemy.orm import Session
 
+from database import logger
+
 # default to sqlite database
 _db_path = os.path.abspath(os.path.dirname(__file__))
 _default_url = f"sqlite:///{_db_path}/database.db"
 _engine: Engine | None = None  # global database engine
 
-logger = logging.getLogger(__name__)
-"""The database logger."""
 url = os.environ.get("DATABASE_URL") or _default_url
 """The database URL."""
 

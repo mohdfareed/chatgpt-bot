@@ -9,10 +9,12 @@ from dotenv import load_dotenv
 from rich import print
 from rich.logging import RichHandler
 
-DEFAULT_LOGGING_LEVEL = logging.INFO
-"""Default logging level."""
-LOGGING_DIR = os.path.join(os.getcwd(), "logs")
-"""Path to the logging directory."""
+# add package directory to the path
+os.chdir(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+sys.path.append(os.getcwd())
+# load environment variables and import the bot
+load_dotenv(override=True)
+import chatgpt_bot
 
 
 def main(debug: bool = False, log: bool = False) -> None:
@@ -28,29 +30,47 @@ def main(debug: bool = False, log: bool = False) -> None:
 
     # setup logging
     level = logging.DEBUG if debug else logging.INFO
-    _configure_logging(level=level)
-    _setup(to_file=log)
-    # add bot directory to the path
+    _setup(to_file=log, level=level)
+    # add package directory to the path
     os.chdir(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
     sys.path.append(os.getcwd())
     # load environment variables
     load_dotenv(override=True)
 
-    try:
-        # import database and bot
-        import database.core as database
-        from chatgpt_bot import bot as telegram_bot
-
-        # start database and bot
-        database.start()
-        telegram_bot.run()
+    try:  # run the bot
+        chatgpt_bot.run()
     except Exception as e:
         logging.exception(e)
         exit(1)
 
 
-def _setup(to_file: bool = False):
+def _setup(to_file, level):
+    _configure_logging(level)
     root_logger = logging.getLogger()
+    _configure_console_logging(root_logger)
+    if to_file:  # set up logging to file
+        _configure_file_logging(root_logger)
+
+
+def _configure_logging(level):
+    # configure logging
+    logging.captureWarnings(True)
+    logging.getLogger().level = level
+    # don't exclude modules if debugging
+    if level == logging.DEBUG:
+        return
+
+    # exclude modules from logging
+    excluded_modules = [
+        "httpx",
+        "numexpr.utils",
+        "openai",
+    ]
+    for module in excluded_modules:
+        logging.getLogger(module).setLevel(logging.WARNING)
+
+
+def _configure_console_logging(logger: logging.Logger):
     format = (
         r"%(message)s [bright_black]- [italic]%(name)s[/italic] "
         r"\[[underline]%(filename)s:%(lineno)d[/underline]]"
@@ -67,43 +87,27 @@ def _setup(to_file: bool = False):
 
     # setup handler
     console_handler.setFormatter(formatter)
-    root_logger.addHandler(console_handler)
-
-    if to_file:  # set up logging to file
-        os.makedirs(LOGGING_DIR, exist_ok=True)
-        filename = f"{datetime.now():%y%m%d_%H%M%S}.log"
-        file = os.path.join(LOGGING_DIR, filename)
-        file_handler = logging.FileHandler(file)
-
-        # setup formatting
-        format = (
-            "[%(asctime)s] %(levelname)-8s "
-            "%(message)s - %(name)s [%(filename)s:%(lineno)d]"
-        )
-        formatter = logging.Formatter(format, "%Y-%m-%d %H:%M:%S")
-
-        # setup handler
-        root_logger.addHandler(file_handler)
-        file_handler.setFormatter(formatter)
-        root_logger.info(f"Logging to file: {file}")
+    logger.addHandler(console_handler)
 
 
-def _configure_logging(level: int = DEFAULT_LOGGING_LEVEL):
-    # configure logging
-    logging.captureWarnings(True)
-    logging.getLogger().level = level
-    # don't exclude modules if debugging
-    if level == logging.DEBUG:
-        return
+def _configure_file_logging(logger: logging.Logger):
+    format = (
+        "[%(asctime)s] %(levelname)-8s "
+        "%(message)s - %(name)s [%(filename)s:%(lineno)d]"
+    )
 
-    # exclude modules from logging
-    excluded_modules = [
-        "httpx",
-        "numexpr.utils",
-        "openai",
-    ]
-    for module in excluded_modules:
-        logging.getLogger(module).setLevel(logging.WARNING)
+    # create file handler
+    logging_dir = os.path.join(os.getcwd(), "logs")
+    os.makedirs(logging_dir, exist_ok=True)
+    filename = f"{datetime.now():%y%m%d_%H%M%S}.log"
+    file = os.path.join(logging_dir, filename)
+    file_handler = logging.FileHandler(file)
+    formatter = logging.Formatter(format, "%Y-%m-%d %H:%M:%S")
+
+    # setup handler
+    logger.addHandler(file_handler)
+    file_handler.setFormatter(formatter)
+    logger.info(f"Logging to file: {file}")
 
 
 if __name__ == "__main__":

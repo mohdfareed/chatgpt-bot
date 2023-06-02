@@ -1,6 +1,6 @@
 """Models of Telegram entities."""
 
-import telegram as _telegram
+import telegram as telegram
 
 
 class TextMessage:
@@ -35,7 +35,7 @@ class TextMessage:
         metadata = {k: v for k, v in metadata.items() if v is not None}
         return metadata
 
-    def __init__(self, message: _telegram.Message) -> None:
+    def __init__(self, message: telegram.Message) -> None:
         """Initialize a text message from a Telegram message.
 
         Args:
@@ -74,7 +74,7 @@ class TelegramChat:
 
         return self._username or self.title
 
-    def __init__(self, chat: _telegram.Chat) -> None:
+    def __init__(self, chat: telegram.Chat) -> None:
         """Initialize a chat from a Telegram chat.
 
         Args:
@@ -111,7 +111,7 @@ class TelegramUser:
         first_last = f"{self.first_name} {self.last_name or ''}"
         return first_last.strip()
 
-    def __init__(self, user: _telegram.User | _telegram.Chat) -> None:
+    def __init__(self, user: telegram.User | telegram.Chat) -> None:
         """Initialize a user from a Telegram user.
 
         Args:
@@ -123,7 +123,7 @@ class TelegramUser:
         self.last_name = user.last_name
 
         # first name is title for chats
-        if isinstance(user, _telegram.Chat):
+        if isinstance(user, telegram.Chat):
             self.first_name = TelegramChat(user).title
         else:
             self.first_name = user.first_name

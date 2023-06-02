@@ -9,7 +9,6 @@ from telegram.ext import ApplicationHandlerStop, ContextTypes
 import database as _database
 from chatgpt_bot import formatter, logger, models, utils
 from chatgpt_bot.formatter import markdown_to_html
-from database import models as _db_models
 
 
 async def store_update(update: Update, _: ContextTypes.DEFAULT_TYPE):
@@ -55,7 +54,7 @@ async def check_file(update: Update, _: ContextTypes.DEFAULT_TYPE):
     # ]
     # set up agent components
     agent_memory = memory.ChatMemory(
-        token_limit=2600, url=_database.url, session_id=message.session
+        token_limit=2400, url=_database.url, session_id=message.session
     )
     token_handler = StreamHandler(update_message)
     token_handler.reply = bot_message
@@ -63,29 +62,14 @@ async def check_file(update: Update, _: ContextTypes.DEFAULT_TYPE):
         # tools=agent_tools,
         token_handler=token_handler.handle_packet,
         memory=agent_memory,
-        system_prompt=utils.get_sys_prompt(message.session),
+        system_prompt=utils.load_prompt(message.chat.id, message.topic_id),
     )
     # generate response
     results = await chat_agent.generate(
         message.text, message.metadata, reply.metadata
     )
     # count usage if message was sent
-    count_usage(message, results)
-
-
-def count_usage(message: models.TextMessage, results: agent.GenerationResults):
-    # count usage if message was sent
-    usage = results.prompt_tokens + results.generated_tokens
-
-    db_user = _db_models.User.get(message.user.id)
-    db_user.token_usage += usage
-    db_user.usage += results.cost
-    db_user.store()
-
-    db_chat = _db_models.Chat.get(message.chat.id, message.topic_id)
-    db_chat.token_usage += usage
-    db_chat.usage += results.cost
-    db_chat.store()
+    utils.count_usage(message, results)
 
 
 class StreamHandler:
@@ -131,3 +115,11 @@ class StreamHandler:
             return
         # edit the existing reply otherwise
         await self.reply.edit_text(text)
+
+
+__all__ = [
+    "private_callback",
+    "mention_callback",
+    "store_update",
+    "check_file",
+]
