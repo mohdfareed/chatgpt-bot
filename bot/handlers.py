@@ -1,14 +1,13 @@
 """Handlers for telegram updates. It is responsible for parsing updates and
 executing core module functionality."""
 
-from chatgpt.langchain import agent, memory, prompts
 from telegram import Message, Update
 from telegram.constants import ChatAction, ParseMode
 from telegram.ext import ApplicationHandlerStop, ContextTypes
 
 import database as _database
-from chatgpt_bot import formatter, logger, models, utils
-from chatgpt_bot.formatter import markdown_to_html
+from bot import formatter, logger, models, utils
+from chatgpt.langchain import agent, memory, prompts
 
 
 async def store_update(update: Update, _: ContextTypes.DEFAULT_TYPE):
@@ -102,7 +101,7 @@ class StreamHandler:
 
         # send packet to chat
         new_message = self._last_message + self._chunk
-        new_message = markdown_to_html(new_message)
+        new_message = formatter.md_html(new_message)
         if self._last_message != new_message:
             await self._send_message(new_message)
             self._last_message = new_message
@@ -115,11 +114,3 @@ class StreamHandler:
             return
         # edit the existing reply otherwise
         await self.reply.edit_text(text)
-
-
-__all__ = [
-    "private_callback",
-    "mention_callback",
-    "store_update",
-    "check_file",
-]

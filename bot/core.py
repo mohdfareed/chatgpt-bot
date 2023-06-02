@@ -6,15 +6,15 @@ import re
 from typing import AsyncGenerator
 
 from bs4 import BeautifulSoup
-from chatgpt.completion import ChatCompletion
-from chatgpt.errors import CompletionError, ConnectionError, TokenLimitError
-from chatgpt.model import ChatGPT
-from chatgpt.types import GPTChat, GPTMessage, GPTReply, MessageRole
 from telegram import Message
 from telegram.constants import ChatAction, ParseMode
 from telegram.error import TelegramError
 
-from chatgpt_bot import logger
+from bot import logger
+from chatgpt.completion import ChatCompletion
+from chatgpt.errors import CompletionError, ConnectionError, TokenLimitError
+from chatgpt.model import ChatGPT
+from chatgpt.types import GPTChat, GPTMessage, GPTReply, MessageRole
 from database import models
 
 _edit_timer = 0.0

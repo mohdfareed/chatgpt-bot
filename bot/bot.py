@@ -7,9 +7,8 @@ import secrets
 import requests
 import telegram
 import telegram.ext as telegram_extensions
-from telegram import constants as telegram_constants
 
-from chatgpt_bot import commands, formatter, handlers, logger, utils
+from bot import commands, formatter, handlers, logger, utils
 
 bot_token = os.getenv("TELEGRAM_BOT_TOKEN") or ""
 """Telegram bot token."""
@@ -28,7 +27,7 @@ def run():
 
     # setup bot settings
     defaults = telegram_extensions.Defaults(
-        parse_mode=telegram_constants.ParseMode.HTML,
+        parse_mode=telegram.constants.ParseMode.HTML,
         allow_sending_without_reply=True,
         quote=True,
         block=False,
@@ -101,15 +100,8 @@ def _setup_commands(app: telegram_extensions.Application):
 
     app.add_handler(
         telegram_extensions.CommandHandler(
-            command="edit",
+            command="edit_sys",
             callback=commands.edit_sys,
-        )
-    )
-
-    app.add_handler(
-        telegram_extensions.CommandHandler(
-            command="chad",
-            callback=commands.set_chad,
         )
     )
 
@@ -127,7 +119,7 @@ def _setup_handlers(app: telegram_extensions.Application):
     app.add_handler(
         telegram_extensions.MessageHandler(
             filters=telegram_extensions.filters.Entity(
-                telegram_constants.MessageEntityType.MENTION
+                telegram.constants.MessageEntityType.MENTION
             ),
             callback=handlers.mention_callback,
         )
@@ -145,7 +137,7 @@ async def _error_handler(update, context: telegram_extensions.CallbackContext):
     logger.exception(context.error)
 
     if isinstance(update, telegram.Update):
-        error = formatter.markdown_to_html(str(context.error))
+        error = formatter.md_html(str(context.error))
         await utils.reply_code(update.effective_message, error)
 
 

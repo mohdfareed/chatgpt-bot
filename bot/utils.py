@@ -1,13 +1,13 @@
 """Utilities and helper functions."""
 
-from chatgpt.langchain.agent import GenerationResults
-from telegram import Message
+import telegram
 
+import bot.models
 import database
-from chatgpt_bot import models
+from chatgpt.langchain.agent import GenerationResults
 
 
-async def reply_code(message: Message | None, reply):
+async def reply_code(message: telegram.Message | None, reply):
     """Reply to a message with a code block."""
 
     if message:
@@ -25,7 +25,7 @@ def save_prompt(id: int, topic_id: int | None, prompt: str):
     chat.save()
 
 
-def count_usage(message: models.TextMessage, results: GenerationResults):
+def count_usage(message: bot.models.TextMessage, results: GenerationResults):
     total_usage = results.prompt_tokens + results.generated_tokens
 
     # count towards user

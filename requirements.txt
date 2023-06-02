@@ -1,13 +1,14 @@
---extra-index-url https://test.pypi.org/simple/
+# chatgpt
+openai
+tiktoken
+langchain
+wikipedia
 # bot
-chatgpt-mohdfareed
 python-telegram-bot[webhooks,rate-limiter]
 beautifulsoup4
 # database
 chromadb
-psycopg2-binary
 sqlalchemy
-sqlalchemy_utils
 tenacity
 # environment
 python-dotenv

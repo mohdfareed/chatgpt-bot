@@ -1,9 +1,9 @@
 """The database models defining the database schema."""
 
 
+import sqlalchemy as sql
+import sqlalchemy.orm as orm
 from chatgpt.langchain.prompts import ASSISTANT_PROMPT
-from sqlalchemy import ForeignKey, PrimaryKeyConstraint
-from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from database.core import DatabaseModel
 
@@ -13,11 +13,13 @@ class Model(DatabaseModel):
 
     __tablename__ = "models"
 
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    id: orm.Mapped[int] = orm.mapped_column(
+        primary_key=True, autoincrement=True
+    )
     """The model's unique ID. It is automatically generated."""
-    prompt: Mapped[str] = mapped_column()
+    prompt: orm.Mapped[str] = orm.mapped_column()
     """The model's system prompt."""
-    chats: Mapped[list["Chat"]] = relationship(back_populates="_model")
+    chats: orm.Mapped[list["Chat"]] = orm.relationship(back_populates="_model")
     """The chats using the model."""
 
     def __init__(self, id: int | None = None, prompt: str = ASSISTANT_PROMPT):
@@ -37,11 +39,11 @@ class User(DatabaseModel):
 
     __tablename__ = "users"
 
-    id: Mapped[int] = mapped_column(primary_key=True)
+    id: orm.Mapped[int] = orm.mapped_column(primary_key=True)
     """The user's unique ID."""
-    token_usage: Mapped[int] = mapped_column()
+    token_usage: orm.Mapped[int] = orm.mapped_column()
     """The user's cumulative token usage."""
-    usage: Mapped[float] = mapped_column()
+    usage: orm.Mapped[float] = orm.mapped_column()
     """The user's cumulative usage in USD."""
 
     def __init__(self, id: int, token_usage: int = 0, usage: float = 0):
@@ -55,18 +57,20 @@ class Chat(DatabaseModel):
 
     __tablename__ = "chats"
 
-    _model: Mapped[Model | None] = relationship(back_populates="chats")
-    _topic_id: Mapped[int] = mapped_column(
+    _model: orm.Mapped[Model | None] = orm.relationship(back_populates="chats")
+    _topic_id: orm.Mapped[int] = orm.mapped_column(
         "topic_id", primary_key=True, default=-1
     )
 
-    id: Mapped[int] = mapped_column(primary_key=True)
+    id: orm.Mapped[int] = orm.mapped_column(primary_key=True)
     """The chat's unique ID."""
-    model_id: Mapped[int | None] = mapped_column(ForeignKey(Model.id))
+    model_id: orm.Mapped[int | None] = orm.mapped_column(
+        sql.ForeignKey(Model.id)
+    )
     """The chat's ChatGPT model ID if any."""
-    token_usage: Mapped[int] = mapped_column()
+    token_usage: orm.Mapped[int] = orm.mapped_column()
     """The chat's cumulative token usage."""
-    usage: Mapped[float] = mapped_column()
+    usage: orm.Mapped[float] = orm.mapped_column()
     """The chat's cumulative usage in USD."""
 
     @property
@@ -112,4 +116,4 @@ class Chat(DatabaseModel):
         return (self.id, self._topic_id)
 
     # define the primary keys order
-    __table_args__ = (PrimaryKeyConstraint(id, _topic_id),)
+    __table_args__ = (sql.PrimaryKeyConstraint(id, _topic_id),)

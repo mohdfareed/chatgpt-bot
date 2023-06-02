@@ -1,5 +1,10 @@
 """Formatter of messages sent by the bot."""
 
+import html
+import re
+
+import bs4
+
 # unsupported telegram tags:
 # spoiler: using simpler syntax `<tg-spoiler>`
 # code blocks: using `<code>` as it is copyable in telegram
@@ -58,17 +63,14 @@ _valid_attrs = {
 }  # can't verify emoji-id validity, therefore not supported
 
 
-def markdown_to_html(text: str) -> str:
-    """Convert markdown text to HTML."""
+def md_html(text: str) -> str:
+    """Format text by convert markdown to Telegram-supported HTML."""
     return _parse_html(_parse_markdown(text))
 
 
 def _parse_html(text):
-    import html
-
-    from bs4 import BeautifulSoup
-
-    for tag in (html_soup := BeautifulSoup(text, "html.parser")).find_all():
+    html_soup = bs4.BeautifulSoup(text, "html.parser")
+    for tag in html_soup.find_all():
         # escape invalid tags
         if tag.name not in _valid_tags:
             tag.replace_with(html.unescape(str(tag)))
@@ -83,8 +85,6 @@ def _parse_html(text):
 
 
 def _parse_markdown(text):
-    import re
-
     for tag, pattern in _markdown_patterns.items():
         # replace markdown with html syntax
         text = re.sub(pattern, _html_syntax[tag], text)

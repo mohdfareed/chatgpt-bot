@@ -1,6 +1,6 @@
 """Models of Telegram entities."""
 
-import telegram as telegram
+import telegram
 
 
 class TextMessage:
