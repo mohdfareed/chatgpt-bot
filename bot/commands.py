@@ -1,35 +1,39 @@
 """Command handlers for telegram command updates. It is responsible for parsing
 updates and executing core module functionality."""
 
-from telegram import Update
-from telegram.ext import ContextTypes
+import telegram
+import telegram.ext as telegram_extensions
 
 import bot.models
 import database
 from bot import formatter, utils
 from chatgpt.langchain import memory
 
+_context = telegram_extensions.ContextTypes.DEFAULT_TYPE
+
 usage_message = """
-Set the system prompt by including the prompt in the message. For example:
-`/edit_sys@{bot} The new system prompt.`
-You can also reply to a message with `/edit_sys@{bot}` to use the text of that
-message as the system prompt.
+You set the system prompt by replying to a message with the command:
+```
+/edit_sys@{bot}
+```
+The text of the message to which you reply will be used as the system prompt.
+You can also provide the text of the prompt by passing it after the command.
 """
 
 
-async def start_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def start_callback(update: telegram.Update, context: _context):
     """Send a message when the command /start is issued."""
     global usage_message
 
     if not update.effective_message:
         return
 
-    dummy_message = formatter.md_html._parse_html(usage_message)
+    dummy_message = formatter.md_html(usage_message)
     dummy_message = dummy_message.format(bot=context.bot.username)
     await update.effective_message.reply_html(dummy_message)
 
 
-async def edit_sys(update: Update, _):
+async def edit_sys(update: telegram.Update, _):
     """Edit the system message."""
 
     if not (update_message := update.effective_message):
@@ -56,7 +60,7 @@ async def edit_sys(update: Update, _):
     )
 
 
-async def get_sys(update: Update, _):
+async def get_sys(update: telegram.Update, _):
     """Send the system message."""
 
     if not (update_message := update.effective_message):
@@ -70,7 +74,7 @@ async def get_sys(update: Update, _):
     await utils.reply_code(update_message, text)
 
 
-async def delete_history(update: Update, _):
+async def delete_history(update: telegram.Update, _):
     """Delete a chat's history."""
 
     if not (update_message := update.effective_message):
@@ -82,7 +86,7 @@ async def delete_history(update: Update, _):
     # raise ApplicationHandlerStop  # don't handle elsewhere
 
 
-async def send_usage(update: Update, _):
+async def send_usage(update: telegram.Update, _):
     """Send usage instructions."""
 
     if not (update_message := update.effective_message):

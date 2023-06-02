@@ -3,8 +3,8 @@
 import telegram
 
 import bot.models
+import chatgpt.core
 import database
-from chatgpt.langchain.agent import GenerationResults
 
 
 async def reply_code(message: telegram.Message | None, reply):
@@ -25,7 +25,9 @@ def save_prompt(id: int, topic_id: int | None, prompt: str):
     chat.save()
 
 
-def count_usage(message: bot.models.TextMessage, results: GenerationResults):
+def count_usage(
+    message: bot.models.TextMessage, results: chatgpt.core.GenerationResults
+):
     total_usage = results.prompt_tokens + results.generated_tokens
 
     # count towards user

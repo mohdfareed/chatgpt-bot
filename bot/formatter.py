@@ -13,13 +13,13 @@ import bs4
 _inline = r"(?<![@#\\\w]){0}(.+?){0}(?!\w)"
 
 _markdown_patterns = dict(
-    underlined=_inline.format(r"__"),
-    italic=_inline.format(r"_"),  # only after underlined
-    code=_inline.format(r"```"),
-    mono=_inline.format(r"`"),  # only after code blocks
     bold=_inline.format(r"\*"),
+    italic=_inline.format(r"_"),  # only after underlined
+    underlined=_inline.format(r"__"),
     strikethrough=_inline.format(r"~"),
     spoiler=_inline.format(r"\|\|"),
+    mono=_inline.format(r"`(?!`)"),  # only after code blocks
+    code=r"(?<![@#\\\w])```([\s\S]+?)```(?!\w)",
     link=r"(?<![@#\w])\[(.+?)\]\((.+?)\)(?!\w)",
 )
 

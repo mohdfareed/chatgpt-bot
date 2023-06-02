@@ -11,20 +11,20 @@ def main(clean: bool = False) -> None:
     """Setup an environment for the ChatGPT Telegram bot project.
 
     Args:
-        clean (bool, optional): Clean the environment. No-op for development.
+        clean (bool, optional): Clean the environment.
     """
 
     # set working directory and virtual environment path
     os.chdir(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
     venv = os.path.join(os.getcwd(), ".venv")
 
-    # set path to python executable depending on OS
+    # set os specific path to python executable
     if sys.platform == "win32":
         python = os.path.join(venv, "Scripts", "python.exe")
     else:
         python = os.path.join(venv, "bin", "python")
 
-    # remove virtual environment if it exists and clean is set
+    # remove virtual environment if it exists and it is a clean setup
     if os.path.exists(venv) and clean:
         print("Cleaning environment...")
         if sys.platform == "win32":
