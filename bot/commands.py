@@ -99,6 +99,6 @@ async def send_usage(update: telegram.Update, _):
         f"User usage: ${round(db_user.usage, 4)}\n"
         f"    tokens: {db_user.token_usage}\n"
         f"Chat usage: ${round(db_chat.usage, 4)}\n"
-        f"    tokens: ${db_chat.token_usage}"
+        f"    tokens: {db_chat.token_usage}"
     )
     await utils.reply_code(update_message, usage)
