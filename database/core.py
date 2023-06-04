@@ -3,6 +3,7 @@ and its connection. It also provides the base model class for the database
 models, which defines core functionality shared by all models."""
 
 import os
+import typing
 
 import sqlalchemy as sql
 import sqlalchemy.orm as orm
@@ -54,8 +55,9 @@ class DatabaseModel(orm.DeclarativeBase):
                 session.commit()
         return self
 
-    def overwrite(self, other: "DatabaseModel"):
-        """Overwrites the current instance with another instance."""
+    def overwrite(self, other: typing.Self):
+        """Overwrites the current instance's attributes with another instance's
+        attributes."""
         for field in sql.inspect(type(self)).attrs.keys():
             other_field = getattr(other, field)
             setattr(self, field, other_field)

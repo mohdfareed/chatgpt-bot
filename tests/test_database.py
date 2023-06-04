@@ -39,6 +39,7 @@ class TestDatabase(unittest.TestCase):
     def test_chat_model(self):
         # create and save Chat instance
         chat = Chat(id=1, topic_id=1, token_usage=100, usage=10.0)
+        chat.model.prompt = "test"
         chat.save()
 
         # load chat from database and check its properties
@@ -47,6 +48,13 @@ class TestDatabase(unittest.TestCase):
         self.assertEqual(chat.topic_id, loaded_chat.topic_id)
         self.assertEqual(chat.token_usage, loaded_chat.token_usage)
         self.assertEqual(chat.usage, loaded_chat.usage)
+        self.assertEqual(chat.model.prompt, loaded_chat.model.prompt)
+
+        # delete model of chat
+        chat.model = None
+        chat.save()
+        loaded_chat = Chat(chat.id, chat.topic_id).load()
+        self.assertEqual(ChatGPT().prompt, loaded_chat.model.prompt)
 
         # delete chat instance
         chat.delete()

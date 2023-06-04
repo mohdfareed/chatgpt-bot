@@ -70,8 +70,7 @@ class Chat(DatabaseModel):
 
     @topic_id.setter
     def topic_id(self, value: int | None):
-        # only allow positive topic IDs or None
-        # internally store -1 for None
+        # only allow positive topic IDs or None, internally store -1 for None
         if value is not None and value < 0:
             raise ValueError("Topic ID must be >= 0")
         self._topic_id = value if value is not None else -1
