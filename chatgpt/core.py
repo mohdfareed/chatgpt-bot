@@ -18,7 +18,7 @@ class StreamHandler(AsyncCallbackHandler):
         super().__init__()
         self._handle_token = gen
 
-    async def on_llm(self, *args, **kwargs):
+    async def on_llm(self, *_, **__):
         # needed to avoid 'langchain.callbacks.manager' warning
         pass
 
@@ -256,22 +256,12 @@ def messages_token_count(
 
 
 def _prompt_tokens_count(model: str, messages: list[dict[str, str]]) -> int:
-    """Get the number of tokens in a list of messages (a prompt).
-
-    Args:
-        messages (list[dict]): A list of messages forming a prompt. Each
-        message is a dictionary of role, name, and content.
-
-    Returns:
-        int: The number of tokens in the prompt.
-    """
-
     # NOTE: the number of tokens per message/name are model dependent. Check
     # [docs](https://platform.openai.com/docs/guides/chat/managing-tokens)
     # for more information.
 
     tokens_per_message = 4  # every message has 4 tokens encoding
-    tokens_per_name = -1  # name omits role
+    tokens_per_name = -1  # name replaces role
 
     num_tokens = 0
     for message in messages:

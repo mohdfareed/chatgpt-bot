@@ -8,32 +8,6 @@ from chatgpt.langchain.prompts import ASSISTANT_PROMPT
 from database.core import DatabaseModel
 
 
-class Model(DatabaseModel):
-    """A ChatGPT model's parameters. Self-destructs when not in use."""
-
-    __tablename__ = "models"
-
-    id: orm.Mapped[int] = orm.mapped_column(
-        primary_key=True, autoincrement=True
-    )
-    """The model's unique ID. It is automatically generated."""
-    prompt: orm.Mapped[str] = orm.mapped_column()
-    """The model's system prompt."""
-    chats: orm.Mapped[list["Chat"]] = orm.relationship(back_populates="_model")
-    """The chats using the model."""
-
-    def __init__(self, id: int | None = None, prompt: str = ASSISTANT_PROMPT):
-        self.id = id or self.id
-        self.prompt = prompt
-
-    def detach(self, chat: "Chat"):
-        """Detach the model from a chat. Delete the model when no chats are
-        using it."""
-
-        self.chats.remove(chat)
-        self.save() if self.chats else self.delete()
-
-
 class User(DatabaseModel):
     """A telegram user."""
 
@@ -52,22 +26,38 @@ class User(DatabaseModel):
         self.usage = usage
 
 
+class ChatGPT(DatabaseModel):
+    """A ChatGPT model's parameters. Self-destructs when not in use."""
+
+    __tablename__ = "models"
+
+    id: orm.Mapped[int] = orm.mapped_column(
+        primary_key=True, autoincrement=True
+    )
+    """The model's unique ID. It is automatically generated."""
+    prompt: orm.Mapped[str] = orm.mapped_column()
+    """The model's system prompt."""
+
+    def __init__(self, id: int | None = None, prompt: str = ASSISTANT_PROMPT):
+        self.id = id or self.id
+        self.prompt = prompt
+
+
 class Chat(DatabaseModel):
     """A telegram private chat (user), group chat, forum, or channel."""
 
     __tablename__ = "chats"
 
-    _model: orm.Mapped[Model | None] = orm.relationship(back_populates="chats")
     _topic_id: orm.Mapped[int] = orm.mapped_column(
         "topic_id", primary_key=True, default=-1
     )
+    _model: orm.Mapped[ChatGPT | None] = orm.relationship()
+    _model_key = sql.ForeignKey(ChatGPT.id)
 
     id: orm.Mapped[int] = orm.mapped_column(primary_key=True)
     """The chat's unique ID."""
-    model_id: orm.Mapped[int | None] = orm.mapped_column(
-        sql.ForeignKey(Model.id)
-    )
-    """The chat's ChatGPT model ID if any."""
+    model_id: orm.Mapped[int | None] = orm.mapped_column(_model_key)
+    """The chat's active ChatGPT model ID if any."""
     token_usage: orm.Mapped[int] = orm.mapped_column()
     """The chat's cumulative token usage."""
     usage: orm.Mapped[float] = orm.mapped_column()
@@ -88,15 +78,18 @@ class Chat(DatabaseModel):
 
     @property
     def model(self):
-        """The chat's ChatGPT model if any. Created on demand."""
-        self._model = self._model or Model()
+        """The chat's active ChatGPT model if any. Created on demand."""
+        self._model = self._model or ChatGPT()
         return self._model
 
     @model.setter
-    def model(self, value: Model):
-        # detach old model and attach new one
-        self._model.detach(self) if self._model else None
+    def model(self, value: ChatGPT | None):
         self._model = value
+
+    @property
+    def primary_keys(self):
+        # define primary keys due to changed primary key name
+        return (self.id, self._topic_id)
 
     def __init__(
         self,
@@ -105,15 +98,11 @@ class Chat(DatabaseModel):
         token_usage: int = 0,
         usage: float = 0,
     ):
+        self.model = ChatGPT()
         self.id = id
         self.topic_id = topic_id
         self.token_usage = token_usage
         self.usage = usage
-
-    @property
-    def primary_keys(self):
-        # define primary keys due to changed primary key name
-        return (self.id, self._topic_id)
 
     # define the primary keys order
     __table_args__ = (sql.PrimaryKeyConstraint(id, _topic_id),)

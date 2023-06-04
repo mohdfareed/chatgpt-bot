@@ -31,13 +31,13 @@ def count_usage(
     total_usage = results.prompt_tokens + results.generated_tokens
 
     # count towards user
-    db_user = database.User(message.user.id)
+    db_user = database.User(message.user.id).load()
     db_user.token_usage += total_usage
     db_user.usage += results.cost
     db_user.save()
 
     # count towards chat
-    db_chat = database.Chat(message.chat.id, message.topic_id)
+    db_chat = database.Chat(message.chat.id, message.topic_id).load()
     db_chat.token_usage += total_usage
     db_chat.usage += results.cost
     db_chat.save()

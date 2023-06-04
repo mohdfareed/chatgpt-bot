@@ -9,7 +9,7 @@ import database
 from bot import formatter, utils
 from chatgpt.langchain import memory
 
-_context = telegram_extensions.ContextTypes.DEFAULT_TYPE
+_default_context = telegram_extensions.ContextTypes.DEFAULT_TYPE
 
 usage_message = """
 You set the system prompt by replying to a message with the command:
@@ -21,7 +21,7 @@ You can also provide the text of the prompt by passing it after the command.
 """
 
 
-async def start_callback(update: telegram.Update, context: _context):
+async def start_callback(update: telegram.Update, context: _default_context):
     """Send a message when the command /start is issued."""
     global usage_message
 

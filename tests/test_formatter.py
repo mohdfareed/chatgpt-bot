@@ -21,7 +21,7 @@ pre-formatted fixed-width code block
 """
 
 
-class TestMarkdownToHtml(unittest.TestCase):
+class TestFormatter(unittest.TestCase):
     def test_bold(self):
         self.assertEqual(
             bot.bot.formatter.md_html("This is *bold* text."),
