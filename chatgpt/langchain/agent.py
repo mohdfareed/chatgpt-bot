@@ -63,7 +63,6 @@ class ChatGPT:
             self.generation = self.chain.arun(input)
             generated_text = await self.generation
             results = core.GenerationResults(generated_text, metrics_callback)
-            print(metrics_callback)
         return results
 
     async def stop(self) -> None:

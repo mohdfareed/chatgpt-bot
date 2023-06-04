@@ -7,7 +7,7 @@ wikipedia
 python-telegram-bot[webhooks,rate-limiter]
 beautifulsoup4
 # database
-chromadb
+# chromadb
 sqlalchemy
 tenacity
 # environment
