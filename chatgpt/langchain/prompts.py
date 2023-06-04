@@ -56,9 +56,13 @@ your final response as a message. After the 'Final Message' action, the \
 process is ended and your input to the action will be sent to the chat.
 Use ONLY the following markdown syntax in your final message (the input to \
 the 'Final Message' action):
+```
 *bold* _italic_ ~strikethrough~ __underline__ ||spoiler|| \
 [inline URL](http://www.example.com/) `monospaced` @mentions #hashtags
-```code blocks (without language)```
+```language
+code blocks
+```
+```
 
 You MUST specify the action and input. Your responses MUST follow this format:
 

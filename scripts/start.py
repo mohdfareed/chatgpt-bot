@@ -113,7 +113,7 @@ def _configure_file_logging(logger: logging.Logger):
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser("chatgpt_bot")
+    parser = argparse.ArgumentParser(description="Start the ChatGPT bot.")
     parser.add_argument(
         "-d", "--debug", action="store_true", help="log debug messages"
     )

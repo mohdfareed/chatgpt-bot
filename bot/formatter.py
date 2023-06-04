@@ -19,7 +19,7 @@ _markdown_patterns = dict(
     strikethrough=_inline.format(r"~"),
     spoiler=_inline.format(r"\|\|"),
     mono=_inline.format(r"`(?!`)"),
-    code=r"(?<![@#\\\w])```([\s\S]+?)```(?!\w)",
+    code=r"(?<![@#\\\w])```(.*)\n([\s\S]+?)\n```(?!\w)",
     link=r"(?<![@#\w])\[(.+?)\]\((.+?)\)(?!\w)",
 )
 
@@ -31,7 +31,7 @@ _html_syntax = dict(
     spoiler=r"<tg-spoiler>\1</tg-spoiler>",
     link=r'<a href="\2">\1</a>',
     mono=r"<code>\1</code>",
-    code=r"<pre>\1</pre>",
+    code=r"<code>\2</code>",
 )
 
 _valid_tags = [

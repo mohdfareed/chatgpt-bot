@@ -15,9 +15,7 @@ _complex_html = """
 <b>bold <i>italic bold <s>italic bold strikethrough <tg-spoiler>italic bold strikethrough spoiler</tg-spoiler></s> <u>underline italic bold</u></i> bold</b>
 <a href="http://www.example.com/">inline URL</a>
 <code>inline fixed-width code</code>
-<pre>
-pre-formatted fixed-width code block
-</pre>
+<code>pre-formatted fixed-width code block</code>
 """
 
 
@@ -62,7 +60,7 @@ class TestFormatter(unittest.TestCase):
 
     def test_code(self):
         self.assertEqual(
-            bot.formatter.md_html("This is `code`."),
+            bot.formatter.md_html("This is ```\ncode\n```."),
             "This is <code>code</code>.",
         )
 

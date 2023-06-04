@@ -48,7 +48,9 @@ def main(clean: bool = False) -> None:
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(
+        description="Setup the ChatGPT bot environment."
+    )
     parser.add_argument(
         "-c", "--clean", action="store_true", help="perform a clean setup"
     )
