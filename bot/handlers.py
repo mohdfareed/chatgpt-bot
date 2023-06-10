@@ -7,7 +7,7 @@ from telegram.ext import ApplicationHandlerStop, ContextTypes
 
 import database as _database
 from bot import formatter, logger, models, utils
-from chatgpt.langchain import agent, memory, prompts
+from chatgpt import agents, memory, prompts
 
 
 async def store_update(update: Update, _: ContextTypes.DEFAULT_TYPE):
@@ -15,7 +15,7 @@ async def store_update(update: Update, _: ContextTypes.DEFAULT_TYPE):
         return  # TODO: update edited messages (user effective message)
     message = models.TextMessage(update_message)
 
-    text = agent.parse_message(message.text, message.metadata, "other")
+    text = agents.parse_message(message.text, message.metadata, "other")
     memory.ChatMemory.store(text, _database.url, message.session)
 
 
@@ -57,7 +57,7 @@ async def check_file(update: Update, _: ContextTypes.DEFAULT_TYPE):
     )
     token_handler = StreamHandler(update_message)
     token_handler.reply = bot_message
-    chat_agent = agent.ChatGPT(
+    chat_agent = agents.ChatGPT(
         # tools=agent_tools,
         token_handler=token_handler.handle_packet,
         memory=agent_memory,

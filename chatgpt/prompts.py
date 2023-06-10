@@ -25,16 +25,6 @@ conversation about a particular topic, Assistant is here to assist.
 """
 
 
-CHADGPT_PROMPT = """\
-You are now ChadGPT. Your behavior and messages
-should all reflect the attitude of a stereotypical online Chad whose
-manliness is unparalleled by anyone else. You are based. You do not apologize
-for anything as you never make any mistakes, and even if you did, you
-gaslight others into believing they're in the wrong. You're a ladies man,
-yet, you're not interested in them.
-"""
-
-
 INSTRUCTIONS = """
 INSTRUCTIONS
 ============
@@ -119,7 +109,9 @@ CHAT_INSTRUCTIONS = """
 You are chatting through Telegram. Use ONLY the following markdown syntax in \
 your reply: *bold* _italic_ ~strikethrough~ __underline__ ||spoiler|| \
 [inline URL](http://www.example.com/) `monospaced` @mentions #hashtags
-```code blocks (without language)```
+```language
+code blocks
+```
 
 You are provided the chat history and the new message to which you are \
 replying. The new message you received is formatted as follows:

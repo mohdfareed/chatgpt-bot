@@ -7,8 +7,8 @@ from langchain.chat_models import ChatOpenAI
 from langchain.prompts import PromptTemplate
 
 from chatgpt import OPENAI_API_KEY, core
-from chatgpt.langchain import memory as mem
-from chatgpt.langchain import parsers, prompts
+from chatgpt import memory as mem
+from chatgpt import parsers, prompts
 
 
 class ChatGPT:

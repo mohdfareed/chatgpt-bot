@@ -6,7 +6,7 @@ from typing import Union
 from langchain.agents.conversational_chat import output_parser
 from langchain.schema import AgentAction, AgentFinish, OutputParserException
 
-from chatgpt.langchain import prompts
+from chatgpt import prompts
 
 
 class ChatGPTOutputParser(output_parser.ConvoOutputParser):

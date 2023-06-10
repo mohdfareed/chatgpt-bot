@@ -4,7 +4,7 @@
 import sqlalchemy as sql
 import sqlalchemy.orm as orm
 
-from chatgpt.langchain.prompts import ASSISTANT_PROMPT
+from chatgpt.prompts import ASSISTANT_PROMPT
 from database.core import DatabaseModel
 
 

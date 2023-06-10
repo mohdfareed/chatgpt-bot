@@ -86,7 +86,3 @@ class TestDatabase(unittest.TestCase):
         # check that chat model is deleted
         chat.load()
         self.assertEqual(chat.model.prompt, ChatGPT().prompt)
-
-
-if __name__ == "__main__":
-    unittest.main()

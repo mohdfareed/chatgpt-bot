@@ -1,4 +1,4 @@
-"""Tools used by agents."""
+"""Tools that give agents access to external resources."""
 
 import wikipedia
 from langchain import LLMMathChain, OpenAI

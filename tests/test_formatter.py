@@ -22,7 +22,7 @@ _complex_html = """
 class TestFormatter(unittest.TestCase):
     def test_bold(self):
         self.assertEqual(
-            bot.bot.formatter.md_html("This is *bold* text."),
+            bot.core.formatter.md_html("This is *bold* text."),
             "This is <b>bold</b> text.",
         )
 
