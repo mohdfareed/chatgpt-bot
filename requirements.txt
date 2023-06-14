@@ -3,13 +3,18 @@ openai
 tiktoken
 langchain
 wikipedia
+
 # bot
 python-telegram-bot[webhooks,rate-limiter]
 beautifulsoup4
-# database
-# chromadb
-sqlalchemy
 tenacity
+
+# database
+sqlalchemy
+sqlalchemy-utils
+cryptography
+# chromadb
+
 # environment
 python-dotenv
 rich

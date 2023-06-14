@@ -2,65 +2,66 @@
 and its connection. It also provides the base model class for the database
 models, which defines core functionality shared by all models."""
 
-import os
 import typing
 
 import sqlalchemy as sql
 import sqlalchemy.orm as orm
 import tenacity
 
-from database import logger
+from database import logger, url
 
-# default to sqlite database
-_db_path = os.path.abspath(os.path.dirname(__file__))
-_default_url = f"sqlite:///{_db_path}/database.db"
 _engine: sql.Engine | None = None  # global database engine
-
-url = os.environ.get("DATABASE_URL") or _default_url
-"""The database URL."""
 
 
 class DatabaseModel(orm.DeclarativeBase):
     __abstract__ = True
 
-    @property
-    def primary_keys(self) -> tuple:
-        """The values of the primary keys of the model."""
-        inspector = sql.inspect(type(self))
-        key_names = [key.name for key in inspector.primary_key]
-        return tuple(getattr(self, attr) for attr in key_names)
+    id: orm.Mapped[int] = orm.mapped_column(primary_key=True)
+    """The model's unique ID."""
 
     def load(self):
-        """Load the model from the database. Overwrites the current instance
-        only if it exists in the database."""
+        """Load the model instance from the database if it exists."""
         with orm.Session(engine()) as session:
-            db_instance = session.get(self.__class__, self.primary_keys)
-            self.overwrite(db_instance) if db_instance else None
+            db_instance = session.scalar(self._loading_statement())
+            self._overwrite(db_instance) if db_instance else None
         return self
 
     def save(self):
-        """Store the model in the database. Overwrites the current instance
-        with the new database instance."""
+        """Store the model in the database, overwriting it if it exists."""
         with orm.Session(engine()) as session:
             db_instance = session.merge(self)
             session.commit()
-            self.overwrite(db_instance)
+            self._overwrite(db_instance)  # load updated instance
         return self
 
     def delete(self):
         """Delete the model from the database if it exists."""
         with orm.Session(engine()) as session:
-            if db_obj := session.get(self.__class__, self.primary_keys):
+            if db_obj := session.get(self.__class__, self.id):
                 session.delete(db_obj)
                 session.commit()
         return self
 
-    def overwrite(self, other: typing.Self):
-        """Overwrites the current instance's attributes with another instance's
-        attributes."""
+    def _overwrite(self, other: typing.Self):
         for field in sql.inspect(type(self)).attrs.keys():
             other_field = getattr(other, field)
             setattr(self, field, other_field)
+        return self
+
+    def _loading_statement(self):
+        return sql.select(self.__class__).where(self.id == self.id)
+
+
+class Serializable:
+    """An object that can be serialized to dictionary."""
+
+    def to_dict(self) -> dict:
+        """Get the object as a dictionary."""
+        return self.__dict__
+
+    def from_dict(self, model_dict: dict):
+        """Load the object from a dictionary of parameters."""
+        self.__dict__.update(model_dict)
         return self
 
 
@@ -104,3 +105,6 @@ def _start_engine():
     DatabaseModel.metadata.create_all(engine)
     logger.info(f"Connected to database: {url}")
     return engine
+
+
+__all__ = ["Serializable", "engine"]

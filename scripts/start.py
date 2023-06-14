@@ -14,7 +14,6 @@ os.chdir(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 sys.path.append(os.getcwd())
 # load environment variables and import the bot
 load_dotenv(override=True)
-import bot as chatgpt_bot
 
 
 def main(debug: bool = False, log: bool = False) -> None:
@@ -36,6 +35,8 @@ def main(debug: bool = False, log: bool = False) -> None:
     sys.path.append(os.getcwd())
     # load environment variables
     load_dotenv(override=True)
+    # load the bot
+    import bot.core as chatgpt_bot
 
     try:  # run the bot
         chatgpt_bot.run()

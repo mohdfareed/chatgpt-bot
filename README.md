@@ -9,9 +9,18 @@ ChatGPT interface using Telegram's bot API. The bot is currently hosted at
 
 The following environment variables are required:
 
-- `OPENAI_API_KEY`
-- `TELEGRAM_BOT_TOKEN`
-- `DATABASE_URL`: Postgres database URL
+- `OPENAI_API_KEY`: OpenAI API key
+- `TELEGRAM_BOT_TOKEN`: Telegram bot token
+
+The following environment variables are optional:
+
+- `DATABASE_URL`: Database URL for persistent storage
+- `ENCRYPTION_KEY`: Encryption key for encrypting database
+- `WEBHOOK`: Webhook URL for Telegram bot
+- `WEBHOOK_ADDR`: Webhook address for Telegram bot
+- `WEBHOOK_PORT`: Webhook port for Telegram bot
+- `SERPER_API_KEY`: Serper API key for internet searching
+- `APIFY_API_TOKEN`: Apify API token for web scraping
 
 ### Installation
 
@@ -19,7 +28,7 @@ Download the repository and run the setup script:
 
 ```sh
 git clone https://github.com/mohdfareed/chatgpt-telegram.git
-cd path/to/chatgpt-telegram
+cd path/to/repo
 ./scripts/setup.py [--clean]
 ```
 
