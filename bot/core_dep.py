@@ -14,7 +14,7 @@ from bot import logger
 from chatgpt.completion import ChatCompletion
 from chatgpt.errors import CompletionError, ConnectionError, TokenLimitError
 from chatgpt.model import ChatGPT
-from chatgpt.types import GPTChat, GPTMessage, GPTReply, MessageRole
+from chatgpt.types import ChatMessageRole, GPTChat, GPTMessage, GPTReply
 from database import models
 
 _edit_timer = 0.0
@@ -95,7 +95,7 @@ def _get_history(chat_id, topic_id) -> GPTChat:
         if not db_message.text:
             continue
         # construct system message
-        if db_message.role == MessageRole.SYSTEM:
+        if db_message.role == ChatMessageRole.SYSTEM:
             chatgpt_messages.append(
                 GPTMessage(
                     db_message.text, db_message.role, db_message.name or ""
@@ -112,7 +112,7 @@ def _get_history(chat_id, topic_id) -> GPTChat:
         metadata = f"{id}-{db_message.reply_id}-{username}"
         # create message and its metadata
         chatgpt_messages.append(GPTMessage(db_message.text, db_message.role))
-        chatgpt_messages.append(GPTMessage(metadata, MessageRole.SYSTEM))
+        chatgpt_messages.append(GPTMessage(metadata, ChatMessageRole.SYSTEM))
 
     # add default system message if none
     if not has_system_message:
@@ -120,7 +120,7 @@ def _get_history(chat_id, topic_id) -> GPTChat:
             0,
             GPTMessage(
                 # prompts[DEFAULT_PROMPT],
-                MessageRole.SYSTEM.value
+                ChatMessageRole.SYSTEM.value
             ),
         )
 

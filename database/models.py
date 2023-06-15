@@ -94,7 +94,7 @@ class Chat(DatabaseModel):
         """The chat's session ID."""
         return f"{self.id}:{self.topic_id}"
 
-    def __init__(self, id: int, topic_id: str | None, **kw: Any):
+    def __init__(self, id: int, topic_id: str | None = None, **kw: Any):
         super().__init__(id=id, topic_id=topic_id, **kw)
 
 

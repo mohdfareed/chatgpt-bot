@@ -5,15 +5,14 @@ import os
 
 import openai
 
+logger = logging.getLogger(__name__)
+"""The logger for the ChatGPT module."""
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 """The environment's OpenAI API key for message generation."""
 SERPER_API_KEY = os.getenv("SERPER_API_KEY", "")
 """The environment's Serper API key for Google search."""
-SERPER_API_KEY = os.getenv("SERPER_API_KEY", "")
+APIFY_API_TOKEN = os.getenv("APIFY_API_TOKEN", "")
 """The environment's Serper API key for Google search."""
-
-logger = logging.getLogger(__name__)
-"""The logger for the ChatGPT module."""
 
 try:  # validate OpenAI API key
     openai.api_key = OPENAI_API_KEY

@@ -10,6 +10,7 @@ import telegram.ext as telegram_extensions
 
 import bot.models
 import database
+import database.models
 from bot import formatter, utils
 from chatgpt import memory
 
@@ -19,7 +20,7 @@ _default_context = telegram_extensions.ContextTypes.DEFAULT_TYPE
 class Command(abc.ABC):
     """Base class for bot commands. All commands inherit from this class."""
 
-    names: tuple[str]
+    names: tuple[str, ...]
     """The names that trigger the command. The first is the primary name."""
     description: str
     """The command's description."""
@@ -35,11 +36,13 @@ class Command(abc.ABC):
     def handler(self) -> telegram_extensions.CommandHandler:
         """The command handler."""
         handler = telegram_extensions.CommandHandler(
-            self.names,
-            self.callback,
-            filters=self.filters,
-        )  # FIXME: add block to constructor
-        handler.block = handler.block if self.block is None else self.block
+            command=self.names,
+            callback=self.callback,
+            filters=self.filters,  # type: ignore
+        )
+        # set blocking if specified, use default otherwise
+        if self.block is not None:
+            handler.block = self.block
         return handler
 
     @property
@@ -74,7 +77,7 @@ class HelpCommand(Command):
     ).strip()
 
     @staticmethod
-    async def callback(update, context):
+    async def callback(update: telegram.Update, context: _default_context):
         dummy_message = formatter.md_html(HelpCommand.help_message)
         dummy_message = dummy_message.format(bot=context.bot.username)
         await update.effective_chat.send_message(
@@ -87,8 +90,10 @@ class UsageCommand(Command):
     description = "Show the user and chat usage"
 
     @staticmethod
-    async def callback(update: telegram.Update, context: _default_context):
-        update_message = update.effective_message
+    async def callback(update: telegram.Update, _: _default_context):
+        if not (update_message := update.effective_message):
+            return
+
         message = bot.models.TextMessage(update_message)
         db_user = database.models.User(message.user.id).load()
         db_chat = database.models.Chat(message.chat.id).load()
@@ -107,10 +112,11 @@ class DeleteHistoryCommand(Command):
     description = "Delete the chat history"
 
     @staticmethod
-    async def callback(update: telegram.Update, context: _default_context):
-        update_message = update.effective_message
-        message = bot.models.TextMessage(update_message)
+    async def callback(update: telegram.Update, _: _default_context):
+        if not (update_message := update.effective_message):
+            return
 
+        message = bot.models.TextMessage(update_message)
         memory.ChatMemory.delete(database.url, message.session)
         await utils.reply_code(update_message, "Chat history deleted")
 
@@ -121,7 +127,8 @@ class PromptCommand(Command):
 
     @staticmethod
     async def callback(update: telegram.Update, context: _default_context):
-        update_message = update.effective_message
+        if not (update_message := update.effective_message):
+            return
         message = bot.models.TextMessage(update_message)
 
         sys_message = None
@@ -144,14 +151,15 @@ class PromptCommand(Command):
 
 
 class GetSystemPrompt(Command):
-    names = ("get_sys", "sys")
+    names: tuple = ("get_sys", "sys")
     description = "Get the system prompt"
 
     @staticmethod
     async def callback(update: telegram.Update, context: _default_context):
-        update_message = update.effective_message
-        message = bot.models.TextMessage(update_message)
+        if not (update_message := update.effective_message):
+            return
 
+        message = bot.models.TextMessage(update_message)
         text = (
             utils.load_prompt(message.chat.id, message.topic_id)
             or "No system prompt found"
@@ -163,6 +171,6 @@ def all_commands(command=Command):
     """All available bot commands. Recursively yields all concrete subclasses
     of the base class."""
     if not inspect.isabstract(command):
-        yield command()
+        yield command()  # type: ignore
     for subcommand in command.__subclasses__():
         yield from all_commands(subcommand)

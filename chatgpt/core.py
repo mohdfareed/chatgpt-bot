@@ -1,4 +1,4 @@
-"""Classes and functions used by different components of the package.
+"""Classes and functions used by different components of the ChatGPT package.
 """
 
 from contextlib import contextmanager

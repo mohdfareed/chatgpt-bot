@@ -4,6 +4,7 @@ import telegram
 
 import bot.models
 import chatgpt.core
+import chatgpt.models
 import database
 
 
@@ -15,14 +16,19 @@ async def reply_code(message: telegram.Message | None, reply):
 
 
 def load_prompt(id: int, topic_id: int | None):
-    chat = database.Chat(id, topic_id).load()
-    return chat.model.prompt
+    db_chat = database.models.Chat(id, topic_id).load()
+    db_model = database.models.ChatModel(db_chat.session_id).load()
+    model = chatgpt.models.ChatGPT().from_dict(db_model.parameters)
+    return model.prompt
 
 
 def save_prompt(id: int, topic_id: int | None, prompt: str):
-    chat = database.Chat(id, topic_id).load()
-    chat.model.prompt = prompt
-    chat.save()
+    db_chat = database.models.Chat(id, topic_id).load()
+    db_model = database.models.ChatModel(db_chat.session_id).load()
+    model = chatgpt.models.ChatGPT().from_dict(db_model.parameters)
+    model.prompt = prompt
+    db_model.parameters = model.to_dict()
+    db_model.save()
 
 
 def count_usage(
@@ -31,13 +37,13 @@ def count_usage(
     total_usage = results.prompt_tokens + results.generated_tokens
 
     # count towards user
-    db_user = database.User(message.user.id).load()
+    db_user = database.models.User(message.user.id).load()
     db_user.token_usage += total_usage
     db_user.usage += results.cost
     db_user.save()
 
     # count towards chat
-    db_chat = database.Chat(message.chat.id, message.topic_id).load()
+    db_chat = database.models.Chat(message.chat.id, message.topic_id).load()
     db_chat.token_usage += total_usage
     db_chat.usage += results.cost
     db_chat.save()
