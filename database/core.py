@@ -37,7 +37,7 @@ class DatabaseModel(orm.DeclarativeBase):
     def delete(self):
         """Delete the model from the database if it exists."""
         with orm.Session(engine()) as session:
-            if db_obj := session.get(self.__class__, self.id):
+            if db_obj := session.get(type(self), self.id):
                 session.delete(db_obj)
                 session.commit()
         return self
@@ -49,20 +49,7 @@ class DatabaseModel(orm.DeclarativeBase):
         return self
 
     def _loading_statement(self):
-        return sql.select(self.__class__).where(self.id == self.id)
-
-
-class Serializable:
-    """An object that can be serialized to dictionary."""
-
-    def to_dict(self) -> dict:
-        """Get the object as a dictionary."""
-        return self.__dict__
-
-    def from_dict(self, model_dict: dict):
-        """Load the object from a dictionary of parameters."""
-        self.__dict__.update(model_dict)
-        return self
+        return sql.select(type(self)).where(type(self).id == self.id)
 
 
 def engine():
@@ -107,4 +94,4 @@ def _start_engine():
     return engine
 
 
-__all__ = ["Serializable", "engine"]
+__all__ = ["engine"]
