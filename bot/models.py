@@ -35,7 +35,12 @@ class TextMessage:
         metadata = {k: v for k, v in metadata.items() if v is not None}
         return metadata
 
-    def __init__(self, message: telegram.Message) -> None:
+    def to_chat_message(self):
+        """Convert the message to a chat model message."""
+        pass
+
+    @classmethod
+    def from_telegram_message(cls, message: telegram.Message) -> None:
         """Initialize a text message from a Telegram message.
 
         Args:
@@ -43,20 +48,22 @@ class TextMessage:
         """
 
         # create message
-        self.id = message.message_id
-        self.chat = TelegramChat(message.chat)
-        self.user = TelegramUser(
+        message_instance = cls()
+        message_instance.id = message.message_id
+        message_instance.chat = TelegramChat.from_telegram_chat(message.chat)
+        message_instance.user = TelegramUser.from_telegram_user(
             message.from_user or message.sender_chat or message.chat
         )
 
         # fill-in the topic if any
         if message.is_topic_message and message.message_thread_id:
-            self.topic_id = message.message_thread_id
+            message_instance.topic_id = message.message_thread_id
         # fill-in reply message if any
         if reply := message.reply_to_message:
-            self.reply = TextMessage(reply)
+            message_instance.reply = TextMessage(reply)
 
-        self.text = message.text or message.caption or ""
+        message_instance.text = message.text or message.caption or ""
+        return message_instance
 
 
 class TelegramChat:
@@ -74,17 +81,19 @@ class TelegramChat:
 
         return self._username or self.title
 
-    def __init__(self, chat: telegram.Chat) -> None:
+    @classmethod
+    def from_telegram_chat(cls, chat: telegram.Chat) -> None:
         """Initialize a chat from a Telegram chat.
 
         Args:
             chat (Chat): The update's chat.
         """
 
-        # create chat
-        self.id = chat.id
-        self.title = chat.title or self.title
-        self._username = chat.username
+        chat_instance = cls()
+        chat_instance.id = chat.id
+        chat_instance.title = chat.title or chat_instance.title
+        chat_instance._username = chat.username
+        return chat_instance
 
 
 class TelegramUser:
@@ -111,19 +120,23 @@ class TelegramUser:
         first_last = f"{self.first_name} {self.last_name or ''}"
         return first_last.strip()
 
-    def __init__(self, user: telegram.User | telegram.Chat) -> None:
+    @classmethod
+    def from_telegram_user(cls, user: telegram.User | telegram.Chat) -> None:
         """Initialize a user from a Telegram user.
 
         Args:
             user (User): The update's user.
         """
 
-        self.id = user.id
-        self._username = user.username
-        self.last_name = user.last_name
+        user_instance = cls()
+        user_instance.id = user.id
+        user_instance._username = user.username
+        user_instance.last_name = user.last_name
 
         # first name is title for chats
         if isinstance(user, telegram.Chat):
-            self.first_name = TelegramChat(user).title
+            user_instance.first_name = TelegramChat(user).title
         else:
-            self.first_name = user.first_name
+            user_instance.first_name = user.first_name
+
+        return user_instance

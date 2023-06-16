@@ -2,12 +2,12 @@
 executing core module functionality."""
 
 from telegram import Message, Update
-from telegram.constants import ChatAction, ParseMode
-from telegram.ext import ApplicationHandlerStop, ContextTypes
+from telegram.constants import ChatAction
+from telegram.ext import ContextTypes
 
 import database as _database
-from bot import formatter, logger, models, utils
-from chatgpt import agents, memory, prompts
+from bot import formatter, models, utils
+from chatgpt import agents, memory
 
 
 async def store_update(update: Update, _: ContextTypes.DEFAULT_TYPE):
@@ -71,6 +71,7 @@ async def check_file(update: Update, _: ContextTypes.DEFAULT_TYPE):
     utils.count_usage(message, results)
 
 
+# TODO: move to separate file
 class StreamHandler:
     """Handles streaming of a message by sending the stream in chunks."""
 

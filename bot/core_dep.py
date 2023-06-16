@@ -14,7 +14,7 @@ from bot import logger
 from chatgpt.completion import ChatCompletion
 from chatgpt.errors import CompletionError, ConnectionError, TokenLimitError
 from chatgpt.model import ChatGPT
-from chatgpt.types import ChatMessageRole, GPTChat, GPTMessage, GPTReply
+from chatgpt.models import ChatMessageRole, GPTChat, GPTMessage, GPTReply
 from database import models
 
 _edit_timer = 0.0

@@ -1,178 +1,114 @@
-"""The OpenAI model used for generating completions."""
+"""Models of the ChatGPT API."""
 
-import re
-from typing import Any
+import typing
 
-from chatgpt import prompts, types
-from database import Serializable
+from chatgpt import types
 
 
-class ChatModel(Serializable):
-    """ChatGPT model used for generating chat completions."""
+class ModelConfig(types.Serializable):
+    """ChatGPT model configuration and parameters."""
 
-    _temperature = None
-    _presence_penalty = None
-    _frequency_penalty = None
+    def __init__(self) -> None:
+        super().__init__()
 
-    model: str = types.ChatModel.CHATGPT
-    """The model used for chat completions."""
-    prompt: str = prompts.ASSISTANT_PROMPT
-    """The system prompt of the model."""
-    function_call: str | None = None
-    """The name of the function the model must call. If None, the model will
-    use any function. If the name is 'none', the model will not call any
-    function."""
-    max_tokens: int | None = None
-    """The maximum number of tokens to generate. If None, the model will
-    not be limited by the number of tokens."""
+        self.model: str = str(types.SupportedModel.CHATGPT)
+        """The model used for chat completions."""
+        self.allowed_tool: str | None = None
+        """The name of the tool the model must call. Empty string for no tool.
+        Defaults to any tool."""
 
-    @property
-    def temperature(self) -> float:
-        """The temperature of completions. Values are in range [0.0, 2.0].
-        Higher values will result in more creative responses. Lower values will
-        result in more deterministic responses."""
-        return self._temperature or 1.0
+        self.prompt: str | None = None
+        """The system prompt of the model. Defaults to a helpful assistant."""
+        self.max_tokens: int | None = None
+        """The maximum number of tokens to generate. If None, the model will
+        not be limited by the number of tokens."""
 
-    @temperature.setter
-    def temperature(self, temperature: float) -> None:
-        if temperature < 0.0 or temperature > 2.0:
-            error_msg = "Temperature must be in range [-2.0, 2.0]."
-            raise ValueError(error_msg)
-        self._temperature = temperature
-
-    @property
-    def presence_penalty(self) -> float:
-        """The penalty for repeated tokens. Values are in range [-2.0, 2.0].
-        Higher values will increase the likelihood of exploring new topics."""
-        return self._presence_penalty or 0.0
-
-    @presence_penalty.setter
-    def presence_penalty(self, presence_penalty: float) -> None:
-        if presence_penalty < -2.0 or presence_penalty > 2.0:
-            error_msg = "Presence penalty must be in range [-2.0, 2.0]."
-            raise ValueError(error_msg)
-        self._presence_penalty = presence_penalty
-
-    @property
-    def frequency_penalty(self) -> float:
-        """The penalty for tokens based on existence frequency. Values are in
-        range [-2.0, 2.0]. Higher values decrease the likelihood to repeat
-        lines verbatim."""
-        return self._frequency_penalty or 0.0
-
-    @frequency_penalty.setter
-    def frequency_penalty(self, frequency_penalty: float) -> None:
-        if frequency_penalty < -2.0 or frequency_penalty > 2.0:
-            error_msg = "Presence penalty must be in range [-2.0, 2.0]."
-            raise ValueError(error_msg)
-        self._frequency_penalty = frequency_penalty
+        self.temperature: float | None = None
+        """Tokens confidence threshold, in range [0.0, 2.0]."""
+        self.presence_penalty: float | None = None
+        """Penalty for repeated tokens, in range [-2.0, 2.0]."""
+        self.frequency_penalty: float | None = None
+        """Tokens penalty based on usage frequency, in range [-2.0, 2.0]."""
 
     def params(self) -> dict[str, str | float | list[str] | None]:
         """Return the model parameters for a generation request."""
-        # specify model function call behavior
-        if self.function_call not in ("none", None):
-            function_call = dict(name=self.function_call)
-        else:
-            function_call = self.function_call
+        func_call = "none" if self.allowed_tool == "" else self.allowed_tool
 
         model_params = dict(
             model=self.model,
-            function_call=function_call,
+            function_call=func_call,
             max_tokens=self.max_tokens,
-            temperature=self._temperature,
-            presence_penalty=self._presence_penalty,
-            frequency_penalty=self._frequency_penalty,
+            temperature=self.temperature,
+            presence_penalty=self.presence_penalty,
+            frequency_penalty=self.frequency_penalty,
         )
         # remove None values
-        return _clean_dict(model_params)
+        return {k: v for k, v in model_params.items() if v is not None}
 
 
-class ChatMessage(types.Message):
-    """A message in a chat."""
+class UserMessage(types.Message):
+    """A message sent to the model."""
 
-    role: types.ChatMessageRole
-    """The role of the message sender."""
-    content: str
-    """The content of the message."""
+    ROLE = "user"
+
+
+class SystemMessage(types.Message):
+    """A system message sent to the model."""
+
+    ROLE = "user"
+
+
+class ToolResult(types.Message):
+    """The result of a tool usage."""
+
+    ROLE = "function"
 
     @property
-    def name(self) -> str | None:
-        """The name of the message sender."""
-        try:
-            return self._name
-        except AttributeError:
-            return None
+    def name(self) -> str:
+        """The name of the tool."""
+        return self._name
 
     @name.setter
-    def name(self, name: str | None) -> None:
-        pattern = r"^\w{1,64}$"
-        if name and not re.match(pattern, name):
-            raise ValueError("Name must be alphanumeric and 1-64 characters")
+    def name(self, name: str) -> None:
+        super().name = name
+
+    def __init__(self, name: str, content: str) -> None:
+        super().__init__(content)
         self._name = name
 
-    def to_message_dict(self) -> dict:
-        message = dict(
-            role=self.role,
-            content=self.content,
-            name=self.name,
-        )
-        return _clean_dict(message)
 
-
-class ChatReply(types.ModelReply):
+class ModelReply(types.Reply):
     """A reply to a message in a chat."""
 
-    content: str | None = None
-    """The content of the reply. It is None for function calls"""
+    def __init__(self, content: str) -> None:
+        super().__init__()
+        self.content = content
+        """The content of the reply."""
 
     def to_message_dict(self) -> dict:
         message = dict(
-            role=self.role,
+            role="assistant",
             content=self.content,
         )
-        return _clean_dict(message)
+        return message
 
 
-class FunctionCall(types.ModelReply):
-    """A function call performed by a chat model."""
+class ToolUsage(types.Reply):
+    """A tool use performed by a chat model."""
 
-    name: str
-    """The name of the function called."""
-    arguments: dict[str, Any]
-    """The arguments passed to the function."""
+    def __init__(self, name: str, arguments: dict[str, typing.Any]) -> None:
+        super().__init__()
+        self.name = name
+        """The name of the used tool."""
+        self.arguments = arguments
+        """The arguments to the tool usage."""
 
     def to_message_dict(self) -> dict:
         message = dict(
-            role=self.role,
+            role="assistant",
             function_call=dict(
                 name=self.name,
                 arguments=self.arguments,
             ),
         )
-        return _clean_dict(message)
-
-
-class FunctionResult(types.Message):
-    """The result of a function call."""
-
-    role: types.FunctionResultRole
-    """The role of the message sender."""
-    content: str
-    """The content of the message."""
-
-    @property
-    def name(self) -> str:
-        """The name of the message sender."""
-        return self._name
-
-    @name.setter
-    def name(self, name: str) -> None:
-        pattern = r"^\w{1,64}$"
-        if not re.match(pattern, name):
-            raise ValueError("Name must be alphanumeric and 1-64 characters")
-        self._name = name
-
-
-def _clean_dict(dirty_dict: dict) -> dict:
-    """Remove None values from a dictionary."""
-    return {k: v for k, v in dirty_dict.items() if v is not None}
+        return message

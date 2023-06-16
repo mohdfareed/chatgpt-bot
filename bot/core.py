@@ -38,6 +38,7 @@ def run():
     # asyncio.run(_setup_commands(application))
     _setup_commands(application)
     _setup_handlers(application)
+    # FIXME: resolve threading issues
 
     # start the bot
     bot.logger.info("[green]Starting telegram bot...[/green]")

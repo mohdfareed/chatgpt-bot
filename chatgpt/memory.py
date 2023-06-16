@@ -60,105 +60,109 @@ New summary:
 """The prompt for summarizing a conversation."""
 
 
-class ChatMemory(langchain_memory.ConversationSummaryBufferMemory):
-    """A memory of a chat conversation stored by a session ID."""
+class ChatMemory:
+    """A memory of a chat conversation."""
 
-    summary = ""
-    """The current summary of the conversation."""
-    internal_buffer: List[langchain_schema.BaseMessage] = []
 
-    @property
-    def buffer(self) -> List[langchain_schema.BaseMessage]:
-        self.prune()
-        return self.internal_buffer
+# class ChatMemory(langchain_memory.ConversationSummaryBufferMemory):
+#     """A memory of a chat conversation stored by a session ID."""
 
-    def __init__(
-        self,
-        token_limit: int,
-        url: str = db.url,
-        session_id: str = "",
-        openai_api_key: str = OPENAI_API_KEY,
-    ):
-        """Initialize a chat summarization memory. Defaults to an in-memory
-        implementation if no session ID is provided.
+#     summary = ""
+#     """The current summary of the conversation."""
+#     internal_buffer: List[langchain_schema.BaseMessage] = []
 
-        Args:
-            token_limit (int): Max number of tokens history can contain.
-            url (str): SQL database URL.
-            session_id (str, optional): Memory session ID.
-        """
+#     @property
+#     def buffer(self) -> List[langchain_schema.BaseMessage]:
+#         self.prune()
+#         return self.internal_buffer
 
-        # set in-memory implementation if no session ID is provided
-        if not session_id:
-            url = "sqlite:///:memory:"
+#     def __init__(
+#         self,
+#         token_limit: int,
+#         url: str = db.url,
+#         session_id: str = "",
+#         openai_api_key: str = OPENAI_API_KEY,
+#     ):
+#         """Initialize a chat summarization memory. Defaults to an in-memory
+#         implementation if no session ID is provided.
 
-        # create summarization model
-        model = langchain_models.ChatOpenAI(
-            openai_api_key=openai_api_key,
-        )  # type: ignore
+#         Args:
+#             token_limit (int): Max number of tokens history can contain.
+#             url (str): SQL database URL.
+#             session_id (str, optional): Memory session ID.
+#         """
 
-        # create summarization memory
-        super().__init__(
-            llm=model,
-            prompt=SUMMARIZATION_PROMPT,
-            memory_key="chat_history",
-            max_token_limit=(token_limit - 8),  # history + summary
-        )
+#         # set in-memory implementation if no session ID is provided
+#         if not session_id:
+#             url = "sqlite:///:memory:"
 
-        # setup chat history
-        self.chat_memory = ChatHistory(session_id, url)
-        self.internal_buffer = self.chat_memory.messages
+#         # create summarization model
+#         model = langchain_models.ChatOpenAI(
+#             openai_api_key=openai_api_key,
+#         )  # type: ignore
 
-    @classmethod
-    def delete(cls, url: str, session: str) -> None:
-        """Delete the memory of a session."""
+#         # create summarization memory
+#         super().__init__(
+#             llm=model,
+#             prompt=SUMMARIZATION_PROMPT,
+#             memory_key="chat_history",
+#             max_token_limit=(token_limit - 8),  # history + summary
+#         )
 
-        memory = cls(-1, url, session)
-        memory.chat_memory.clear()
+#         # setup chat history
+#         self.chat_memory = ChatHistory(session_id, url)
+#         self.internal_buffer = self.chat_memory.messages
 
-    @classmethod
-    def store(cls, message: str, url: str, session: str) -> None:
-        """Store the memory of a session."""
+#     @classmethod
+#     def delete(cls, url: str, session: str) -> None:
+#         """Delete the memory of a session."""
 
-        memory = cls(-1, url, session)
-        memory.chat_memory.add_user_message(message)
+#         memory = cls(-1, url, session)
+#         memory.chat_memory.clear()
 
-    def load_memory_variables(self, _: Dict[str, Any]) -> Dict[str, Any]:
-        buffer = self.buffer
-        if self.moving_summary_buffer != "":
-            first_messages: List[langchain_schema.BaseMessage] = [
-                self.summary_message_cls(content=self.moving_summary_buffer)
-            ]
-            buffer = first_messages + buffer
+#     @classmethod
+#     def store(cls, message: str, url: str, session: str) -> None:
+#         """Store the memory of a session."""
 
-        final_buffer = self._get_chat_buffer_string(buffer)
-        return {self.memory_key: final_buffer}
+#         memory = cls(-1, url, session)
+#         memory.chat_memory.add_user_message(message)
 
-    def prune(self) -> None:
-        buffer = self.chat_memory.messages
-        curr_buffer_length = self.llm.get_num_tokens_from_messages(buffer)
-        if curr_buffer_length > self.max_token_limit:
-            pruned_memory = []
-            while curr_buffer_length > self.max_token_limit:
-                pruned_memory.append(buffer.pop(0))
-                curr_buffer_length = self.llm.get_num_tokens_from_messages(
-                    buffer
-                )
-            self.moving_summary_buffer = self.predict_new_summary(
-                pruned_memory, self.moving_summary_buffer
-            )
-        self.internal_buffer = buffer
+#     def load_memory_variables(self, _: Dict[str, Any]) -> Dict[str, Any]:
+#         buffer = self.buffer
+#         if self.moving_summary_buffer != "":
+#             first_messages: List[langchain_schema.BaseMessage] = [
+#                 self.summary_message_cls(content=self.moving_summary_buffer)
+#             ]
+#             buffer = first_messages + buffer
 
-    def _get_chat_buffer_string(self, messages: List) -> str:
-        string_messages = "\n"
-        for m in messages:
-            if isinstance(m, self.summary_message_cls):
-                string_messages += "Summary:\n\n"
-                string_messages += f"{m.content}\n\n"
-                string_messages += "Recent History:\n\n"
-            else:
-                string_messages += m.content
-        return string_messages  # costs 6 tokens
+#         final_buffer = self._get_chat_buffer_string(buffer)
+#         return {self.memory_key: final_buffer}
+
+#     def prune(self) -> None:
+#         buffer = self.chat_memory.messages
+#         curr_buffer_length = self.llm.get_num_tokens_from_messages(buffer)
+#         if curr_buffer_length > self.max_token_limit:
+#             pruned_memory = []
+#             while curr_buffer_length > self.max_token_limit:
+#                 pruned_memory.append(buffer.pop(0))
+#                 curr_buffer_length = self.llm.get_num_tokens_from_messages(
+#                     buffer
+#                 )
+#             self.moving_summary_buffer = self.predict_new_summary(
+#                 pruned_memory, self.moving_summary_buffer
+#             )
+#         self.internal_buffer = buffer
+
+#     def _get_chat_buffer_string(self, messages: List) -> str:
+#         string_messages = "\n"
+#         for m in messages:
+#             if isinstance(m, self.summary_message_cls):
+#                 string_messages += "Summary:\n\n"
+#                 string_messages += f"{m.content}\n\n"
+#                 string_messages += "Recent History:\n\n"
+#             else:
+#                 string_messages += m.content
+#         return string_messages  # costs 6 tokens
 
 
 class ChatHistory(langchain_schema.BaseChatMessageHistory):
