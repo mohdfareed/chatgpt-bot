@@ -3,6 +3,7 @@
 import typing
 
 import sqlalchemy as sql
+import sqlalchemy.exc as sql_exc
 import sqlalchemy.orm as orm
 import tenacity
 
@@ -19,25 +20,34 @@ class DatabaseModel(orm.DeclarativeBase):
 
     def load(self):
         """Load the model instance from the database if it exists."""
-        with orm.Session(engine()) as session:
-            db_instance = session.scalar(self._loading_statement())
-            self._overwrite(db_instance) if db_instance else None
+        try:
+            with orm.Session(engine()) as session:
+                db_instance = session.query(type(self)).get(self.id)
+                self._overwrite(db_instance) if db_instance else None
+        except sql_exc.SQLAlchemyError as e:
+            raise DatabaseError("Could not load model") from e
         return self
 
     def save(self):
         """Store the model in the database, overwriting it if it exists."""
-        with orm.Session(engine()) as session:
-            db_instance = session.merge(self)
-            session.commit()
-            self._overwrite(db_instance)  # load updated instance
+        try:
+            with orm.Session(engine()) as session:
+                db_instance = session.merge(self)
+                session.commit()
+                self._overwrite(db_instance)  # load updated instance
+        except sql_exc.SQLAlchemyError as e:
+            raise DatabaseError("Could not save model") from e
         return self
 
     def delete(self):
         """Delete the model from the database if it exists."""
-        with orm.Session(engine()) as session:
-            if db_obj := session.get(type(self), self.id):
-                session.delete(db_obj)
-                session.commit()
+        try:
+            with orm.Session(engine()) as session:
+                if db_obj := session.get(type(self), self.id):
+                    session.delete(db_obj)
+                    session.commit()
+        except sql_exc.SQLAlchemyError as e:
+            raise DatabaseError("Could not delete model") from e
         return self
 
     def _overwrite(self, other: typing.Self):
@@ -48,6 +58,10 @@ class DatabaseModel(orm.DeclarativeBase):
 
     def _loading_statement(self):
         return sql.select(type(self)).where(type(self).id == self.id)
+
+
+class DatabaseError(Exception):
+    """Exception raised for database errors."""
 
 
 def engine():

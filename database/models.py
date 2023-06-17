@@ -27,6 +27,10 @@ class User(database.core.DatabaseModel):
     def __init__(self, id: int, **kw: typing.Any):
         super().__init__(id=id, **kw)
 
+    @orm.validates("token_usage", "usage")
+    def validate_usage(self, _, value):
+        return _validate_usage(value)
+
 
 class Message(database.core.DatabaseModel):
     """A message in a chat history."""
@@ -90,3 +94,12 @@ class Chat(database.core.DatabaseModel):
 
     def __init__(self, id: int, topic_id: int | None = None, **kw: typing.Any):
         super().__init__(id=id, topic_id=topic_id, **kw)
+
+    @orm.validates("token_usage", "usage")
+    def validate_usage(self, _, value):
+        return _validate_usage(value)
+
+
+def _validate_usage(usage):
+    assert usage >= 0, "Usage and token usage must be non-negative"
+    return usage
