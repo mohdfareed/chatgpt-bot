@@ -1,6 +1,4 @@
-"""Database core functionality. It is responsible for managing the database
-and its connection. It also provides the base model class for the database
-models, which defines core functionality shared by all models."""
+"""Database core functionality."""
 
 import typing
 
@@ -8,7 +6,7 @@ import sqlalchemy as sql
 import sqlalchemy.orm as orm
 import tenacity
 
-from database import logger, url
+import database
 
 _engine: sql.Engine | None = None  # global database engine
 
@@ -85,13 +83,10 @@ def _validate_connection(engine):
 
 def _start_engine():
     # initialize database
-    logger.info("Initializing database...")
-    engine = sql.create_engine(url)
+    database.logger.info("Initializing database...")
+    engine = sql.create_engine(database.url)
     _validate_connection(engine)
     # create database schema
     DatabaseModel.metadata.create_all(engine)
-    logger.info(f"Connected to database: {url}")
+    database.logger.info(f"Connected to database: {database.url}")
     return engine
-
-
-__all__ = ["engine"]
