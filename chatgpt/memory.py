@@ -71,7 +71,7 @@ class ChatHistory:
     @property
     def messages(self) -> list[chatgpt.types.Message]:
         """The messages in the chat history."""
-        messages = db.Message.load_messages(self.session_id)
+        messages = db.models.Message.load_messages(self.session_id)
         return [
             chatgpt.types.Message.deserialize(db_message.content)
             for db_message in messages
@@ -79,18 +79,18 @@ class ChatHistory:
 
     def get_message(self, message_id: int) -> chatgpt.types.Message:
         """Get a message from the chat history."""
-        db_message = db.Message(
+        db_message = db.models.Message(
             id=message_id, session_id=self.session_id
         ).load()
         return chatgpt.types.Message.deserialize(db_message.content)
 
     def add_message(self, message: chatgpt.types.Message):
         """Add a message to the chat history."""
-        db.Message(self.session_id, content=message.serialize()).save()
+        db.models.Message(self.session_id, content=message.serialize()).save()
 
     def remove_message(self, message_id: int):
         """Remove a message from the chat history."""
-        db.Message(id=message_id, session_id=self.session_id).delete()
+        db.models.Message(id=message_id, session_id=self.session_id).delete()
 
     def load(self, messages: list[chatgpt.types.Message]) -> None:
         """Load the chat history into the database."""
@@ -99,7 +99,7 @@ class ChatHistory:
 
     def clear(self) -> None:
         """Clear the chat history."""
-        for message in db.Message.load_messages(self.session_id):
+        for message in db.models.Message.load_messages(self.session_id):
             message.delete()
 
 

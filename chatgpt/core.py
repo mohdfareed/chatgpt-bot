@@ -1,15 +1,15 @@
-"""Models of the ChatGPT API."""
+"""Core types and classes for ChatGPT."""
 
 import json
 
-from chatgpt import types
+import chatgpt
 
 
-class ModelConfig(types.Serializable):
+class ModelConfig(chatgpt.types.Serializable):
     """ChatGPT model configuration and parameters."""
 
     def __init__(self, **kwargs) -> None:
-        self.model_name = types.SupportedModel.CHATGPT
+        self.model_name = chatgpt.types.SupportedModel.CHATGPT
         """The name of the model used for chat completions."""
         self.allowed_tool: str | None = None
         """The name of the tool the model must call. Set to an empty string to
@@ -45,25 +45,25 @@ class ModelConfig(types.Serializable):
         return {k: v for k, v in model_params.items() if v is not None}
 
 
-class UserMessage(types.Message):
+class UserMessage(chatgpt.types.Message):
     """A message sent to the model."""
 
     ROLE = "user"
 
 
-class SystemMessage(types.Message):
+class SystemMessage(chatgpt.types.Message):
     """A system message sent to the model."""
 
     ROLE = "system"
 
 
-class ModelMessage(types.Message):
+class ModelMessage(chatgpt.types.Message):
     """A reply to a message in a chat."""
 
     ROLE = "assistant"
 
     def __init__(self, content, **kwargs):
-        self.finish_reason = types.FinishReason.UNDEFINED
+        self.finish_reason = chatgpt.types.FinishReason.UNDEFINED
         """The finish reason of the reply generation."""
         self.prompt_tokens = 0
         """The number of tokens in the prompt provided."""
@@ -104,7 +104,7 @@ class ToolUsage(ModelMessage):
         return {k: v for k, v in message_dict.items() if v is not None}
 
 
-class ToolResult(types.Message):
+class ToolResult(chatgpt.types.Message):
     """The result of a tool usage."""
 
     ROLE = "function"
@@ -113,7 +113,7 @@ class ToolResult(types.Message):
         super().__init__(content, name, **kwargs)
 
 
-class Prompt(types.Serializable):
+class Prompt(chatgpt.types.Serializable):
     """A prompt to be used in a generation request."""
 
     def __init__(self, template: str, variables: list[str], **kwargs):

@@ -3,6 +3,8 @@
 import abc
 import inspect
 
+import rich
+
 import chatgpt
 
 
@@ -177,56 +179,42 @@ class ConsoleHandler(AsyncCallbackHandler):
 
     def __init__(self):
         super().__init__()
+        self._console = rich.console.Console()
         self.reply_only = False
 
     async def on_model_start(self, context):
-        from rich import print
-
-        print("[bold]History[/]\n")
+        rich.print("[bold]History[/]\n")
         for message in context:
             self._print_message(message)
-        print()
+        rich.print()
 
     async def on_model_generation(self, token):
-        from rich import print
-
-        print(token, end="")
+        rich.print(token, end="")
 
     async def on_tool_use(self, usage):
-        from rich import print
-
-        print(f"[bold]Using tool:[/] {usage.serialize()}")
+        rich.print(f"[bold]Using tool:[/] {usage.serialize()}")
 
     async def on_tool_result(self, results):
-        from rich import print
-
-        print(f"[bold]Tool result:[/] {results.serialize()}")
+        rich.print(f"[bold]Tool result:[/] {results.serialize()}")
 
     async def on_model_reply(self, reply):
-        from rich import print
-
-        print(f"[bold green]Model returned:[/] {reply.serialize()}")
+        rich.print(f"[bold green]Model returned:[/] {reply.serialize()}")
 
     async def on_model_error(self, _):
-        from rich import print
-        from rich.console import Console
-
-        print("[bold red]Model error:[/]")
-        Console().print_exception(show_locals=True)
+        rich.print("[bold red]Model error:[/]")
+        self._console.print_exception(show_locals=True)
 
     def _print_message(self, message: chatgpt.types.Message):
-        from rich import print
-
         if type(message) == chatgpt.core.UserMessage:
-            print(f"[blue]{message.name or 'You'}:[/] {message.content}")
+            rich.print(f"[blue]{message.name or 'You'}:[/] {message.content}")
         if type(message) == chatgpt.core.SystemMessage:
-            print(f"SYSTEM: {message.content}")
+            rich.print(f"SYSTEM: {message.content}")
         if type(message) == chatgpt.core.ToolResult:
-            print(f"[cyan]{message.name}:[/] {message.content}")
+            rich.print(f"[cyan]{message.name}:[/] {message.content}")
         if type(message) == chatgpt.core.ModelMessage:
-            print(f"[green]ChatGPT:[/] {message.content}")
+            rich.print(f"[green]ChatGPT:[/] {message.content}")
         if type(message) == chatgpt.core.ToolUsage:
-            print(
+            rich.print(
                 f"[green]ChatGPT:[/] "
                 f"[magenta]{message.tool_name}{message.arguments}[/]"
             )

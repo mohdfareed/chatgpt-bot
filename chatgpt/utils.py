@@ -65,21 +65,20 @@ def tokens_cost(
     return float(tokens) / 1000 * cost
 
 
-def retry_decorator(min: int = 1, max: int = 60, max_attempts: int = 6):
+def retry_decorator(min_wait=1, max_wait=60, max_attempts=6):
+    log = tenacity.before_sleep_log(chatgpt.logger, logging.WARNING)
+    retry_exceptions = (
+        openai.error.Timeout,
+        openai.error.APIError,
+        openai.error.APIConnectionError,
+        openai.error.RateLimitError,
+        openai.error.ServiceUnavailableError,
+    )
+
     return tenacity.retry(
         reraise=True,
         stop=tenacity.stop_after_attempt(max_attempts),
-        wait=tenacity.wait_random_exponential(min=min, max=max),
-        retry=(
-            tenacity.retry_if_exception_type(openai.error.Timeout)
-            | tenacity.retry_if_exception_type(openai.error.APIError)
-            | tenacity.retry_if_exception_type(openai.error.APIConnectionError)
-            | tenacity.retry_if_exception_type(openai.error.RateLimitError)
-            | tenacity.retry_if_exception_type(
-                openai.error.ServiceUnavailableError
-            )
-        ),
-        before_sleep=tenacity.before_sleep_log(
-            chatgpt.logger, logging.WARNING
-        ),
+        wait=tenacity.wait_random_exponential(min=min_wait, max=max_wait),
+        retry=tenacity.retry_if_exception_type(retry_exceptions),
+        before_sleep=log,
     )
