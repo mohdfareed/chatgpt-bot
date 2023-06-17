@@ -1,8 +1,12 @@
 """Utilities used by ChatGPT."""
 
+import logging
+
+import openai.error
+import tenacity
 import tiktoken
 
-from chatgpt import types
+from chatgpt import logger, types
 
 
 def tokens(string: str, model: str):
@@ -57,3 +61,21 @@ def tokens_cost(tokens: int, model: types.SupportedModel, is_reply: bool):
         cost = 0.12 if is_reply else 0.06
 
     return float(tokens) / 1000 * cost
+
+
+def retry_decorator(min: int = 1, max: int = 60, max_attempts: int = 6):
+    return tenacity.retry(
+        reraise=True,
+        stop=tenacity.stop_after_attempt(max_attempts),
+        wait=tenacity.wait_random_exponential(min=min, max=max),
+        retry=(
+            tenacity.retry_if_exception_type(openai.error.Timeout)
+            | tenacity.retry_if_exception_type(openai.error.APIError)
+            | tenacity.retry_if_exception_type(openai.error.APIConnectionError)
+            | tenacity.retry_if_exception_type(openai.error.RateLimitError)
+            | tenacity.retry_if_exception_type(
+                openai.error.ServiceUnavailableError
+            )
+        ),
+        before_sleep=tenacity.before_sleep_log(logger, logging.WARNING),
+    )

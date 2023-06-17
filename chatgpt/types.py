@@ -4,6 +4,9 @@ import abc
 import enum
 import json
 import re
+import typing
+
+T = typing.TypeVar("T", bound="Serializable")
 
 
 class Enum(enum.StrEnum):
@@ -59,27 +62,59 @@ class FinishReason(Enum):
 class Serializable(abc.ABC):
     """An object that can be serialized to a JSON dictionary."""
 
-    def to_json(self):
-        """Get the object as a JSON dictionary."""
-        return json.dumps(self.__dict__)
+    def __init__(self, **kwargs):
+        self.__dict__.update(kwargs)
 
-    def from_json(self, model_json: str):
-        """Load the object from a JSON dictionary of parameters."""
+    def serialize(self):
+        """Get the object as a serialized JSON dictionary."""
+
+        json_dict = json.dumps(
+            dict(
+                serialized_type=type(self).__name__,
+                serialized_params=self.__dict__,
+            )
+        )
+        return json_dict
+
+    @classmethod
+    def deserialize(cls: typing.Type[T], model_json: str) -> T:
+        """Deserialize the object from a JSON dictionary of parameters."""
+
+        # deserialize the JSON
         json_dict: dict = json.loads(model_json)
-        self.__dict__.update(json_dict)
-        return self
+        type_name = json_dict["serialized_type"]
+        parameters = json_dict["serialized_params"]
+
+        # get derivative class from serialized type name
+        if not (derivative := _get_subclass(cls, type_name)):
+            raise ValueError(
+                f"Could not deserialize {type_name} as {cls.__name__}"
+            )
+
+        # create instance
+        return derivative(**parameters)
 
 
 class Message(Serializable, abc.ABC):
     """The base of all messages."""
 
-    ROLE: str
+    @abc.abstractmethod
+    def to_message_dict(self) -> dict[str, str]:
+        """Get the message as a dictionary for use in generation requests."""
+        pass
 
-    def __init__(self, content: str):
-        super().__init__()
+
+class ChatMessage(Message, abc.ABC):
+    """The base of all messages sent to a model."""
+
+    ROLE: str
+    """The role of the message sender."""
+
+    def __init__(self, content: str, **kwargs):
         self._name = None
         self.content = content
         """The content of the message."""
+        super().__init__(**kwargs)
 
     @property
     def name(self):
@@ -88,13 +123,11 @@ class Message(Serializable, abc.ABC):
 
     @name.setter
     def name(self, name: str | None):
-        pattern = r"^\w{1,64}$"
-        if name and not re.match(pattern, name):
+        if not str.isalnum(name.replace("_", "") or ""):  # allow underscores
             raise ValueError("Name must be alphanumeric and 1-64 characters")
         self._name = name
 
     def to_message_dict(self):
-        """Get the message as a dictionary for use in generation requests."""
         message = dict(
             role=type(self).ROLE,
             content=self.content,
@@ -103,21 +136,8 @@ class Message(Serializable, abc.ABC):
         return {k: v for k, v in message.items() if v is not None}
 
 
-class Reply(Serializable, abc.ABC):
-    """The base of all model generated replies."""
-
-    def __init__(self):
-        super().__init__()
-        self.finish_reason: FinishReason = FinishReason.UNDEFINED
-        """The finish reason of the reply generation."""
-        self.prompt_tokens: int = 0
-        """The number of tokens in the prompt provided."""
-        self.reply_tokens: int = 0
-        """The number of tokens in the reply generated."""
-        self.cost: float = 0.0
-        """The cost of the reply generation, in USD."""
-
-    @abc.abstractmethod
-    def to_message_dict(self) -> dict[str, str]:
-        """Get the message as a dictionary for use in generation requests."""
-        pass
+def _get_subclass(base_class, subclass_name):
+    for subclass in base_class.__subclasses__():
+        if subclass.__name__ == subclass_name:
+            return subclass
+    return None

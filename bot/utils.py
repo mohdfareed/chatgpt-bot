@@ -4,7 +4,7 @@ import telegram
 
 import bot.models
 import chatgpt.core
-import chatgpt.models
+import chatgpt.model
 import database
 
 
@@ -18,21 +18,21 @@ async def reply_code(message: telegram.Message | None, reply):
 def load_prompt(id: int, topic_id: int | None):
     db_chat = database.models.Chat(id, topic_id).load()
     db_model = database.models.ChatModel(db_chat.session_id).load()
-    model = chatgpt.models.ChatModel().from_json(db_model.parameters)
+    model = chatgpt.model.ChatModel().from_json(db_model.parameters)
     return model.prompt
 
 
 def save_prompt(id: int, topic_id: int | None, prompt: str):
     db_chat = database.models.Chat(id, topic_id).load()
     db_model = database.models.ChatModel(db_chat.session_id).load()
-    model = chatgpt.models.ChatModel().from_json(db_model.parameters)
+    model = chatgpt.core.ChatModel().from_json(db_model.parameters)
     model.prompt = prompt
     db_model.parameters = model.to_json()
     db_model.save()
 
 
 def count_usage(
-    message: bot.models.TextMessage, results: chatgpt.models.ModelReply
+    message: bot.models.TextMessage, results: chatgpt.core.ModelMessage
 ):
     total_usage = results.prompt_tokens + results.reply_tokens
 

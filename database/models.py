@@ -43,7 +43,7 @@ class Message(DatabaseModel):
         super().__init__(session_id=session_id, **kw)
 
     @classmethod
-    def load(cls, session_id: str):
+    def load_messages(cls, session_id: str):
         """Load a chat history by its session ID."""
 
         statement = sql.select(cls).where(cls.session_id == session_id)

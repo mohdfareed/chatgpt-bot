@@ -1,201 +1,109 @@
-"""The possible memory implementations of agents."""
-
-import json
-from typing import Any, Dict, List
-
-import sqlalchemy as sql
-from langchain import chat_models as langchain_models
-from langchain import memory as langchain_memory
-from langchain import prompts as langchain_prompts
-from langchain import schema as langchain_schema
-from langchain.memory.chat_message_histories import sql as langchain_sql
-from sqlalchemy import orm
-from sqlalchemy_utils import StringEncryptedType
-from sqlalchemy_utils.types.encrypted.encrypted_type import FernetEngine
+"""The memory of models."""
 
 import database as db
-from chatgpt import OPENAI_API_KEY
-
-CHAT_HISTORY_STRING = """\
-Summary:
-{summary}
-
-Recent messages:
-{messages}
-"""
-"""The format of the chat history."""
-
-SUMMARIZATION_PROMPT = langchain_prompts.PromptTemplate(
-    input_variables=["summary", "new_lines"],
-    template="""\
-Progressively summarize the lines of the conversation provided, adding onto \
-the previous summary and returning a new summary.
-
-EXAMPLE
-
-Current summary:
-Person asks what you think of artificial intelligence. You think artificial \
-intelligence is a force for good.
-
-New lines of conversation:
-Person: Why do you think artificial intelligence is a force for good?
-You: Because it will help humans reach their full potential.
-
-New summary:
-Person asks what the you think of artificial intelligence. You think \
-artificial intelligence is a force for good because it will help humans reach \
-their full potential.
-
-END OF EXAMPLE
-
-Current summary:
-{summary}
-
-New lines of conversation:
-{new_lines}
-
-New summary:
-""",
-)
-"""The prompt for summarizing a conversation."""
+from chatgpt import core, prompts, types, utils
 
 
 class ChatMemory:
-    """A memory of a chat conversation."""
+    """The memory of a chat conversation stored by a session ID."""
+
+    SUMMARY_MESSAGE_ID = -1
+    """The ID of the summary message in the chat history."""
+
+    @property
+    def summary(self) -> "SummaryMessage":
+        """The summary of the conversation."""
+        message = self.chat_history.get_message(self.SUMMARY_MESSAGE_ID)
+        return SummaryMessage.deserialize(message.serialize())
+
+    @summary.setter
+    def summary(self, text: str):
+        self.chat_history.remove_message(self.SUMMARY_MESSAGE_ID)
+        self.chat_history.add_message(SummaryMessage(text))
+
+    def __init__(
+        self,
+        session_id: str,
+        tokenization_model: types.SupportedModel,
+        memory_size=-1,
+    ):
+        """Initialize a chat summarization memory."""
+
+        self.size = memory_size
+        """The max number of tokens the memory can contain."""
+        self.tokenization_model = tokenization_model
+        self.chat_history = ChatHistory(session_id)
+        """The chat history in the memory."""
+
+        # create summarization model
+        self.model = core.ModelConfig()
+        """The summarization model configuration."""
+        self.prompt = core.Prompt(prompts.SUMMARIZATION, ["summary", "chat"])
+        """The summarization prompt."""
+
+    @property
+    def messages(self) -> list[types.Message]:
+        """The messages in the memory."""
+        # the conversation is the history + the summary such that the total
+        # number of tokens is less than the memory size
+        # messages = [self.summary] + self.chat_history.messages
+
+        # while self._tokens_size(messages) > self.size:
+        #     # TODO: summarize and remove the oldest message
+        #     messages.pop()
+
+        return self.chat_history.messages
+
+    def _tokens_size(self, messages: list[types.Message]) -> int:
+        messages_dicts = [message.to_message_dict() for message in messages]
+        return utils.messages_tokens(messages_dicts, self.tokenization_model)
 
 
-# class ChatMemory(langchain_memory.ConversationSummaryBufferMemory):
-#     """A memory of a chat conversation stored by a session ID."""
-
-#     summary = ""
-#     """The current summary of the conversation."""
-#     internal_buffer: List[langchain_schema.BaseMessage] = []
-
-#     @property
-#     def buffer(self) -> List[langchain_schema.BaseMessage]:
-#         self.prune()
-#         return self.internal_buffer
-
-#     def __init__(
-#         self,
-#         token_limit: int,
-#         url: str = db.url,
-#         session_id: str = "",
-#         openai_api_key: str = OPENAI_API_KEY,
-#     ):
-#         """Initialize a chat summarization memory. Defaults to an in-memory
-#         implementation if no session ID is provided.
-
-#         Args:
-#             token_limit (int): Max number of tokens history can contain.
-#             url (str): SQL database URL.
-#             session_id (str, optional): Memory session ID.
-#         """
-
-#         # set in-memory implementation if no session ID is provided
-#         if not session_id:
-#             url = "sqlite:///:memory:"
-
-#         # create summarization model
-#         model = langchain_models.ChatOpenAI(
-#             openai_api_key=openai_api_key,
-#         )  # type: ignore
-
-#         # create summarization memory
-#         super().__init__(
-#             llm=model,
-#             prompt=SUMMARIZATION_PROMPT,
-#             memory_key="chat_history",
-#             max_token_limit=(token_limit - 8),  # history + summary
-#         )
-
-#         # setup chat history
-#         self.chat_memory = ChatHistory(session_id, url)
-#         self.internal_buffer = self.chat_memory.messages
-
-#     @classmethod
-#     def delete(cls, url: str, session: str) -> None:
-#         """Delete the memory of a session."""
-
-#         memory = cls(-1, url, session)
-#         memory.chat_memory.clear()
-
-#     @classmethod
-#     def store(cls, message: str, url: str, session: str) -> None:
-#         """Store the memory of a session."""
-
-#         memory = cls(-1, url, session)
-#         memory.chat_memory.add_user_message(message)
-
-#     def load_memory_variables(self, _: Dict[str, Any]) -> Dict[str, Any]:
-#         buffer = self.buffer
-#         if self.moving_summary_buffer != "":
-#             first_messages: List[langchain_schema.BaseMessage] = [
-#                 self.summary_message_cls(content=self.moving_summary_buffer)
-#             ]
-#             buffer = first_messages + buffer
-
-#         final_buffer = self._get_chat_buffer_string(buffer)
-#         return {self.memory_key: final_buffer}
-
-#     def prune(self) -> None:
-#         buffer = self.chat_memory.messages
-#         curr_buffer_length = self.llm.get_num_tokens_from_messages(buffer)
-#         if curr_buffer_length > self.max_token_limit:
-#             pruned_memory = []
-#             while curr_buffer_length > self.max_token_limit:
-#                 pruned_memory.append(buffer.pop(0))
-#                 curr_buffer_length = self.llm.get_num_tokens_from_messages(
-#                     buffer
-#                 )
-#             self.moving_summary_buffer = self.predict_new_summary(
-#                 pruned_memory, self.moving_summary_buffer
-#             )
-#         self.internal_buffer = buffer
-
-#     def _get_chat_buffer_string(self, messages: List) -> str:
-#         string_messages = "\n"
-#         for m in messages:
-#             if isinstance(m, self.summary_message_cls):
-#                 string_messages += "Summary:\n\n"
-#                 string_messages += f"{m.content}\n\n"
-#                 string_messages += "Recent History:\n\n"
-#             else:
-#                 string_messages += m.content
-#         return string_messages  # costs 6 tokens
-
-
-class ChatHistory(langchain_schema.BaseChatMessageHistory):
+class ChatHistory:
     """SQL implementation of a chat history stored by a session ID."""
 
-    class _Base(orm.DeclarativeBase):
-        pass
-
     def __init__(self, session_id: str):
-        self._Base.metadata.create_all(self.engine)
         self.session_id = session_id
 
     @property
-    def messages(self) -> List[langchain_schema.BaseMessage]:
-        with orm.Session(db.engine()) as session:
-            result = session.query(self.Message).where(
-                self.Message.session_id == self.session_id
-            )
-            items = [json.loads(record.message) for record in result]
-            messages = langchain_schema.messages_from_dict(items)
-            return messages
+    def messages(self) -> list[types.Message]:
+        """The messages in the chat history."""
+        messages = db.Message.load_messages(self.session_id)
+        return [
+            types.Message.deserialize(db_message.content)
+            for db_message in messages
+        ]
 
-    def add_message(self, message: langchain_schema.BaseMessage) -> None:
-        with orm.Session(db.engine()) as session:
-            json_str = json.dumps(langchain_schema._message_to_dict(message))
-            session.add(
-                self.Message(session_id=self.session_id, message=json_str)
-            )
-            session.commit()
+    def get_message(self, message_id: int) -> types.Message:
+        """Get a message from the chat history."""
+        db_message = db.Message(
+            id=message_id, session_id=self.session_id
+        ).load()
+        return types.Message.deserialize(db_message.content)
+
+    def add_message(self, message: types.Message):
+        """Add a message to the chat history."""
+        db.Message(self.session_id, content=message.serialize()).save()
+
+    def remove_message(self, message_id: int):
+        """Remove a message from the chat history."""
+        db.Message(id=message_id, session_id=self.session_id).delete()
+
+    def load(self, messages: list[types.Message]) -> None:
+        """Load the chat history into the database."""
+        for message in messages:
+            self.add_message(message)
 
     def clear(self) -> None:
-        with orm.Session(db.engine()) as session:
-            session.query(self.Message).filter(
-                self.Message.session_id == self.session_id
-            ).delete()
-            session.commit()
+        """Clear the chat history."""
+        for message in db.Message.load_messages(self.session_id):
+            message.delete()
+
+
+class SummaryMessage(core.SystemMessage):
+    """A system message containing a summary of the chat history."""
+
+    @property
+    def name(self) -> str:
+        """Summary message name."""
+        return "summary_of_previous_messages"
