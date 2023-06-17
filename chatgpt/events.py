@@ -3,7 +3,7 @@
 import abc
 import inspect
 
-from chatgpt import core, types, utils
+from chatgpt import core, logger, types, utils
 
 
 class EventsManager:
@@ -28,15 +28,15 @@ class EventsManager:
         for handler in self.handlers:
             await self._callback(handler.on_model_generation, token)
 
-    async def trigger_model_generation_end(self, generation: dict):
+    async def trigger_model_generation_end(self, message: core.ModelMessage):
         """Trigger the on_generation_end event for all handlers."""
         for handler in self.handlers:
-            await self._callback(handler.on_model_end, generation)
+            await self._callback(handler.on_model_end, message)
 
     async def trigger_model_exit(self, reply: core.ModelMessage):
         """Trigger the on_model_exit event for all handlers."""
         for handler in self.handlers:
-            await self._callback(handler.on_model_exit, reply)
+            await self._callback(handler.on_model_reply, reply)
 
     async def trigger_tool_use(self, usage: core.ToolUsage):
         """Trigger the on_tool_use event for all handlers."""
@@ -75,7 +75,7 @@ class CallbackHandler(abc.ABC):
         """Called when a model generates a token."""
         pass  # second (repeats)
 
-    def on_model_end(self, generation: str):
+    def on_model_end(self, message: core.ModelMessage):
         """Called when a model ends generation."""
         pass  # third
 
@@ -87,7 +87,7 @@ class CallbackHandler(abc.ABC):
         """Called when a tool returns a result."""
         pass  # fifth (if fourth triggered)
 
-    def on_model_exit(self, reply: core.ModelMessage):
+    def on_model_reply(self, reply: core.ModelMessage):
         """Called when a model replies and exists."""
         pass  # last
 
@@ -99,25 +99,25 @@ class CallbackHandler(abc.ABC):
 class AsyncCallbackHandler(CallbackHandler, abc.ABC):
     """Async callback handler for model events."""
 
-    async def on_model_start(self, context):
+    async def on_model_start(self, context: list[types.Message]):
         pass
 
-    async def on_model_generation(self, token):
+    async def on_model_generation(self, token: str):
         pass
 
-    async def on_model_end(self, generation):
+    async def on_model_end(self, message: core.ModelMessage):
         pass
 
-    async def on_tool_use(self, usage):
+    async def on_tool_use(self, usage: core.ToolUsage):
         pass
 
-    async def on_tool_result(self, results):
+    async def on_tool_result(self, results: core.ToolResult):
         pass
 
-    async def on_model_exit(self, reply):
+    async def on_model_reply(self, reply: core.ModelMessage):
         pass
 
-    async def on_model_error(self, error):
+    async def on_model_error(self, error: Exception | KeyboardInterrupt):
         pass
 
 
@@ -136,14 +136,33 @@ class MetricsHandler(AsyncCallbackHandler):
         self.generated_tokens = 0
         """The total number of tokens in all generations."""
 
-    async def on_model_start(self, messages):
+    async def on_model_start(self, context):
         # track all prompts
-        self._prompts += messages
+        self._prompts += [m.to_message_dict() for m in context]
 
-    async def on_model_end(self, generation):
+    async def on_model_end(self, message):
         # calculate tokens for all generations
-        self.generated_tokens += utils.tokens(generation, self.model)
         self.prompts_tokens += utils.messages_tokens(self._prompts, self.model)
+        if type(message) == core.ToolUsage:
+            generated_text = message.tool_name + (message.args_str or "")
+            self.generated_tokens += utils.tokens(generated_text, self.model)
+        else:
+            self.generated_tokens += utils.tokens(message.content, self.model)
+
+        # if reply includes usage, compare to computed usage
+        if message.prompt_tokens or message.reply_tokens:
+            if message.prompt_tokens != self.prompts_tokens:
+                logger.warning(
+                    "Prompt tokens mismatch: {actual: %s, computed: %s}",
+                    message.prompt_tokens,
+                    self.prompts_tokens,
+                )
+            if message.reply_tokens != self.generated_tokens:
+                logger.warning(
+                    "Reply tokens mismatch: {actual: %s, computed: %s}",
+                    message.reply_tokens,
+                    self.generated_tokens,
+                )
 
 
 class ConsoleHandler(AsyncCallbackHandler):
@@ -151,6 +170,7 @@ class ConsoleHandler(AsyncCallbackHandler):
 
     def __init__(self, model: types.SupportedModel):
         super().__init__()
+        self.reply_only = False
         self.model = model
         """The model used for reply generation."""
 
@@ -159,26 +179,35 @@ class ConsoleHandler(AsyncCallbackHandler):
 
         print("[bold]History[/]\n")
         for message in context:
-            print(message)
+            self._print_message(message)
         print()
 
     async def on_model_generation(self, token):
+        from rich import print
+
         print(token, end="")
 
-    async def on_model_end(self, generation):
-        print("\n\n[bold]DONE[/]\n")
-
     async def on_tool_use(self, usage):
-        print(f"\n[bold]Using tool:[/] {usage}")
+        from rich import print
+
+        print(f"[bold]Using tool:[/] {usage.serialize()}")
 
     async def on_tool_result(self, results):
-        print(f"\n[bold]Tool result:[/] {results}")
+        from rich import print
 
-    async def on_model_exit(self, reply):
-        print(f"\n[bold]Model exited:[/] {reply}")
+        print(f"[bold]Tool result:[/] {results.serialize()}")
 
-    async def on_model_error(self, error):
-        print(f"\n[bold]Model error:[/] {error}")
+    async def on_model_reply(self, reply):
+        from rich import print
+
+        print(f"[bold green]Model returned:[/] {reply.serialize()}")
+
+    async def on_model_error(self, _):
+        from rich import print
+        from rich.console import Console
+
+        print("[bold red]Model error:[/]")
+        Console().print_exception(show_locals=True)
 
     def _print_message(self, message: types.Message):
         from rich import print

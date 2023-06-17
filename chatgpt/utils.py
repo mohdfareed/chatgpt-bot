@@ -25,12 +25,12 @@ def messages_tokens(messages: list[dict], model: types.SupportedModel):
     """Get the number of tokens in a list of messages."""
     # TODO: verify and add tools usage/definition to cost
 
-    if model in types.SupportedModel.gpt3:
+    if model in types.SupportedModel.gpt3_models():
         # messages are primed with: <im_start>{role|name}\n{content}<im_end>\n
         tokens_per_message = 4
         # if there's a name, the role is omitted
         tokens_per_name = -1
-    elif model in types.SupportedModel.gpt4:
+    elif model in types.SupportedModel.gpt4_models():
         tokens_per_message = 3
         tokens_per_name = 1
     else:

@@ -3,7 +3,6 @@
 import abc
 import enum
 import json
-import re
 import typing
 
 T = typing.TypeVar("T", bound="Serializable")
@@ -20,7 +19,7 @@ class Enum(enum.StrEnum):
 class SupportedModel(Enum):
     """The supported GPT models."""
 
-    CHATGPT = "gpt-3.5-turbo"
+    CHATGPT = "gpt-3.5-turbo-0613"
     """The GPT-3.5 model."""
     CHATGPT_16K = "gpt-3.5-turbo-16k"
     """The GPT-3.5 model with a 16k token limit."""
@@ -29,15 +28,13 @@ class SupportedModel(Enum):
     GPT4_32K = "gpt-4-32k"
     """The GPT-4 model with a 32k token limit."""
 
-    @property
     @classmethod
-    def gpt3(cls):
+    def gpt3_models(cls):
         """The GPT-3.5 models."""
         return [cls.CHATGPT, cls.CHATGPT_16K]
 
-    @property
     @classmethod
-    def gpt4(cls):
+    def gpt4_models(cls):
         """The GPT-4 models."""
         return [cls.GPT4, cls.GPT4_32K]
 
@@ -72,7 +69,8 @@ class Serializable(abc.ABC):
             dict(
                 serialized_type=type(self).__name__,
                 serialized_params=self.__dict__,
-            )
+            ),
+            indent=4,
         )
         return json_dict
 
@@ -96,36 +94,20 @@ class Serializable(abc.ABC):
 
 
 class Message(Serializable, abc.ABC):
-    """The base of all messages."""
-
-    @abc.abstractmethod
-    def to_message_dict(self) -> dict[str, str]:
-        """Get the message as a dictionary for use in generation requests."""
-        pass
-
-
-class ChatMessage(Message, abc.ABC):
     """The base of all messages sent to a model."""
 
     ROLE: str
     """The role of the message sender."""
 
-    def __init__(self, content: str, **kwargs):
-        self._name = None
+    def __init__(self, content: str, name: str | None = None, **kwargs):
+        if name and not str.isalnum(name.replace("_", "")):  # allow underscore
+            raise ValueError("Name must be alphanumeric and 1-64 characters")
+
+        self.name = name
+        """The name of the message sender."""
         self.content = content
         """The content of the message."""
         super().__init__(**kwargs)
-
-    @property
-    def name(self):
-        """The name of the message sender."""
-        return self._name
-
-    @name.setter
-    def name(self, name: str | None):
-        if not str.isalnum(name.replace("_", "") or ""):  # allow underscores
-            raise ValueError("Name must be alphanumeric and 1-64 characters")
-        self._name = name
 
     def to_message_dict(self):
         message = dict(
@@ -140,4 +122,8 @@ def _get_subclass(base_class, subclass_name):
     for subclass in base_class.__subclasses__():
         if subclass.__name__ == subclass_name:
             return subclass
+        else:  # recursively check the subclasses of the subclass
+            result = _get_subclass(subclass, subclass_name)
+            if result and issubclass(result, base_class):
+                return result
     return None

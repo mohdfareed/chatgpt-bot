@@ -1,6 +1,8 @@
 """Tools used by models to generate replies."""
 
 import abc
+import io
+import sys
 import typing
 
 import wikipedia
@@ -51,15 +53,8 @@ class Tool(abc.ABC):
 
     async def use(self, **kwargs):
         """Use the tool."""
-        required_params = [
-            param.name for param in self.parameters if not param.optional
-        ]
-
-        if not all([param in kwargs for param in required_params]):
-            raise ValueError("Missing required argument")
-        if not all([param in self.parameters for param in kwargs]):
-            raise ValueError("Invalid argument provided")
-
+        params = list(kwargs.keys())
+        self._validate_params(params)
         return await self._run(**kwargs)
 
     @abc.abstractmethod
@@ -85,9 +80,32 @@ class Tool(abc.ABC):
         )
         return {k: v for k, v in tool_dict.items() if v is not None}
 
+    def _validate_params(self, params: list[str]):
+        possible_params = [param.name for param in self.parameters]
+        required_params = [
+            param.name for param in self.parameters if not param.optional
+        ]
+
+        for param in params:
+            if param not in possible_params:
+                raise TypeError(f"Invalid argument: {param}")
+        for req_param in required_params:
+            if req_param not in params:
+                raise TypeError(f"Missing required argument: {req_param}")
+
 
 class ToolParameter:
     """A parameter of a tool."""
+
+    @property
+    def name(self):
+        return self._name
+
+    @name.setter
+    def name(self, value):
+        if not str.isalnum(value.replace("_", "") or ""):
+            raise TypeError("Name must be alphanumeric and 1-64 characters")
+        self._name = value
 
     def __init__(
         self,
@@ -110,18 +128,19 @@ class ToolParameter:
 
     def to_dict(self):
         """Convert the parameter to a json schema dictionary."""
-        return dict(
+        params = dict(
             type=self.type,
             enum=self.enum,
             description=self.description,
         )
+        return {k: v for k, v in params.items() if v is not None}
 
 
 class InternetSearch(Tool):
     """A tool for searching the internet."""
 
     def __init__(self):
-        self.name = "Internet Search"
+        self.name = "internet_search"
         self.description = (
             "Search the internet. Useful for finding up-to-date information "
             "about current events."
@@ -145,7 +164,7 @@ class Calculator(Tool):
     """A tool for solving math problems."""
 
     def __init__(self):
-        self.name = "Calculator"
+        self.name = "calculator"
         self.description = (
             "Answer math questions. Useful for solving math problems."
         )
@@ -167,7 +186,7 @@ class WikiSearch(Tool):
     """A tool for searching Wikipedia."""
 
     def __init__(self):
-        self.name = "Wiki Search"
+        self.name = "wiki_search"
         self.description = (
             "Search Wikipedia. Useful for finding information about new or "
             "or unknown subjects and topics."
@@ -184,3 +203,38 @@ class WikiSearch(Tool):
     async def _run(self, query: str) -> str:
         wiki_client = WikipediaAPIWrapper(wiki_client=wikipedia)
         return wiki_client.run(query)
+
+
+class Python(Tool):
+    """A tool for executing Python code."""
+
+    def __init__(self):
+        self.name = "python"
+        self.description = (
+            "Execute Python code. Useful for performing complex calculations"
+            "and tasks. Equivalent to running in a Python shell. Only use it "
+            "to run safe code. Can't include async code. Everything returned "
+            "must be printed."
+        )
+
+        self.parameters = [
+            ToolParameter(
+                type="string",
+                name="code",
+                description="The Python code to execute.",
+            ),
+        ]
+
+    def _run(self, code: str) -> str:
+        local_vars = {}
+        buffer = io.StringIO()
+        stdout = sys.stdout
+        sys.stdout = buffer
+
+        try:
+            exec(code, {}, local_vars)
+        finally:
+            sys.stdout = stdout
+
+        output = buffer.getvalue()
+        return (output or "").strip()

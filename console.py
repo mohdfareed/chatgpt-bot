@@ -14,20 +14,27 @@ console_handler = chatgpt.events.ConsoleHandler(
 memory = chatgpt.memory.ChatMemory(
     "00000", chatgpt.types.SupportedModel.CHATGPT
 )
-search_tool = chatgpt.tools.InternetSearch()
+search_tools = [chatgpt.tools.Python(), chatgpt.tools.InternetSearch()]
 model_config = chatgpt.core.ModelConfig()
 prompt = "You are a helpful assistant named ChatGPT."
 
 model = chatgpt.model.ChatModel(
-    model_config, memory, [search_tool], [console_handler]
+    model_config, memory, search_tools, [console_handler]
 )
 
 # %%
 memory.chat_history.clear()
-message = chatgpt.core.UserMessage("Hi!")
+message = chatgpt.core.UserMessage("What's the time in New York?")
+# await model.generate(message)
 
 # %%
-memory.chat_history.add_message(message)
-memory.messages
+asyncio.run(model.generate(message))
+
+prompt_metrics = model._metrics.prompts_tokens
+reply_metrics = model._metrics.generated_tokens
+
+# %%
+# memory.chat_history.add_message(message)
+# memory.messages
 
 # %%

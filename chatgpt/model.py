@@ -41,7 +41,6 @@ class ChatModel:
 
         # add message to memory
         self.memory.chat_history.add_message(message)
-        # trigger model start event
         await self.events_manager.trigger_model_start(
             self.memory.chat_history.messages
         )
@@ -53,8 +52,6 @@ class ChatModel:
         except Exception as e:
             await self.events_manager.trigger_model_error(e)
             return
-
-        # return reply
         await self.events_manager.trigger_model_exit(reply)
         return reply
 
@@ -63,10 +60,13 @@ class ChatModel:
 
         while type(reply) is not chatgpt.core.ModelMessage:
             # generate response
-            response: dict = await completion(**self._params())  # type: ignore
-            await self.events_manager.trigger_model_generation_end(response)
-            # parse and store response as reply
+            response = await self._request(manager)
             reply = parse_completion(response, self.model.model_name)
+            await self.events_manager.trigger_model_generation_end(reply)
+
+            # fix and store response as reply
+            reply.prompt_tokens = self._metrics.prompts_tokens
+            reply.reply_tokens = self._metrics.generated_tokens
             self.memory.chat_history.add_message(reply)
 
             # use tool if necessary
@@ -80,15 +80,21 @@ class ChatModel:
 
         return reply
 
+    async def _request(self, manager: chatgpt.events.EventsManager):
+        response: dict = await completion(**self._params())  # type: ignore
+        return response
+
     def _params(self):
         messages = [m.to_message_dict() for m in self.memory.messages]
         if self.model.prompt:
             messages.insert(0, self.model.prompt.to_message_dict())
-        return dict(
+
+        parameters = dict(
             messages=messages,
             functions=self.tools_manager.to_dict(),
             **self.model.params(),
         )
+        return parameters
 
 
 @chatgpt.utils.retry_decorator()
@@ -121,7 +127,10 @@ def parse_completion(
     if content := message.get("content"):
         reply = chatgpt.core.ModelMessage(content)
     elif function_call := message.get("function_call"):
-        reply = chatgpt.core.ToolUsage(**json.loads(function_call))
+        reply_json = json.loads(str(function_call))
+        name = reply_json.pop("name")
+        args = reply_json.pop("arguments")
+        reply = chatgpt.core.ToolUsage(name, args)
     else:
         raise ValueError("Invalid completion message received")
 
