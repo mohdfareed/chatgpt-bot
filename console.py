@@ -6,15 +6,14 @@ import chatgpt.events
 import chatgpt.memory
 import chatgpt.model
 import chatgpt.tools
-import chatgpt.types
 
 console_handler = chatgpt.events.ConsoleHandler()
 memory = chatgpt.memory.ChatMemory(
-    "00000", chatgpt.types.SupportedModel.CHATGPT
+    "00000", chatgpt.core.SupportedModel.CHATGPT
 )
 search_tools = [chatgpt.tools.Python(), chatgpt.tools.InternetSearch()]
 model_config = chatgpt.core.ModelConfig(
-    model_name=chatgpt.types.SupportedModel.CHATGPT_16K
+    model_name=chatgpt.core.SupportedModel.CHATGPT_16K
 )
 prompt = "You are a helpful assistant named ChatGPT."
 

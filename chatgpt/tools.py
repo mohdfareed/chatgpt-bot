@@ -9,7 +9,7 @@ import wikipedia
 from langchain import LLMMathChain, OpenAI
 from langchain.utilities import GoogleSerperAPIWrapper, WikipediaAPIWrapper
 
-import chatgpt
+import chatgpt.core
 from chatgpt import OPENAI_API_KEY, SERPER_API_KEY
 
 
@@ -27,7 +27,7 @@ class ToolsManager:
             result = await tool.use(**tool_usage.arguments)
         except Exception as e:
             result = str(e)  # set result to error message
-        return chatgpt.core.ToolResult(tool.name, result)
+        return chatgpt.core.ToolResult(result, tool.name)
 
     def to_dict(self) -> list[dict]:
         """The tools available to the model as a dictionary."""
@@ -51,7 +51,7 @@ class Tool(abc.ABC):
     parameters: list["ToolParameter"]
     """A list of parameters for the tool."""
 
-    async def use(self, **kwargs):
+    async def use(self, **kwargs: typing.Any):
         """Use the tool."""
         params = list(kwargs.keys())
         self._validate_params(params)
