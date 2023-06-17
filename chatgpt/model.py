@@ -6,12 +6,7 @@ import typing
 
 import openai
 
-import chatgpt.core
-import chatgpt.events
-import chatgpt.memory
-import chatgpt.tools
-import chatgpt.types
-import chatgpt.utils
+import chatgpt
 
 
 class ChatModel:
@@ -62,7 +57,7 @@ class ChatModel:
             # generate response
             response = await self._request(manager)
             reply = parse_completion(response, self.model.model_name)
-            await self.events_manager.trigger_model_generation_end(reply)
+            await self.events_manager.trigger_model_end(reply)
 
             # fix and store response as reply
             reply.prompt_tokens = self._metrics.prompts_tokens

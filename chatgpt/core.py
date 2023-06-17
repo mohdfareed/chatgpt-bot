@@ -1,7 +1,6 @@
 """Models of the ChatGPT API."""
 
 import json
-import typing
 
 from chatgpt import types
 

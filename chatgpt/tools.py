@@ -9,7 +9,7 @@ import wikipedia
 from langchain import LLMMathChain, OpenAI
 from langchain.utilities import GoogleSerperAPIWrapper, WikipediaAPIWrapper
 
-import chatgpt.core
+import chatgpt
 from chatgpt import OPENAI_API_KEY, SERPER_API_KEY
 
 

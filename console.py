@@ -8,14 +8,14 @@ import chatgpt.model
 import chatgpt.tools
 import chatgpt.types
 
-console_handler = chatgpt.events.ConsoleHandler(
-    chatgpt.types.SupportedModel.CHATGPT
-)
+console_handler = chatgpt.events.ConsoleHandler()
 memory = chatgpt.memory.ChatMemory(
     "00000", chatgpt.types.SupportedModel.CHATGPT
 )
 search_tools = [chatgpt.tools.Python(), chatgpt.tools.InternetSearch()]
-model_config = chatgpt.core.ModelConfig()
+model_config = chatgpt.core.ModelConfig(
+    model_name=chatgpt.types.SupportedModel.CHATGPT_16K
+)
 prompt = "You are a helpful assistant named ChatGPT."
 
 model = chatgpt.model.ChatModel(
@@ -24,7 +24,9 @@ model = chatgpt.model.ChatModel(
 
 # %%
 memory.chat_history.clear()
-message = chatgpt.core.UserMessage("What's the time in New York?")
+message = chatgpt.core.UserMessage(
+    "Search for 'python' and tell me the results."
+)
 # await model.generate(message)
 
 # %%

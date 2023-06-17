@@ -1,7 +1,8 @@
 """The memory of models."""
 
+import chatgpt
 import database as db
-from chatgpt import core, prompts, types, utils
+from chatgpt.prompts import SUMMARIZATION
 
 
 class ChatMemory:
@@ -24,7 +25,7 @@ class ChatMemory:
     def __init__(
         self,
         session_id: str,
-        tokenization_model: types.SupportedModel,
+        tokenization_model: chatgpt.types.SupportedModel,
         memory_size=-1,
     ):
         """Initialize a chat summarization memory."""
@@ -36,13 +37,13 @@ class ChatMemory:
         """The chat history in the memory."""
 
         # create summarization model
-        self.model = core.ModelConfig()
+        self.model = chatgpt.core.ModelConfig()
         """The summarization model configuration."""
-        self.prompt = core.Prompt(prompts.SUMMARIZATION, ["summary", "chat"])
+        self.prompt = chatgpt.core.Prompt(SUMMARIZATION, ["summary", "chat"])
         """The summarization prompt."""
 
     @property
-    def messages(self) -> list[types.Message]:
+    def messages(self) -> list[chatgpt.types.Message]:
         """The messages in the memory."""
         # the conversation is the history + the summary such that the total
         # number of tokens is less than the memory size
@@ -54,9 +55,11 @@ class ChatMemory:
 
         return self.chat_history.messages
 
-    def _tokens_size(self, messages: list[types.Message]) -> int:
+    def _tokens_size(self, messages: list[chatgpt.types.Message]) -> int:
         messages_dicts = [message.to_message_dict() for message in messages]
-        return utils.messages_tokens(messages_dicts, self.tokenization_model)
+        return chatgpt.utils.messages_tokens(
+            messages_dicts, self.tokenization_model
+        )
 
 
 class ChatHistory:
@@ -66,22 +69,22 @@ class ChatHistory:
         self.session_id = session_id
 
     @property
-    def messages(self) -> list[types.Message]:
+    def messages(self) -> list[chatgpt.types.Message]:
         """The messages in the chat history."""
         messages = db.Message.load_messages(self.session_id)
         return [
-            types.Message.deserialize(db_message.content)
+            chatgpt.types.Message.deserialize(db_message.content)
             for db_message in messages
         ]
 
-    def get_message(self, message_id: int) -> types.Message:
+    def get_message(self, message_id: int) -> chatgpt.types.Message:
         """Get a message from the chat history."""
         db_message = db.Message(
             id=message_id, session_id=self.session_id
         ).load()
-        return types.Message.deserialize(db_message.content)
+        return chatgpt.types.Message.deserialize(db_message.content)
 
-    def add_message(self, message: types.Message):
+    def add_message(self, message: chatgpt.types.Message):
         """Add a message to the chat history."""
         db.Message(self.session_id, content=message.serialize()).save()
 
@@ -89,7 +92,7 @@ class ChatHistory:
         """Remove a message from the chat history."""
         db.Message(id=message_id, session_id=self.session_id).delete()
 
-    def load(self, messages: list[types.Message]) -> None:
+    def load(self, messages: list[chatgpt.types.Message]) -> None:
         """Load the chat history into the database."""
         for message in messages:
             self.add_message(message)
@@ -100,7 +103,7 @@ class ChatHistory:
             message.delete()
 
 
-class SummaryMessage(core.SystemMessage):
+class SummaryMessage(chatgpt.core.SystemMessage):
     """A system message containing a summary of the chat history."""
 
     @property

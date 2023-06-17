@@ -1,7 +1,5 @@
 """Collection of prompts used by the different models."""
 
-from chatgpt import core
-
 SUMMARIZATION = """\
 Progressively summarize the lines of the conversation provided, adding onto \
 the previous summary and returning a new summary.
