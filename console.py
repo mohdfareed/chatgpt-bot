@@ -29,7 +29,7 @@ message = chatgpt.core.UserMessage(
 # await model.generate(message)
 
 # %%
-asyncio.run(model.generate(message))
+asyncio.run(model.generate(message, stream=True))
 
 prompt_metrics = model._metrics.prompts_tokens
 reply_metrics = model._metrics.generated_tokens

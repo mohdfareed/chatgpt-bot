@@ -11,37 +11,6 @@ import tiktoken
 import chatgpt.core
 
 
-class ClassPropertyDescriptor(object):
-    # read more at https://stackoverflow.com/questions/5189699/how-to-make-a-class-property
-    def __init__(self, fget, fset=None):
-        self.fget = fget
-        self.fset = fset
-
-    def __get__(self, obj, cls=None):
-        if cls is None:
-            cls = type(obj)
-        return self.fget.__get__(obj, cls)()
-
-    def __set__(self, obj, value):
-        if not self.fset:
-            raise AttributeError("can't set attribute")
-        type_ = type(obj)
-        return self.fset.__get__(obj, type_)(value)
-
-    def setter(self, func):
-        if not isinstance(func, (classmethod, staticmethod)):
-            func = classmethod(func)
-        self.fset = func
-        return self
-
-
-def classproperty(func):
-    if not isinstance(func, (classmethod, staticmethod)):
-        func = classmethod(func)
-
-    return ClassPropertyDescriptor(func)
-
-
 def tokens(string: str, model: str):
     """Get the number of tokens in a string using the model's tokenizer.
     Defaults to 'cl100k_base' if the model does not have a tokenizer.
@@ -129,33 +98,50 @@ async def completion(
 def parse_completion(
     completion: dict,
     model: chatgpt.core.SupportedModel,
-) -> chatgpt.core.ModelMessage | chatgpt.core.ToolUsage:
-    """Parse a completion response from the OpenAI API."""
+) -> chatgpt.core.ModelMessage:
+    """Parse a completion response from the OpenAI API. Returns the appropriate
+    model message. Required fields are set to default values if not present."""
 
-    # parse metadata
-    finish_reason = chatgpt.core.FinishReason(
-        completion["choices"][0]["finish_reason"]
-    )
-    prompt_tokens = completion["usage"]["prompt_tokens"]
-    prompt_cost = tokens_cost(prompt_tokens, model, is_reply=False)
-    reply_tokens = completion["usage"]["completion_tokens"]
-    completion_cost = tokens_cost(reply_tokens, model, is_reply=True)
+    # parse text
+    choice = completion["choices"][0]
+    message = choice.get("message") or choice.get("delta")
 
-    # parse reply
-    message = completion["choices"][0]["message"]
     if content := message.get("content"):
-        reply = chatgpt.core.ModelMessage(content)
+        reply = chatgpt.core.ModelReply(content)
     elif function_call := message.get("function_call"):
-        reply_json = json.loads(str(function_call))
-        name = reply_json.pop("name")
-        args = reply_json.pop("arguments")
+        reply_dict: dict = json.loads(str(function_call))
+        name = reply_dict.get("name") or ""  # default to empty name
+        args = reply_dict.get("arguments")
         reply = chatgpt.core.ToolUsage(name, args)
-    else:
-        raise ValueError("Invalid completion message received")
+    else:  # default to empty message
+        reply = chatgpt.core.ModelMessage("")
 
     # load metadata
+    reply = _parse_usage(completion, reply, model)
+    reply = _parse_finish_reason(completion, reply)
+    return reply
+
+
+def _parse_finish_reason(completion, reply: chatgpt.core.ModelMessage):
+    finish_reason = completion["choices"][0]["finish_reason"]
+    if not finish_reason:
+        reply.finish_reason = chatgpt.core.FinishReason.UNDEFINED
+        return reply
+    reply.finish_reason = chatgpt.core.FinishReason(finish_reason)
+    return reply
+
+
+def _parse_usage(completion, reply: chatgpt.core.ModelMessage, model):
+    try:  # default to 0 if not present
+        prompt_tokens = completion["usage"]["prompt_tokens"]
+        reply_tokens = completion["usage"]["completion_tokens"]
+    except KeyError:
+        prompt_tokens = 0
+        reply_tokens = 0
+
+    prompt_cost = tokens_cost(prompt_tokens, model, is_reply=False)
+    completion_cost = tokens_cost(reply_tokens, model, is_reply=True)
     reply.cost = prompt_cost + completion_cost
     reply.prompt_tokens = prompt_tokens
     reply.reply_tokens = reply_tokens
-    reply.finish_reason = finish_reason
     return reply

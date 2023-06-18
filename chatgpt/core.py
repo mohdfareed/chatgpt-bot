@@ -206,17 +206,7 @@ class ModelMessage(Message):
 class ModelReply(ModelMessage):
     """A reply to a message in a chat."""
 
-    ROLE = "assistant"
-
     def __init__(self, content: str, **kwargs: typing.Any):
-        self.finish_reason = FinishReason.UNDEFINED
-        """The finish reason of the reply generation."""
-        self.prompt_tokens = 0
-        """The number of tokens in the prompt provided."""
-        self.reply_tokens = 0
-        """The number of tokens in the reply generated."""
-        self.cost = 0.0
-        """The cost of the reply generation, in USD."""
         super().__init__(content, **kwargs)
 
 
@@ -244,7 +234,7 @@ class ToolUsage(ModelMessage):
             super().to_message_dict(),
             function_call=dict(
                 name=self.tool_name,
-                arguments=self.args_str,
+                arguments=self.content,
             ),
         )
         return {k: v for k, v in message_dict.items() if v is not None}
@@ -272,3 +262,7 @@ class Prompt(Serializable):
         for arg in kwargs:
             if arg not in self.variables:
                 raise ValueError(f"Invalid argument: {arg}")
+
+
+class ModelError(Exception):
+    """Exception raised for model errors."""

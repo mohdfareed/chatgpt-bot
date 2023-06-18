@@ -26,9 +26,11 @@ class EventsManager:
         """Trigger the on_model_start event for all handlers."""
         await self._trigger(ModelStart, model, context, tools)
 
-    async def trigger_model_generation(self, token: str):
+    async def trigger_model_generation(
+        self, packet: chatgpt.core.ModelMessage
+    ):
         """Trigger the on_model_generation event for all handlers."""
-        await self._trigger(ModelGeneration, token)
+        await self._trigger(ModelGeneration, packet)
 
     async def trigger_model_end(self, message: chatgpt.core.ModelMessage):
         """Trigger the on_model_end event for all handlers."""
@@ -42,7 +44,7 @@ class EventsManager:
         """Trigger the on_tool_result event for all handlers."""
         await self._trigger(ToolResult, results)
 
-    async def trigger_model_reply(self, reply: chatgpt.core.ModelMessage):
+    async def trigger_model_reply(self, reply: chatgpt.core.ModelReply):
         """Trigger the on_model_reply event for all handlers."""
         await self._trigger(ModelReply, reply)
 
@@ -107,7 +109,7 @@ class ModelGeneration(ModelEvent, abc.ABC):
     """Event triggered on model generating a token."""
 
     @abc.abstractmethod
-    def on_model_generation(self, token: str):
+    def on_model_generation(self, packet: chatgpt.core.ModelMessage):
         """Called when a model generates a token."""
 
     @classmethod
@@ -155,7 +157,7 @@ class ModelReply(ModelEvent, abc.ABC):
     """Event triggered on model replying to the user."""
 
     @abc.abstractmethod
-    def on_model_reply(self, reply: chatgpt.core.ModelMessage):
+    def on_model_reply(self, reply: chatgpt.core.ModelReply):
         """Called when a model replies and exists."""
 
     @classmethod
