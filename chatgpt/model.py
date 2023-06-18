@@ -58,7 +58,10 @@ class ChatModel:
             reply = await self._run(stream)
         except Exception as e:
             await self.events_manager.trigger_model_error(e)
-            raise chatgpt.core.ModelError("Failed to generate reply") from e
+            self._generator = None
+            self._running = False
+            return
+            # raise chatgpt.core.ModelError("Failed to generate reply") from e
         # store reply if one was generated
         if reply is not None:
             self.memory.chat_history.add_message(reply)
@@ -197,6 +200,7 @@ class _MetricsHandler(chatgpt.events.ModelStart, chatgpt.events.ModelEnd):
             {"functions": json.dumps(t.to_dict())} for t in tools
         ]
         self._model = model.model_name
+        # FIXME: tool usage is not correctly converted to dict[str,str]
 
     async def on_model_end(self, message):
         if not self._model:
