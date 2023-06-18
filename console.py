@@ -33,8 +33,8 @@ message = chatgpt.core.UserMessage(
 
 
 async def main():
-    task = asyncio.create_task(model.generate(message, stream=True))
-    await asyncio.sleep(5)
+    task = asyncio.create_task(model.start(message, stream=True))
+    await asyncio.sleep(1.5)
     await model.cancel()
     await task
 

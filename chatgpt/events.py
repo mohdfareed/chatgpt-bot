@@ -276,10 +276,17 @@ class ConsoleHandler(
         rich.print()
 
     async def on_model_generation(self, packet):
-        if self.streaming:
-            print(packet.content, end="", flush=True)
+        if not self.streaming:
+            return
+        if isinstance(packet, chatgpt.core.ToolUsage):
+            print(packet.tool_name, end="", flush=True)
+            if packet.args_str:
+                print(packet.args_str, end="", flush=True)
+        print(packet.content, end="", flush=True)
 
     async def on_tool_use(self, usage):
+        if self.streaming:
+            return
         import rich
 
         rich.print(f"[bold]Using tool:[/] {usage.serialize()}")
@@ -292,6 +299,8 @@ class ConsoleHandler(
         rich.print()
 
     async def on_model_reply(self, reply):
+        if self.streaming:
+            return
         import rich
 
         rich.print(f"[bold green]Model's reply:[/] {reply.serialize()}")

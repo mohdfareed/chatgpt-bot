@@ -1,6 +1,7 @@
 """Tools used by models to generate replies."""
 
 import abc
+import asyncio
 import io
 import sys
 import typing
@@ -25,9 +26,14 @@ class ToolsManager:
         tool = self._get_tool(tool_usage.tool_name)
         try:  # get the tool's result
             result = await tool.use(**tool_usage.arguments)
+        except (asyncio.CancelledError, KeyboardInterrupt):
+            result = None  # canceled
         except Exception as e:
-            result = str(e)  # set result to error message
-        return chatgpt.core.ToolResult(result, tool.name)
+            result = str(e)  # return error message
+
+        if result is not None:
+            result = chatgpt.core.ToolResult(result, tool.name)
+        return result
 
     def to_dict(self) -> list[dict]:
         """The tools available to the model as a dictionary."""
