@@ -1,6 +1,6 @@
 """OpenAI chat model implementation."""
 
-from json import tool
+import asyncio
 
 import chatgpt.core
 import chatgpt.events
@@ -19,6 +19,7 @@ class ChatModel:
         tools: list[chatgpt.tools.Tool] = [],
         handlers: list[chatgpt.events.ModelEvent] = [],
     ) -> None:
+        self._generator: asyncio.Task | None = None
         self._metrics = chatgpt.events.MetricsHandler()
         handlers = handlers + [self._metrics]
 
@@ -31,8 +32,16 @@ class ChatModel:
         self.events_manager = chatgpt.events.EventsManager(handlers)
         """The events manager of callback handlers."""
 
+    async def cancel(self):
+        """Cancel the model's generation."""
+        if self._generator is None:
+            return
+        self._generator.cancel()
+
     async def generate(self, message: chatgpt.core.UserMessage, stream=False):
         """Generate a response to a list of messages. None on error."""
+        if self._generator is not None:
+            raise chatgpt.core.ModelError("Model is already running")
 
         # add message to memory
         self.memory.chat_history.add_message(message)
@@ -45,15 +54,14 @@ class ChatModel:
         try:  # generate reply
             reply = None
             while not isinstance(reply, chatgpt.core.ModelReply):
-                # generate reply and fix usage
+                # generate reply
                 reply = await self._request(stream)
-                reply.prompt_tokens = self._metrics.prompts_tokens
-                reply.reply_tokens = self._metrics.generated_tokens
-
                 # store generated reply
                 await self.events_manager.trigger_model_end(reply)
+                reply.prompt_tokens = self._metrics.prompts_tokens
+                reply.reply_tokens = self._metrics.generated_tokens
+                reply.cost = self._metrics.cost
                 self.memory.chat_history.add_message(reply)
-
                 # use tool if necessary
                 if type(reply) == chatgpt.core.ToolUsage:
                     await self._use_tool(reply)
@@ -69,27 +77,31 @@ class ChatModel:
     async def _request(self, stream) -> chatgpt.core.ModelMessage:
         # request response from openai
         request = dict(self._params(), stream=stream)
-        response: dict = await chatgpt.utils.completion(**request)  # type: ignore
+        completion = await chatgpt.utils.completion(**request)  # type: ignore
 
         if not stream:  # process response if not streaming
             reply = chatgpt.utils.parse_completion(
-                response, self.model.model_name
+                completion, self.model.model_name  # type: ignore
             )
             await self.events_manager.trigger_model_generation(reply)
         else:  # stream response, process as it comes in
-            reply = await self._stream(response)
+            self._generator = asyncio.create_task(self._stream(completion))
+            reply = await self._generator
         return reply
 
-    async def _stream(self, response):
+    async def _stream(self, completion):
         aggregator = _MessageAggregator()
-        # start a task to parse the completion packets
-        async for packet in response:
-            reply = chatgpt.utils.parse_completion(
-                packet, self.model.model_name
-            )
-            await self.events_manager.trigger_model_generation(reply)
-            # aggregate messages into one
-            aggregator.add(reply)
+        try:  # start a task to parse the completion packets
+            async for packet in completion:  # type: ignore
+                reply = chatgpt.utils.parse_completion(
+                    packet, self.model.model_name
+                )
+                await self.events_manager.trigger_model_generation(reply)
+                # aggregate messages into one
+                aggregator.add(reply)
+        except (asyncio.CancelledError, KeyboardInterrupt):  # canceled
+            await self.events_manager.trigger_model_interrupt()
+            aggregator.finish_reason = chatgpt.core.FinishReason.CANCELED
         return aggregator.reply
 
     async def _use_tool(self, usage: chatgpt.core.ToolUsage):

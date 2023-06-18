@@ -52,9 +52,9 @@ class EventsManager:
         """Trigger the on_model_error event for all handlers."""
         await self._trigger(ModelError, error)
 
-    async def trigger_model_interrupt(self, error: KeyboardInterrupt):
+    async def trigger_model_interrupt(self):
         """Trigger the on_model_interrupt event for all handlers."""
-        await self._trigger(ModelInterrupt, error)
+        await self._trigger(ModelInterrupt)
 
     async def _trigger(
         self, event: typing.Type["ModelEvent"], *args, **kwargs
@@ -181,9 +181,8 @@ class ModelInterrupt(ModelEvent, abc.ABC):
     """Event triggered on model being interrupted by the user."""
 
     @abc.abstractmethod
-    def on_model_interrupt(self, error: KeyboardInterrupt):
+    def on_model_interrupt(self):
         """Called when a model is interrupted."""
-        # TODO: add better event arguments
 
     @classmethod
     def callback(cls):
@@ -214,11 +213,11 @@ class MetricsHandler(ModelStart, ModelEnd):
         if not self._model:
             return
 
-        # calculate prompts tokens
+        # compute prompts tokens
         self.prompts_tokens += chatgpt.utils.messages_tokens(
             self._prompts, self._model
         )
-        # calculate generated tokens
+        # compute generated tokens
         if type(message) == chatgpt.core.ToolUsage:
             generated_text = message.tool_name + (message.args_str or "")
             self.generated_tokens += chatgpt.utils.tokens(
@@ -228,6 +227,12 @@ class MetricsHandler(ModelStart, ModelEnd):
             self.generated_tokens += chatgpt.utils.tokens(
                 message.content, self._model
             )
+        # compute cost
+        self.cost = chatgpt.utils.tokens_cost(
+            self.prompts_tokens, self._model, is_reply=False
+        ) + chatgpt.utils.tokens_cost(
+            self.generated_tokens, self._model, is_reply=True
+        )
 
         # if reply includes usage, compare to computed usage
         if message.prompt_tokens or message.reply_tokens:
@@ -246,9 +251,18 @@ class MetricsHandler(ModelStart, ModelEnd):
 
 
 class ConsoleHandler(
-    ModelStart, ToolUse, ToolResult, ModelReply, ModelError, ModelInterrupt
+    ModelStart,
+    ToolUse,
+    ToolResult,
+    ModelReply,
+    ModelError,
+    ModelInterrupt,
+    ModelGeneration,
 ):
     """Prints model events to the console."""
+
+    def __init__(self, streaming=False):
+        self.streaming = streaming
 
     async def on_model_start(self, model, context, tools):
         import rich
@@ -260,6 +274,10 @@ class ConsoleHandler(
         for message in context:
             self._print_message(message)
         rich.print()
+
+    async def on_model_generation(self, packet):
+        if self.streaming:
+            print(packet.content, end="", flush=True)
 
     async def on_tool_use(self, usage):
         import rich
@@ -286,7 +304,7 @@ class ConsoleHandler(
         rich.print("[bold red]Model error:[/]")
         Console().print_exception(show_locals=True)
 
-    async def on_model_interrupt(self, _):
+    async def on_model_interrupt(self):
         import rich
 
         rich.print("[bold red]Model interrupted...[/]")

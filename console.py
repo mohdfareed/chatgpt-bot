@@ -7,7 +7,7 @@ import chatgpt.memory
 import chatgpt.model
 import chatgpt.tools
 
-console_handler = chatgpt.events.ConsoleHandler()
+console_handler = chatgpt.events.ConsoleHandler(streaming=True)
 memory = chatgpt.memory.ChatMemory(
     "00000", chatgpt.core.SupportedModel.CHATGPT
 )
@@ -28,14 +28,16 @@ message = chatgpt.core.UserMessage(
 )
 # await model.generate(message)
 
-# %%
-asyncio.run(model.generate(message, stream=True))
-
-prompt_metrics = model._metrics.prompts_tokens
-reply_metrics = model._metrics.generated_tokens
 
 # %%
-# memory.chat_history.add_message(message)
-# memory.messages
 
-# %%
+
+async def main():
+    task = asyncio.create_task(model.generate(message, stream=True))
+    await asyncio.sleep(5)
+    await model.cancel()
+    await task
+
+
+# Run the main function
+asyncio.run(main())
