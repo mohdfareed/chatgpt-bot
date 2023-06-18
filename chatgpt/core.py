@@ -86,7 +86,7 @@ class FinishReason(enum.StrEnum):
     """The token limit or maximum completion tokens was reached."""
     FILTERED = "content_filter"
     """Completion content omitted due to content filter."""
-    CANCELED = "canceled"
+    CANCELLED = "canceled"
     """The completion was canceled by the user."""
     UNDEFINED = "null"
     """The completion is still in progress or incomplete."""
@@ -238,6 +238,15 @@ class ToolUsage(ModelMessage):
             ),
         )
         return {k: v for k, v in message_dict.items() if v is not None}
+
+
+class SummaryMessage(SystemMessage):
+    """A system message containing a summary of the chat history."""
+
+    @property
+    def name(self) -> str:
+        """Summary message name."""
+        return "summary_of_previous_messages"
 
 
 class Prompt(Serializable):

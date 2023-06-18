@@ -11,6 +11,25 @@ import tiktoken
 import chatgpt.core
 
 
+def retry(min_wait=1, max_wait=60, max_attempts=6):
+    log = tenacity.before_sleep_log(chatgpt.logger, logging.WARNING)
+    retry_exceptions = (
+        openai.error.Timeout,
+        openai.error.APIError,
+        openai.error.APIConnectionError,
+        openai.error.RateLimitError,
+        openai.error.ServiceUnavailableError,
+    )
+
+    return tenacity.retry(
+        reraise=True,
+        stop=tenacity.stop_after_attempt(max_attempts),
+        wait=tenacity.wait_random_exponential(min=min_wait, max=max_wait),
+        retry=tenacity.retry_if_exception_type(retry_exceptions),
+        before_sleep=log,
+    )
+
+
 def tokens(string: str, model: str):
     """Get the number of tokens in a string using the model's tokenizer.
     Defaults to 'cl100k_base' if the model does not have a tokenizer.
@@ -66,25 +85,6 @@ def tokens_cost(
         cost = 0.12 if is_reply else 0.06
 
     return float(tokens) / 1000 * cost
-
-
-def retry(min_wait=1, max_wait=60, max_attempts=6):
-    log = tenacity.before_sleep_log(chatgpt.logger, logging.WARNING)
-    retry_exceptions = (
-        openai.error.Timeout,
-        openai.error.APIError,
-        openai.error.APIConnectionError,
-        openai.error.RateLimitError,
-        openai.error.ServiceUnavailableError,
-    )
-
-    return tenacity.retry(
-        reraise=True,
-        stop=tenacity.stop_after_attempt(max_attempts),
-        wait=tenacity.wait_random_exponential(min=min_wait, max=max_wait),
-        retry=tenacity.retry_if_exception_type(retry_exceptions),
-        before_sleep=log,
-    )
 
 
 @retry()

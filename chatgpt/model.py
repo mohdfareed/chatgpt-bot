@@ -1,6 +1,7 @@
 """OpenAI chat model implementation."""
 
 import asyncio
+import json
 
 import chatgpt.core
 import chatgpt.events
@@ -21,7 +22,7 @@ class ChatModel:
     ) -> None:
         self._running = False
         self._generator: asyncio.Task | None = None
-        self._metrics = chatgpt.events.MetricsHandler()
+        self._metrics = _MetricsHandler()
         handlers = handlers + [self._metrics]
 
         self.model = model
@@ -123,7 +124,7 @@ class ChatModel:
                 # aggregate messages into one
                 aggregator.add(reply)
         except (asyncio.CancelledError, KeyboardInterrupt):  # canceled
-            aggregator.finish_reason = chatgpt.core.FinishReason.CANCELED
+            aggregator.finish_reason = chatgpt.core.FinishReason.CANCELLED
         return aggregator.reply
 
     async def _use_tool(self, usage: chatgpt.core.ToolUsage):
@@ -175,3 +176,64 @@ class _MessageAggregator:
             reply = chatgpt.core.ModelReply(self.content)
         reply.finish_reason = self.finish_reason
         return reply
+
+
+class _MetricsHandler(chatgpt.events.ModelStart, chatgpt.events.ModelEnd):
+    """Calculates request metrics as the model is used."""
+
+    def __init__(self):
+        super().__init__()
+        self._prompts: list[dict[str, str]] = []
+
+        self.prompts_tokens = 0
+        """The total number of tokens in all prompts."""
+        self.generated_tokens = 0
+        """The total number of tokens in all generations."""
+
+    async def on_model_start(self, model, context, tools):
+        # track all prompts
+        self._prompts += [m.to_message_dict() for m in context]
+        self._prompts += [
+            {"functions": json.dumps(t.to_dict())} for t in tools
+        ]
+        self._model = model.model_name
+
+    async def on_model_end(self, message):
+        if not self._model:
+            return
+
+        # compute prompts tokens
+        self.prompts_tokens += chatgpt.utils.messages_tokens(
+            self._prompts, self._model
+        )
+        # compute generated tokens
+        if type(message) == chatgpt.core.ToolUsage:
+            generated_text = message.tool_name + (message.args_str or "")
+            self.generated_tokens += chatgpt.utils.tokens(
+                generated_text, self._model
+            )
+        else:
+            self.generated_tokens += chatgpt.utils.tokens(
+                message.content, self._model
+            )
+        # compute cost
+        self.cost = chatgpt.utils.tokens_cost(
+            self.prompts_tokens, self._model, is_reply=False
+        ) + chatgpt.utils.tokens_cost(
+            self.generated_tokens, self._model, is_reply=True
+        )
+
+        # if reply includes usage, compare to computed usage
+        if message.prompt_tokens or message.reply_tokens:
+            if message.prompt_tokens != self.prompts_tokens:
+                chatgpt.logger.warning(
+                    "Prompt tokens mismatch: {actual: %s, computed: %s}",
+                    message.prompt_tokens,
+                    self.prompts_tokens,
+                )
+            if message.reply_tokens != self.generated_tokens:
+                chatgpt.logger.warning(
+                    "Reply tokens mismatch: {actual: %s, computed: %s}",
+                    message.reply_tokens,
+                    self.generated_tokens,
+                )

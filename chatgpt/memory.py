@@ -3,7 +3,37 @@
 import chatgpt.core
 import chatgpt.utils
 import database as db
-from chatgpt.prompts import SUMMARIZATION
+
+SUMMARIZATION = """\
+Progressively summarize the lines of the conversation provided, adding onto \
+the previous summary and returning a new summary.
+
+EXAMPLE
+
+Current summary:
+Person asks what you think of artificial intelligence. You think artificial \
+intelligence is a force for good.
+
+New lines of conversation:
+Person: Why do you think artificial intelligence is a force for good?
+You: Because it will help humans reach their full potential.
+
+New summary:
+Person asks what the you think of artificial intelligence. You think \
+artificial intelligence is a force for good because it will help humans reach \
+their full potential.
+
+END OF EXAMPLE
+
+Current summary:
+{0}
+
+New lines of conversation:
+{1}
+
+New summary:
+"""
+"""The prompt for summarizing a conversation."""
 
 
 class ChatMemory:
@@ -13,15 +43,15 @@ class ChatMemory:
     """The ID of the summary message in the chat history."""
 
     @property
-    def summary(self) -> "SummaryMessage":
+    def summary(self) -> "chatgpt.core.SummaryMessage":
         """The summary of the conversation."""
         message = self.chat_history.get_message(self.SUMMARY_MESSAGE_ID)
-        return SummaryMessage.deserialize(message.serialize())
+        return chatgpt.core.SummaryMessage.deserialize(message.serialize())
 
     @summary.setter
     def summary(self, text: str):
         self.chat_history.remove_message(self.SUMMARY_MESSAGE_ID)
-        self.chat_history.add_message(SummaryMessage(text))
+        self.chat_history.add_message(chatgpt.core.SummaryMessage(text))
 
     def __init__(
         self,
@@ -102,12 +132,3 @@ class ChatHistory:
         """Clear the chat history."""
         for message in db.models.Message.load_messages(self.session_id):
             message.delete()
-
-
-class SummaryMessage(chatgpt.core.SystemMessage):
-    """A system message containing a summary of the chat history."""
-
-    @property
-    def name(self) -> str:
-        """Summary message name."""
-        return "summary_of_previous_messages"
