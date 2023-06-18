@@ -10,13 +10,8 @@ import chatgpt.tools
 import chatgpt.utils
 
 
-class classproperty(property):
-    def __get__(self, _, owner):
-        return self.fget.__get__(None, owner)()
-
-
 class EventsManager:
-    """Events manager for managing event handlers."""
+    """Manager of callback handlers for a model's events."""
 
     def __init__(self, handlers: list["ModelEvent"] = []):
         self.handlers = handlers
@@ -92,7 +87,7 @@ class ModelEvent(abc.ABC):
 
 
 class ModelStart(ModelEvent, abc.ABC):
-    """Callback handler for model start events."""
+    """Event triggered before model starts generating tokens."""
 
     @abc.abstractmethod
     def on_model_start(
@@ -101,7 +96,7 @@ class ModelStart(ModelEvent, abc.ABC):
         context: list[chatgpt.core.Message],
         tools: list[chatgpt.tools.Tool],
     ):
-        """Called when a model starts generation."""
+        """Called before a model starts generating tokens."""
 
     @classmethod
     def callback(cls):
@@ -109,7 +104,7 @@ class ModelStart(ModelEvent, abc.ABC):
 
 
 class ModelGeneration(ModelEvent, abc.ABC):
-    """Callback handler for model generation events."""
+    """Event triggered on model generating a token."""
 
     @abc.abstractmethod
     def on_model_generation(self, token: str):
@@ -121,11 +116,11 @@ class ModelGeneration(ModelEvent, abc.ABC):
 
 
 class ModelEnd(ModelEvent, abc.ABC):
-    """Callback handler for model end events."""
+    """Event triggered on model ending generation."""
 
     @abc.abstractmethod
     def on_model_end(self, message: chatgpt.core.ModelMessage):
-        """Called when a model ends generation."""
+        """Called when a model finishes generating tokens."""
 
     @classmethod
     def callback(cls):
@@ -133,7 +128,7 @@ class ModelEnd(ModelEvent, abc.ABC):
 
 
 class ToolUse(ModelEvent, abc.ABC):
-    """Callback handler for tool use events."""
+    """Event triggered on model using a tool."""
 
     @abc.abstractmethod
     def on_tool_use(self, usage: chatgpt.core.ToolUsage):
@@ -145,11 +140,11 @@ class ToolUse(ModelEvent, abc.ABC):
 
 
 class ToolResult(ModelEvent, abc.ABC):
-    """Callback handler for tool result events."""
+    """Event triggered on tool returning a result to model."""
 
     @abc.abstractmethod
     def on_tool_result(self, results: chatgpt.core.ToolResult):
-        """Called when a tool returns a result."""
+        """Called when a tool returns a result to the model."""
 
     @classmethod
     def callback(cls):
@@ -157,7 +152,7 @@ class ToolResult(ModelEvent, abc.ABC):
 
 
 class ModelReply(ModelEvent, abc.ABC):
-    """Callback handler for model reply events."""
+    """Event triggered on model replying to the user."""
 
     @abc.abstractmethod
     def on_model_reply(self, reply: chatgpt.core.ModelMessage):
@@ -169,11 +164,11 @@ class ModelReply(ModelEvent, abc.ABC):
 
 
 class ModelError(ModelEvent, abc.ABC):
-    """Callback handler for model error events."""
+    """Event triggered on model encountering an error."""
 
     @abc.abstractmethod
     def on_model_error(self, error: Exception):
-        """Called when a model generates an error."""
+        """Called when a model encounters an error."""
 
     @classmethod
     def callback(cls):
@@ -181,7 +176,7 @@ class ModelError(ModelEvent, abc.ABC):
 
 
 class ModelInterrupt(ModelEvent, abc.ABC):
-    """Callback handler for model interrupt events."""
+    """Event triggered on model being interrupted by the user."""
 
     @abc.abstractmethod
     def on_model_interrupt(self, error: KeyboardInterrupt):
@@ -194,7 +189,7 @@ class ModelInterrupt(ModelEvent, abc.ABC):
 
 
 class MetricsHandler(ModelStart, ModelEnd):
-    """Calculates request metrics."""
+    """Calculates request metrics as the model is used."""
 
     def __init__(self):
         super().__init__()
