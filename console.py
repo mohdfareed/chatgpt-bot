@@ -8,24 +8,46 @@ import chatgpt.memory
 import chatgpt.model
 import chatgpt.tools
 
-console_handler = chatgpt.addons.ConsoleHandler(streaming=True)
+
+class TestTool(chatgpt.tools.Tool):
+    def __init__(self):
+        self.name = "test"
+        self.description = ""  # text + 2
+
+        self.parameters = [
+            chatgpt.tools.ToolParameter(
+                type="boolean",  # 2
+                name="test",  # name + 1
+                description="",  # text + 2
+            ),
+        ]
+
+    async def _run(self, query: str) -> str:
+        return ""
+
+
+console_handler = chatgpt.addons.ConsoleHandler()
 memory = chatgpt.memory.ChatMemory(
-    "00000", -1, chatgpt.core.SupportedModel.CHATGPT, True
+    "00000", -1, -1, chatgpt.core.SupportedModel.CHATGPT, True
 )
-search_tools = [chatgpt.addons.Calculator(), chatgpt.addons.InternetSearch()]
+search_tools = [TestTool()]
 model_config = chatgpt.core.ModelConfig(
-    model_name=chatgpt.core.SupportedModel.CHATGPT_16K
+    model_name=chatgpt.core.SupportedModel.CHATGPT,
+    # streaming=True,
 )
 prompt = "You are a helpful assistant named ChatGPT."
 
 model = chatgpt.model.ChatModel(
-    model_config, memory, search_tools, [console_handler]
+    model=model_config,
+    memory=memory,
+    # tools=search_tools,  # type: ignore
+    handlers=[console_handler],
 )
 
 # %%
 memory.chat_history.clear()
 message = chatgpt.core.UserMessage(
-    "Search for 'python' and tell me the results."
+    "Hi, can you use the test function with random arguments you choose?"
 )
 # await model.generate(message)
 
@@ -33,10 +55,9 @@ message = chatgpt.core.UserMessage(
 # %%
 async def main():
     try:
-        task = asyncio.create_task(model.start(message, stream=True))
-        await asyncio.sleep(15)
-
-        await model.cancel()
+        task = asyncio.create_task(model.start(message))
+        # await asyncio.sleep(15)
+        # await model.cancel()
         await task
     except:
         pass

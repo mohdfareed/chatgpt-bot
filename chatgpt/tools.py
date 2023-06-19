@@ -28,8 +28,10 @@ class ToolsManager:
             result = chatgpt.core.ToolResult(result, tool.name)
         return result
 
-    def to_dict(self) -> list[dict]:
+    def to_dict(self):
         """The tools available to the model as a dictionary."""
+        if len(self.tools) == 0:
+            return None
         return [tool.to_dict() for tool in self.tools]
 
     def _get_tool(self, tool_name: str):

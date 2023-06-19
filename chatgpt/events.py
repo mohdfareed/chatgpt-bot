@@ -43,7 +43,7 @@ class EventsManager:
         """Trigger the on_tool_result event for all handlers."""
         await self._trigger(ToolResult, results)
 
-    async def trigger_model_reply(self, reply: chatgpt.core.ModelReply):
+    async def trigger_model_reply(self, reply: chatgpt.core.ModelMessage):
         """Trigger the on_model_reply event for all handlers."""
         await self._trigger(ModelReply, reply)
 
@@ -156,7 +156,7 @@ class ModelReply(ModelEvent, abc.ABC):
     """Event triggered on model replying to the user."""
 
     @abc.abstractmethod
-    def on_model_reply(self, reply: chatgpt.core.ModelReply):
+    def on_model_reply(self, reply: chatgpt.core.ModelMessage):
         """Called when a model replies and exists."""
 
     @classmethod

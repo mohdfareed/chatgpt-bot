@@ -8,23 +8,6 @@ SUMMARIZATION = """\
 Progressively summarize the lines of the conversation provided, adding onto \
 the previous summary and returning a new summary.
 
-EXAMPLE
-
-Current summary:
-Person asks what you think of artificial intelligence. You think artificial \
-intelligence is a force for good.
-
-New lines of conversation:
-Person: Why do you think artificial intelligence is a force for good?
-You: Because it will help humans reach their full potential.
-
-New summary:
-Person asks what the you think of artificial intelligence. You think \
-artificial intelligence is a force for good because it will help humans reach \
-their full potential.
-
-END OF EXAMPLE
-
 Current summary:
 {0}
 
@@ -56,14 +39,17 @@ class ChatMemory:
     def __init__(
         self,
         session_id: str,
-        memory_size: int,
+        short_memory_size: int,
+        long_memory_size: int,
         tokenization_model: chatgpt.core.SupportedModel,
         im_memory: bool = False,
     ):
         """Initialize a chat summarization memory."""
 
-        self.memory_size = memory_size
+        self.short_memory_size = short_memory_size
         """The max number of tokens the memory can contain."""
+        self.long_memory_size = long_memory_size
+        """The max number of tokens the history summary can contain."""
         self.tokenization_model = tokenization_model
         """The model used for counting tokens against the memory size."""
         self.chat_history = ChatHistory(session_id, im_memory)
@@ -78,21 +64,27 @@ class ChatMemory:
     @property
     def messages(self) -> list[chatgpt.core.Message]:
         """The messages in the memory."""
-        # the conversation is the history + the summary such that the total
-        # number of tokens is less than the memory size
-        # messages = [self.summary] + self.chat_history.messages
+        if self.short_memory_size < 0:
+            return self.chat_history.messages
 
-        # while self._tokens_size(messages) > self.size:
-        #     # TODO: summarize and remove the oldest message
-        #     messages.pop()
-
-        return self.chat_history.messages
-
-    def _tokens_size(self, messages: list[chatgpt.core.Message]) -> int:
-        messages_dicts = [message.to_message_dict() for message in messages]
-        return chatgpt.utils.messages_tokens(
-            messages_dicts, self.tokenization_model
+        buffer = self.chat_history.messages
+        buffer_size = chatgpt.utils.messages_tokens(
+            buffer, self.tokenization_model
         )
+
+        pruned_memory: list[chatgpt.core.Message] = []
+        while buffer_size > self.short_memory_size:
+            pruned_memory.append(buffer.pop(0))
+            buffer_size = chatgpt.utils.messages_tokens(
+                buffer, self.tokenization_model
+            )
+
+        self.summary = self._summarize(pruned_memory)
+        return [self.summary] + buffer
+
+    def _summarize(self, messages: list[chatgpt.core.Message]) -> str:
+        """Summarize messages."""
+        return ""
 
 
 class ChatHistory:

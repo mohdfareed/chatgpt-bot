@@ -3,6 +3,8 @@
 import io
 import sys
 
+import rich
+import rich.console
 import wikipedia
 from langchain import LLMMathChain, OpenAI
 from langchain.utilities import GoogleSerperAPIWrapper, WikipediaAPIWrapper
@@ -24,79 +26,44 @@ class ConsoleHandler(
 ):
     """Prints model events to the console."""
 
-    def __init__(self, streaming=False):
-        self.streaming = streaming
+    def __init__(self):
+        self.console = rich.console.Console()
+        self.streaming = False
 
     async def on_model_start(self, model, context, tools):
-        import rich
-
-        rich.print(f"[bold]Model:[/] {model.model_name}")
-        rich.print(f"[bold]Tools:[/] {', '.join(t.name for t in tools)}")
-
-        rich.print("[bold]History[/]\n")
+        self.streaming = model.streaming
+        rich.print(f"[magenta]Model:[/] {model.model_name}")
+        rich.print(f"[magenta]Tools:[/] {', '.join(t.name for t in tools)}")
         for message in context:
-            self._print_message(message)
-        rich.print()
+            rich.print(message.serialize())
 
     async def on_model_generation(self, packet):
         if not self.streaming:
             return
+        print(packet.content, end="", flush=True)
         if isinstance(packet, chatgpt.core.ToolUsage):
             print(packet.tool_name, end="", flush=True)
-            if packet.args_str:
-                print(packet.args_str, end="", flush=True)
-        print(packet.content, end="", flush=True)
+            print(packet.args_str, end="", flush=True)
 
     async def on_tool_use(self, usage):
         if self.streaming:
             return
-        import rich
-
-        rich.print(f"[bold]Using tool:[/] {usage.serialize()}")
-        rich.print()
+        rich.print(usage.serialize())
 
     async def on_tool_result(self, results):
-        import rich
-
-        rich.print(f"[bold]Tool result:[/] {results.serialize()}")
-        rich.print()
+        rich.print(results.serialize())
 
     async def on_model_reply(self, reply):
         if self.streaming:
             return
-        import rich
-
-        rich.print(f"[bold green]Model's reply:[/] {reply.serialize()}")
-        rich.print()
+        rich.print(reply.serialize())
 
     async def on_model_error(self, _):
-        import rich
-        from rich.console import Console
-
-        rich.print("[bold red]Model error:[/]")
-        Console().print_exception(show_locals=True)
+        rich.print("\n[bold red]Model error:[/]")
+        self.console.print_exception(show_locals=True)
 
     async def on_model_interrupt(self):
-        import rich
-
-        rich.print("[bold red]Model interrupted...[/]")
-
-    def _print_message(self, message: chatgpt.core.Message):
-        import rich
-
-        if type(message) == chatgpt.core.UserMessage:
-            rich.print(f"[blue]{message.name or 'You'}:[/] {message.content}")
-        if type(message) == chatgpt.core.SystemMessage:
-            rich.print(f"SYSTEM: {message.content}")
-        if type(message) == chatgpt.core.ToolResult:
-            rich.print(f"[bright_black]{message.name}:[/] {message.content}")
-        if type(message) == chatgpt.core.ModelMessage:
-            rich.print(f"[green]ChatGPT:[/] {message.content}")
-        if type(message) == chatgpt.core.ToolUsage:
-            rich.print(
-                f"[green]ChatGPT:[/] "
-                f"[magenta]{message.tool_name}{message.arguments}[/]"
-            )
+        rich.print("\n[bold red]Model interrupted...[/]")
 
 
 class InternetSearch(chatgpt.tools.Tool):

@@ -47,7 +47,7 @@ class ChatModel:
         if interrupted:  # trigger interrupt event
             await self.events_manager.trigger_model_interrupt()
 
-    async def start(self, message: chatgpt.core.UserMessage, stream=False):
+    async def start(self, message: chatgpt.core.UserMessage):
         """Generate a response to a list of messages. None on error."""
         if self._running or self._generator is not None:
             raise chatgpt.core.ModelError("Model is already running")
@@ -55,22 +55,19 @@ class ChatModel:
         # add message to memory
         self.memory.chat_history.add_message(message)
         try:  # generate reply
-            reply = await self._run(stream)
+            reply = await self._run()
         except Exception as e:
             await self.events_manager.trigger_model_error(e)
             self._generator = None
             self._running = False
             raise chatgpt.core.ModelError("Failed to generate reply") from e
-        # store reply if one was generated
-        if reply is not None:
-            self.memory.chat_history.add_message(reply)
         return reply
 
-    async def _run(self, stream):
+    async def _run(self):
         reply = None
         self._running = True
 
-        while self._running and not isinstance(reply, chatgpt.core.ModelReply):
+        while self._running:
             params = (
                 self.model,
                 self.memory.messages,
@@ -79,40 +76,41 @@ class ChatModel:
 
             # generate reply
             await self.events_manager.trigger_model_start(*params)
-            reply = await self._generate(stream)
+            reply = await self._generate()
             await self.events_manager.trigger_model_end(reply)
-            # fix reply metrics
+            # fix reply metrics and add to memory
             reply.prompt_tokens = self._metrics.prompts_tokens
             reply.reply_tokens = self._metrics.generated_tokens
             reply.cost = self._metrics.cost
-            # use tool if necessary
-            if type(reply) == chatgpt.core.ToolUsage:
-                self.memory.chat_history.add_message(reply)
-                if self._running:  # only use tool if not interrupted
-                    results = await self._use_tool(reply)
-                    # add tool results to memory
-                    if results is not None:
-                        self.memory.chat_history.add_message(results)
+            self.memory.chat_history.add_message(reply)
+            # use tool if needed
+            if self._running and type(reply) == chatgpt.core.ToolUsage:
+                results = await self._use_tool(reply)
+                if results is not None:  # store results and continue
+                    self.memory.chat_history.add_message(results)
+                    continue  # REVIEW: maybe continue even if no results?
+            break
 
         self._running = False
-        if isinstance(reply, chatgpt.core.ModelReply):
+        if isinstance(reply, chatgpt.core.ModelMessage):
             await self.events_manager.trigger_model_reply(reply)
         return reply
 
-    async def _generate(self, stream) -> chatgpt.core.ModelMessage:
+    async def _generate(self) -> chatgpt.core.ModelMessage:
         # request response from openai
-        request = dict(self._params(), stream=stream)
+        request = dict(self._params())
         completion = await chatgpt.utils.completion(**request)  # type: ignore
 
-        if not stream:  # process response if not streaming
+        if self.model.streaming:  # stream response, process as it comes in
+            self._generator = asyncio.create_task(self._stream(completion))
+            reply = await self._generator
+            self._generator = None
+        else:  # process response if not streaming
             reply = chatgpt.utils.parse_completion(
                 completion, self.model.model_name  # type: ignore
             )
             await self.events_manager.trigger_model_generation(reply)
-        else:  # stream response, process as it comes in
-            self._generator = asyncio.create_task(self._stream(completion))
-            reply = await self._generator
-            self._generator = None
+
         return reply
 
     async def _stream(self, completion):
@@ -149,7 +147,10 @@ class ChatModel:
             functions=self.tools_manager.to_dict(),
             **self.model.params(),
         )
-        return parameters
+        return {k: v for k, v in parameters.items() if v is not None}
+
+    def _is_replying(self, reply):
+        return isinstance(reply, chatgpt.core.ModelMessage) and reply.content
 
 
 class _MessageAggregator:
@@ -163,19 +164,18 @@ class _MessageAggregator:
         self.content += message.content
         self.finish_reason = message.finish_reason
         if isinstance(message, chatgpt.core.ToolUsage):
-            self.tool_name = (self.tool_name or "") + (message.tool_name or "")
-            self.args_str = (
-                ((self.args_str or "") + (message.args_str or ""))
-                if self.args_str or message.args_str
-                else None
-            )
+            self.tool_name = (self.tool_name or "") + message.tool_name
+            self.args_str = (self.args_str or "") + message.args_str
 
     @property
     def reply(self):
-        if self.tool_name:
+        if self.tool_name and self.args_str:
             reply = chatgpt.core.ToolUsage(self.tool_name, self.args_str)
+            reply.content = self.content
+        elif self.tool_name or self.args_str:
+            raise chatgpt.core.ModelError("Invalid tool usage received")
         else:
-            reply = chatgpt.core.ModelReply(self.content)
+            reply = chatgpt.core.ModelMessage(self.content)
         reply.finish_reason = self.finish_reason
         return reply
 
@@ -185,44 +185,42 @@ class _MetricsHandler(chatgpt.events.ModelStart, chatgpt.events.ModelEnd):
 
     def __init__(self):
         super().__init__()
-        self._prompts: list[dict[str, str]] = []
-
-        self.prompts_tokens = 0
+        self.prompts_tokens: int
         """The total number of tokens in all prompts."""
-        self.generated_tokens = 0
+        self.generated_tokens: int
         """The total number of tokens in all generations."""
+        self.tools_tokens: int
+        """The total number of tokens taken by tools declarations."""
+        self.cost: float
+        """The total cost of all generations."""
 
     async def on_model_start(self, model, context, tools):
-        # track all prompts
-        self._prompts += [
-            m.to_message_dict()
-            for m in context
-            if type(m) != chatgpt.core.ToolUsage
-        ]
-        self._prompts += [
-            {"functions": json.dumps(t.to_dict())} for t in tools
-        ]
         self._model = model.model_name
-        # FIXME: tool usage is not correctly converted to dict[str,str]
+        self._prompts = context
+        self._tools = tools
+        # reset metrics
+        self.prompts_tokens = 0
+        self.generated_tokens = 0
+        self.tools_tokens = 0
+        self.cost = 0.0
+        self.has_tools = len(tools) > 0
 
     async def on_model_end(self, message):
         if not self._model:
             return
 
-        # compute prompts tokens
-        self.prompts_tokens += chatgpt.utils.messages_tokens(
+        # compute prompt tokens count
+        self.prompts_tokens = chatgpt.utils.messages_tokens(
             self._prompts, self._model
         )
-        # compute generated tokens
-        if type(message) == chatgpt.core.ToolUsage:
-            generated_text = message.tool_name + (message.args_str or "")
-            self.generated_tokens += chatgpt.utils.tokens(
-                generated_text, self._model
-            )
-        else:
-            self.generated_tokens += chatgpt.utils.tokens(
-                message.content, self._model
-            )
+        # compute generated tokens count
+        self.generated_tokens = chatgpt.utils.model_tokens(
+            message, self._model, self.has_tools
+        )
+        # compute tools tokens count
+        self.tools_tokens = chatgpt.utils.tools_tokens(
+            self._tools, self._model
+        )
         # compute cost
         self.cost = chatgpt.utils.tokens_cost(
             self.prompts_tokens, self._model, is_reply=False
