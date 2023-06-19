@@ -46,11 +46,11 @@ class Message(database.core.DatabaseModel):
         super().__init__(session_id=session_id, **kw)
 
     @classmethod
-    def load_messages(cls, session_id: str):
+    def load_messages(cls, session_id: str, engine: sql.Engine | None = None):
         """Load a chat history by its session ID."""
 
         statement = sql.select(cls).where(cls.session_id == session_id)
-        with orm.Session(database.core.engine()) as session:
+        with orm.Session(engine or database.core.engine()) as session:
             return session.scalars(statement).all()
 
 

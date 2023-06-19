@@ -10,7 +10,7 @@ import chatgpt.tools
 
 console_handler = chatgpt.addons.ConsoleHandler(streaming=True)
 memory = chatgpt.memory.ChatMemory(
-    "00000", chatgpt.core.SupportedModel.CHATGPT
+    "00000", -1, chatgpt.core.SupportedModel.CHATGPT, True
 )
 search_tools = [chatgpt.addons.Calculator(), chatgpt.addons.InternetSearch()]
 model_config = chatgpt.core.ModelConfig(
@@ -32,11 +32,14 @@ message = chatgpt.core.UserMessage(
 
 # %%
 async def main():
-    task = asyncio.create_task(model.start(message, stream=True))
-    await asyncio.sleep(15)
+    try:
+        task = asyncio.create_task(model.start(message, stream=True))
+        await asyncio.sleep(15)
 
-    await model.cancel()
-    await task
+        await model.cancel()
+        await task
+    except:
+        pass
 
 
 asyncio.run(main())

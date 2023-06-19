@@ -60,8 +60,7 @@ class ChatModel:
             await self.events_manager.trigger_model_error(e)
             self._generator = None
             self._running = False
-            return
-            # raise chatgpt.core.ModelError("Failed to generate reply") from e
+            raise chatgpt.core.ModelError("Failed to generate reply") from e
         # store reply if one was generated
         if reply is not None:
             self.memory.chat_history.add_message(reply)
@@ -195,7 +194,11 @@ class _MetricsHandler(chatgpt.events.ModelStart, chatgpt.events.ModelEnd):
 
     async def on_model_start(self, model, context, tools):
         # track all prompts
-        self._prompts += [m.to_message_dict() for m in context]
+        self._prompts += [
+            m.to_message_dict()
+            for m in context
+            if type(m) != chatgpt.core.ToolUsage
+        ]
         self._prompts += [
             {"functions": json.dumps(t.to_dict())} for t in tools
         ]

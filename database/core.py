@@ -15,13 +15,16 @@ _engine: sql.Engine | None = None  # global database engine
 class DatabaseModel(orm.DeclarativeBase):
     __abstract__ = True
 
+    engine: sql.Engine | None = None
+    """The database to which the object belongs. Defaults to the global
+    database engine."""
     id: orm.Mapped[int] = orm.mapped_column(primary_key=True)
     """The model's unique ID."""
 
     def load(self):
         """Load the model instance from the database if it exists."""
         try:
-            with orm.Session(engine()) as session:
+            with orm.Session(self.engine or engine()) as session:
                 db_instance = session.query(type(self)).get(self.id)
                 self._overwrite(db_instance) if db_instance else None
         except sql_exc.SQLAlchemyError as e:
@@ -31,7 +34,7 @@ class DatabaseModel(orm.DeclarativeBase):
     def save(self):
         """Store the model in the database, overwriting it if it exists."""
         try:
-            with orm.Session(engine()) as session:
+            with orm.Session(self.engine or engine()) as session:
                 db_instance = session.merge(self)
                 session.commit()
                 self._overwrite(db_instance)  # load updated instance
@@ -42,7 +45,7 @@ class DatabaseModel(orm.DeclarativeBase):
     def delete(self):
         """Delete the model from the database if it exists."""
         try:
-            with orm.Session(engine()) as session:
+            with orm.Session(self.engine or engine()) as session:
                 if db_obj := session.get(type(self), self.id):
                     session.delete(db_obj)
                     session.commit()
@@ -75,10 +78,22 @@ def engine():
 
     # start database if no engine is available
     if not _engine:
-        _engine = _start_engine()
+        _engine = start_engine(database.url)
     # validate and return engine
     _validate_connection(_engine)
     return _engine
+
+
+def start_engine(url):
+    """Start a new database engine."""
+    # initialize database
+    database.logger.info("Initializing database...")
+    engine = sql.create_engine(url)
+    _validate_connection(engine)
+    # create database schema
+    DatabaseModel.metadata.create_all(engine)
+    database.logger.info(f"Connected to database: {url}")
+    return engine
 
 
 @tenacity.retry(
@@ -93,14 +108,3 @@ def _validate_connection(engine):
         orm.Session(engine).close()
     except Exception:
         raise ConnectionError("Failed to connect to database")
-
-
-def _start_engine():
-    # initialize database
-    database.logger.info("Initializing database...")
-    engine = sql.create_engine(database.url)
-    _validate_connection(engine)
-    # create database schema
-    DatabaseModel.metadata.create_all(engine)
-    database.logger.info(f"Connected to database: {database.url}")
-    return engine

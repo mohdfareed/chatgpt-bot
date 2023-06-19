@@ -1,20 +1,21 @@
 # chatgpt
 openai
 tiktoken
-langchain
-wikipedia
+tenacity
 
 # bot
 python-telegram-bot[webhooks,rate-limiter]
 beautifulsoup4
-tenacity
 
 # database
 sqlalchemy
 sqlalchemy-utils
 cryptography
-# chromadb
 
 # environment
 python-dotenv
 rich
+
+# temp
+langchain
+wikipedia

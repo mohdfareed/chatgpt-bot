@@ -56,15 +56,17 @@ class ChatMemory:
     def __init__(
         self,
         session_id: str,
+        memory_size: int,
         tokenization_model: chatgpt.core.SupportedModel,
-        memory_size=-1,
+        im_memory: bool = False,
     ):
         """Initialize a chat summarization memory."""
 
-        self.size = memory_size
+        self.memory_size = memory_size
         """The max number of tokens the memory can contain."""
         self.tokenization_model = tokenization_model
-        self.chat_history = ChatHistory(session_id)
+        """The model used for counting tokens against the memory size."""
+        self.chat_history = ChatHistory(session_id, im_memory)
         """The chat history in the memory."""
 
         # create summarization model
@@ -96,13 +98,19 @@ class ChatMemory:
 class ChatHistory:
     """SQL implementation of a chat history stored by a session ID."""
 
-    def __init__(self, session_id: str):
+    def __init__(self, session_id: str, im_memory=False):
+        memory_engine = (  # set up in-memory database
+            db.core.start_engine("sqlite:///:memory:") if im_memory else None
+        )
+        self.engine = memory_engine
         self.session_id = session_id
 
     @property
     def messages(self) -> list[chatgpt.core.Message]:
         """The messages in the chat history."""
-        messages = db.models.Message.load_messages(self.session_id)
+        messages = db.models.Message.load_messages(
+            session_id=self.session_id, engine=self.engine
+        )
         return [
             chatgpt.core.Message.deserialize(db_message.content)
             for db_message in messages
@@ -111,24 +119,31 @@ class ChatHistory:
     def get_message(self, message_id: int) -> chatgpt.core.Message:
         """Get a message from the chat history."""
         db_message = db.models.Message(
-            id=message_id, session_id=self.session_id
+            id=message_id, session_id=self.session_id, engine=self.engine
         ).load()
         return chatgpt.core.Message.deserialize(db_message.content)
 
     def add_message(self, message: chatgpt.core.Message):
         """Add a message to the chat history."""
-        db.models.Message(self.session_id, content=message.serialize()).save()
+        db.models.Message(
+            self.session_id, content=message.serialize(), engine=self.engine
+        ).save()
 
     def remove_message(self, message_id: int):
         """Remove a message from the chat history."""
-        db.models.Message(id=message_id, session_id=self.session_id).delete()
+        db.models.Message(
+            id=message_id, session_id=self.session_id, engine=self.engine
+        ).delete()
 
     def load(self, messages: list[chatgpt.core.Message]) -> None:
         """Load the chat history into the database."""
-        for message in messages:
-            self.add_message(message)
+        (self.add_message(message) for message in messages)
 
     def clear(self) -> None:
         """Clear the chat history."""
-        for message in db.models.Message.load_messages(self.session_id):
+        (
             message.delete()
+            for message in db.models.Message.load_messages(
+                self.session_id, engine=self.engine
+            )
+        )

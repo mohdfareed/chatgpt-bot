@@ -81,6 +81,7 @@ def _configure_console_logging(logger: logging.Logger):
     console_handler = RichHandler(
         markup=True,
         rich_tracebacks=True,
+        tracebacks_show_locals=True,
         log_time_format="[%Y-%m-%d %H:%M:%S]",
         show_path=False,
     )
