@@ -1,34 +1,14 @@
-"""Utilities used by ChatGPT."""
+"""Tokenization functions for chatgpt."""
 
-import json
-import logging
 import typing
 
-import openai.error
-import tenacity
 import tiktoken
 
 import chatgpt.core
-import chatgpt.tools
 
-
-def retry(min_wait=1, max_wait=60, max_attempts=6):
-    log = tenacity.before_sleep_log(chatgpt.logger, logging.WARNING)
-    retry_exceptions = (
-        openai.error.Timeout,
-        openai.error.APIError,
-        openai.error.APIConnectionError,
-        openai.error.RateLimitError,
-        openai.error.ServiceUnavailableError,
-    )
-
-    return tenacity.retry(
-        reraise=True,
-        stop=tenacity.stop_after_attempt(max_attempts),
-        wait=tenacity.wait_random_exponential(min=min_wait, max=max_wait),
-        retry=tenacity.retry_if_exception_type(retry_exceptions),
-        before_sleep=log,
-    )
+if typing.TYPE_CHECKING:
+    import chatgpt.events
+    import chatgpt.tools
 
 
 def tokens(string: str, model: chatgpt.core.SupportedModel):
@@ -121,63 +101,3 @@ def tokens_cost(
         cost = 0.12 if is_reply else 0.06
 
     return float(tokens) / 1000 * cost
-
-
-@retry()
-async def completion(
-    **kwargs: typing.Any,
-) -> typing.AsyncIterator[dict] | dict:
-    """Use tenacity to retry the async completion call."""
-    return await openai.ChatCompletion.acreate(**kwargs)  # type: ignore
-
-
-def parse_completion(
-    completion: dict,
-    model: chatgpt.core.SupportedModel,
-) -> chatgpt.core.ModelMessage:
-    """Parse a completion response from the OpenAI API. Returns the appropriate
-    model message. Required fields are set to default values if not present."""
-    choice: dict = completion["choices"][0]
-    message: dict = choice.get("message") or choice.get("delta") or {}
-
-    # parse message
-    content = message.get("content") or ""
-    if function_call := message.get("function_call"):
-        reply_dict: dict = json.loads(str(function_call))
-        name = reply_dict.get("name") or ""  # default to empty name
-        args = reply_dict.get("arguments") or "{}"  # default to empty dict
-
-        reply = chatgpt.core.ToolUsage(name, args)
-        reply.content = content
-    else:  # default to a model message
-        reply = chatgpt.core.ModelMessage(content)
-
-    # load metadata
-    reply = _parse_usage(completion, reply, model)
-    reply = _parse_finish_reason(completion, reply)
-    return reply
-
-
-def _parse_finish_reason(completion, reply: chatgpt.core.ModelMessage):
-    finish_reason = completion["choices"][0]["finish_reason"]
-    if not finish_reason:
-        reply.finish_reason = chatgpt.core.FinishReason.UNDEFINED
-        return reply
-    reply.finish_reason = chatgpt.core.FinishReason(finish_reason)
-    return reply
-
-
-def _parse_usage(completion, reply: chatgpt.core.ModelMessage, model):
-    try:  # default to 0 if not present
-        prompt_tokens = completion["usage"]["prompt_tokens"]
-        reply_tokens = completion["usage"]["completion_tokens"]
-    except KeyError:
-        prompt_tokens = 0
-        reply_tokens = 0
-
-    prompt_cost = tokens_cost(prompt_tokens, model, is_reply=False)
-    completion_cost = tokens_cost(reply_tokens, model, is_reply=True)
-    reply.cost = prompt_cost + completion_cost
-    reply.prompt_tokens = prompt_tokens
-    reply.reply_tokens = reply_tokens
-    return reply

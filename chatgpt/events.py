@@ -6,7 +6,6 @@ import typing
 
 import chatgpt.core
 import chatgpt.tools
-import chatgpt.utils
 
 
 class EventsManager:
@@ -15,6 +14,18 @@ class EventsManager:
     def __init__(self, handlers: list["ModelEvent"] = []):
         self.handlers = handlers
         """The list of callback handlers."""
+
+    def add_handler(self, handler: "ModelEvent"):
+        """Add a callback handler."""
+        self.handlers.append(handler)
+
+    def remove_handler(self, handler: "ModelEvent"):
+        """Remove a callback handler."""
+        self.handlers.remove(handler)
+
+    async def trigger_model_run(self, input: typing.Any):
+        """Trigger the on_model_start event for all handlers."""
+        await self._trigger(ModelRun, input)
 
     async def trigger_model_start(
         self,
@@ -85,6 +96,18 @@ class ModelEvent(abc.ABC):
     @abc.abstractmethod
     def callback(cls) -> typing.Callable[[typing.Any], typing.Any]:
         """The callback function for the event."""
+
+
+class ModelRun(ModelEvent, abc.ABC):
+    """Event triggered when model starts running."""
+
+    @abc.abstractmethod
+    def on_model_run(self, input: typing.Any):
+        """Called when a model starts running."""
+
+    @classmethod
+    def callback(cls):
+        return cls.on_model_run
 
 
 class ModelStart(ModelEvent, abc.ABC):

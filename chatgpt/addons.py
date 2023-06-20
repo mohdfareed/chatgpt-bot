@@ -30,6 +30,10 @@ class ConsoleHandler(
         self.console = rich.console.Console()
         self.streaming = False
 
+    async def on_model_run(self, _):
+        # FIXME: is not called
+        rich.print(f"[bold blue]STARTING[/]")
+
     async def on_model_start(self, model, context, tools):
         self.streaming = model.streaming
         rich.print(f"[magenta]Model:[/] {model.model_name}")

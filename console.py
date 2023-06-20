@@ -40,7 +40,7 @@ prompt = "You are a helpful assistant named ChatGPT."
 model = chatgpt.model.ChatModel(
     model=model_config,
     memory=memory,
-    # tools=search_tools,  # type: ignore
+    tools=search_tools,  # type: ignore
     handlers=[console_handler],
 )
 
@@ -55,7 +55,7 @@ message = chatgpt.core.UserMessage(
 # %%
 async def main():
     try:
-        task = asyncio.create_task(model.start(message))
+        task = asyncio.create_task(model.run(message))
         # await asyncio.sleep(15)
         # await model.cancel()
         await task

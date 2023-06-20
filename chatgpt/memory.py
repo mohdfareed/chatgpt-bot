@@ -1,7 +1,8 @@
 """The memory of models."""
 
 import chatgpt.core
-import chatgpt.utils
+import chatgpt.openai
+import chatgpt.tokenization
 import database as db
 
 SUMMARIZATION = """\
@@ -68,16 +69,24 @@ class ChatMemory:
             return self.chat_history.messages
 
         buffer = self.chat_history.messages
-        buffer_size = chatgpt.utils.messages_tokens(
+        buffer_size = chatgpt.tokenization.messages_tokens(
             buffer, self.tokenization_model
         )
 
         pruned_memory: list[chatgpt.core.Message] = []
         while buffer_size > self.short_memory_size:
             pruned_memory.append(buffer.pop(0))
-            buffer_size = chatgpt.utils.messages_tokens(
+            buffer_size = chatgpt.tokenization.messages_tokens(
                 buffer, self.tokenization_model
             )
+
+        # REVIEW: loop over buffer until size of both the buffer and summary
+        # combined is less than memory_size. Each iteration, keep popping from
+        # the buffer until the combined size is less than memory_size. Then
+        # summarize the popped messages along the current summary. Keep
+        # repeating until both the summary and buffer are under memory_size.
+        # internal summarizer uses the same technique to summarize the buffer
+        # if it is too large (internally defined size).
 
         self.summary = self._summarize(pruned_memory)
         return [self.summary] + buffer
