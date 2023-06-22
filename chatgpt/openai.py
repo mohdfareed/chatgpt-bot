@@ -1,4 +1,4 @@
-"""Utilities used by ChatGPT."""
+"""OpenAI API models interface."""
 
 import asyncio
 import json
@@ -50,19 +50,15 @@ class OpenAIModel:
         if interrupted:  # trigger interrupt event
             await self.events_manager.trigger_model_interrupt()
 
-    async def run(self, *args, **kwargs):
-        """Run the model to generate a response to messages."""
-        # main entry point for generating a response
-        # it is extended to customize the model's inputs and outputs
+    async def _run_model(
+        self, core_logic: typing.Coroutine[typing.Any, typing.Any, T]
+    ) -> T:
         if self._running or self._generator is not None:
             raise chatgpt.core.ModelError("Model is already running")
 
         try:  # generate reply
             self._running = True
-            await self.events_manager.trigger_model_run(input)
-            reply = await self._run_model(*args, **kwargs)
-            if isinstance(reply, chatgpt.core.ModelMessage):
-                await self.events_manager.trigger_model_reply(reply)
+            reply = await core_logic
         except Exception as e:  # handle errors
             await self.events_manager.trigger_model_error(e)
             raise chatgpt.core.ModelError("Failed to generate a reply") from e
@@ -70,11 +66,6 @@ class OpenAIModel:
             self._generator = None
             self._running = False
         return reply
-
-    async def _run_model(self, input) -> chatgpt.core.ModelMessage | None:
-        # the model's main loop
-        # it is overridden to customize the model's behavior
-        return await self._generate_reply(input)
 
     async def _generate_reply(self, messages: list[chatgpt.core.Message]):
         # generate a reply to a list of messages

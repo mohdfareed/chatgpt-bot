@@ -22,10 +22,14 @@ class ChatModel(chatgpt.openai.OpenAIModel):
         """The memory of the model."""
 
     async def run(self, new_message: chatgpt.core.UserMessage):
-        """Generate a response to a new message."""
-        return await super().run(new_message)
+        """Run the model."""
+        await self.events_manager.trigger_model_run(new_message)
+        reply = await self._run_model(self._core_logic(new_message))
+        if isinstance(reply, chatgpt.core.ModelMessage):
+            await self.events_manager.trigger_model_reply(reply)
+        return reply
 
-    async def _run_model(self, new_message):
+    async def _core_logic(self, new_message: chatgpt.core.UserMessage):
         self.memory.chat_history.add_message(new_message)
         reply = None
 

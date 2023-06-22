@@ -1,4 +1,4 @@
-"""Tokenization functions for chatgpt."""
+"""Tokenization functions of models."""
 
 import typing
 
@@ -7,7 +7,6 @@ import tiktoken
 import chatgpt.core
 
 if typing.TYPE_CHECKING:
-    import chatgpt.events
     import chatgpt.tools
 
 
