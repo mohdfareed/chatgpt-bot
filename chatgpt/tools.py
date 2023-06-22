@@ -17,10 +17,11 @@ class ToolsManager:
     async def use(self, tool_usage: chatgpt.core.ToolUsage):
         """Execute a tool."""
         tool = self._get_tool(tool_usage.tool_name)
+        result = None
         try:  # get the tool's result
             result = await tool.use(**tool_usage.arguments)
         except (asyncio.CancelledError, KeyboardInterrupt):
-            result = None  # canceled
+            pass  # canceled
         except Exception as e:
             result = str(e)  # return error message
 

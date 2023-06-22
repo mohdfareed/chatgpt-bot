@@ -1,6 +1,5 @@
 """Utilities used by ChatGPT."""
 
-import abc
 import asyncio
 import json
 import logging
@@ -39,7 +38,7 @@ class OpenAIModel:
         """The events manager of callback handlers."""
 
     async def stop(self):
-        """Cancel the model's generation."""
+        """Stop the model from running."""
         interrupted = False
         if self._generator is not None:
             self._generator.cancel()
@@ -51,56 +50,63 @@ class OpenAIModel:
         if interrupted:  # trigger interrupt event
             await self.events_manager.trigger_model_interrupt()
 
-    async def run(self, messages: list[chatgpt.core.Message]):
-        """Generate a response."""
+    async def run(self, *args, **kwargs):
+        """Run the model to generate a response to messages."""
+        # main entry point for generating a response
+        # it is extended to customize the model's inputs and outputs
         if self._running or self._generator is not None:
             raise chatgpt.core.ModelError("Model is already running")
 
         try:  # generate reply
             self._running = True
-            reply = await self._run_model(messages)
-        except Exception as e:
+            await self.events_manager.trigger_model_run(input)
+            reply = await self._run_model(*args, **kwargs)
+            if isinstance(reply, chatgpt.core.ModelMessage):
+                await self.events_manager.trigger_model_reply(reply)
+        except Exception as e:  # handle errors
             await self.events_manager.trigger_model_error(e)
+            raise chatgpt.core.ModelError("Failed to generate a reply") from e
+        finally:  # cleanup
             self._generator = None
             self._running = False
-            raise chatgpt.core.ModelError("Failed to generate reply") from e
         return reply
 
-    async def _run_model(self, input: list[chatgpt.core.Message]):
-        # model specific implementation
-        await self.events_manager.trigger_model_run(input)
-        reply = await self._generate_reply(input)
-        if reply:
-            await self.events_manager.trigger_model_reply(reply)
-        return reply
+    async def _run_model(self, input) -> chatgpt.core.ModelMessage | None:
+        # the model's main loop
+        # it is overridden to customize the model's behavior
+        return await self._generate_reply(input)
 
     async def _generate_reply(self, messages: list[chatgpt.core.Message]):
-        # generate reply
+        # generate a reply to a list of messages
         params = (self.model, messages, self.tools_manager.tools)
         await self.events_manager.trigger_model_start(*params)
-        reply = await self._request_completion(messages)
+        reply = await self._request_completion(*params)
 
-        if reply:  # fix reply metrics
-            await self.events_manager.trigger_model_end(reply)
-            reply.prompt_tokens = self._metrics.prompts_tokens
-            reply.reply_tokens = self._metrics.generated_tokens
-            reply.cost = self._metrics.cost
+        # trigger model end event if model was not canceled
+        if not isinstance(reply, chatgpt.core.ModelMessage):
+            return None  # canceled
+        await self.events_manager.trigger_model_end(reply)
+
+        # fix reply metrics
+        reply.prompt_tokens = self._metrics.prompts_tokens
+        reply.reply_tokens = self._metrics.generated_tokens
+        reply.cost = self._metrics.cost
         return reply
 
-    async def _request_completion(self, messages: list[chatgpt.core.Message]):
+    async def _request_completion(self, *params):
         # request response from openai
-        request = dict(
-            create_completion_params(self.model, messages, self.tools_manager)
-        )
+        request = dict(create_completion_params(*params))
         completion = await self._cancelable(generate_completion(**request))
+        if completion is None:  # canceled
+            return completion
 
-        reply = None
-        if self.model.streaming:  # stream response, process as it comes in
-            reply = await self._cancelable(self._stream_completion(completion))  # type: ignore
-        elif completion:  # process response if not streaming
-            reply = parse_completion(completion, self.model.model_name)  # type: ignore
-            await self.events_manager.trigger_model_generation(reply)
+        # return streamed response if streaming
+        if self.model.streaming:  # triggers model generation events
+            return await self._cancelable(self._stream_completion(completion))  # type: ignore
 
+        # return processed response if not streaming
+        reply = parse_completion(completion, self.model.model_name)  # type: ignore
+        await self.events_manager.trigger_model_generation(reply)
         return reply
 
     async def _stream_completion(self, completion: typing.AsyncIterator):
@@ -192,12 +198,14 @@ class MessageAggregator:
     """Aggregates message chunks into a single message."""
 
     def __init__(self):
+        self._is_aggregating = False
         self.content = ""
         self.tool_name = None
         self.args_str = None
         self.finish_reason = chatgpt.core.FinishReason.UNDEFINED
 
     def add(self, message: chatgpt.core.ModelMessage):
+        self._is_aggregating = True
         self.content += message.content
         self.finish_reason = message.finish_reason
         if isinstance(message, chatgpt.core.ToolUsage):
@@ -206,13 +214,17 @@ class MessageAggregator:
 
     @property
     def reply(self):
-        if self.tool_name and self.args_str:
-            reply = chatgpt.core.ToolUsage(self.tool_name, self.args_str)
-            reply.content = self.content
-        elif self.tool_name or self.args_str:
-            raise chatgpt.core.ModelError("Invalid tool usage received")
-        else:
+        if not self._is_aggregating:
+            return None  # no messages received
+
+        # create reply from aggregated messages
+        if self.tool_name or self.args_str:
+            reply = chatgpt.core.ToolUsage(
+                self.tool_name or "", self.args_str or "", self.content
+            )
+        else:  # normal message
             reply = chatgpt.core.ModelMessage(self.content)
+
         reply.finish_reason = self.finish_reason
         return reply
 
@@ -239,9 +251,12 @@ def retry(min_wait=1, max_wait=60, max_attempts=6):
 @retry()
 async def generate_completion(
     **kwargs: typing.Any,
-) -> typing.AsyncIterator[dict] | dict:
-    """Use tenacity to retry the async completion call."""
-    return await openai.ChatCompletion.acreate(**kwargs)  # type: ignore
+) -> typing.AsyncIterator[dict] | dict | None:
+    """Generate a completion with retry. Returns None if canceled."""
+    try:
+        return await openai.ChatCompletion.acreate(**kwargs)  # type: ignore
+    except (asyncio.CancelledError, KeyboardInterrupt):
+        return None
 
 
 def create_completion_params(
