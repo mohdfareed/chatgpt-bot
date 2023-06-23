@@ -16,13 +16,14 @@ from chatgpt import OPENAI_API_KEY, SERPER_API_KEY
 
 
 class ConsoleHandler(
+    chatgpt.events.ModelRun,
     chatgpt.events.ModelStart,
+    chatgpt.events.ModelGeneration,
     chatgpt.events.ToolUse,
     chatgpt.events.ToolResult,
     chatgpt.events.ModelReply,
-    chatgpt.events.ModelError,
     chatgpt.events.ModelInterrupt,
-    chatgpt.events.ModelGeneration,
+    chatgpt.events.ModelError,
 ):
     """Prints model events to the console."""
 
@@ -31,8 +32,7 @@ class ConsoleHandler(
         self.streaming = False
 
     async def on_model_run(self, _):
-        # FIXME: is not called
-        rich.print(f"[bold blue]STARTING[/]")
+        rich.print(f"[bold blue]STARTING...[/]")
 
     async def on_model_start(self, model, context, tools):
         self.streaming = model.streaming

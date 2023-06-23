@@ -88,7 +88,6 @@ class OpenAIModel:
     async def _request_completion(self, *params):
         # request response from openai
         request = create_completion_params(*params)
-        print(request)  # TODO remove
         completion = await self._cancelable(generate_completion(**request))
         if completion is None:  # canceled
             return completion
