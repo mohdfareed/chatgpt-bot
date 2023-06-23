@@ -79,14 +79,16 @@ class OpenAIModel:
         await self.events_manager.trigger_model_end(reply)
 
         # fix reply metrics
-        reply.prompt_tokens = self._metrics.prompts_tokens
         reply.reply_tokens = self._metrics.generated_tokens
+        reply.prompt_tokens = self._metrics.prompts_tokens
+        reply.prompt_tokens += self._metrics.tools_tokens
         reply.cost = self._metrics.cost
         return reply
 
     async def _request_completion(self, *params):
         # request response from openai
-        request = dict(create_completion_params(*params))
+        request = create_completion_params(*params)
+        print(request)  # TODO remove
         completion = await self._cancelable(generate_completion(**request))
         if completion is None:  # canceled
             return completion
@@ -162,20 +164,29 @@ class MetricsHandler(chatgpt.events.ModelStart, chatgpt.events.ModelEnd):
         self.tools_tokens = chatgpt.tokenization.tools_tokens(
             self._tools, self._model
         )
-        # compute cost
-        self.cost = chatgpt.tokenization.tokens_cost(
-            self.prompts_tokens, self._model, is_reply=False
-        ) + chatgpt.tokenization.tokens_cost(
-            self.generated_tokens, self._model, is_reply=True
+
+        self.cost = (  # compute cost of all tokens
+            chatgpt.tokenization.tokens_cost(
+                self.prompts_tokens, self._model, is_reply=False
+            )
+            + chatgpt.tokenization.tokens_cost(
+                self.tools_tokens, self._model, is_reply=False
+            )
+            + chatgpt.tokenization.tokens_cost(
+                self.generated_tokens, self._model, is_reply=True
+            )
         )
 
         # if reply includes usage, compare to computed usage
         if message.prompt_tokens or message.reply_tokens:
-            if message.prompt_tokens != self.prompts_tokens:
+            if (
+                message.prompt_tokens
+                != self.prompts_tokens + self.tools_tokens
+            ):
                 chatgpt.logger.warning(
                     "Prompt tokens mismatch: {actual: %s, computed: %s}",
                     message.prompt_tokens,
-                    self.prompts_tokens,
+                    self.prompts_tokens + self.tools_tokens,
                 )
             if message.reply_tokens != self.generated_tokens:
                 chatgpt.logger.warning(
@@ -253,19 +264,26 @@ async def generate_completion(
 def create_completion_params(
     model: chatgpt.core.ModelConfig,
     messages: list[chatgpt.core.Message],
-    tools_manager: chatgpt.tools.ToolsManager,
-):
+    tools: list[chatgpt.tools.Tool],
+) -> dict:
     """Create the parameters for the OpenAI API call."""
     messages_dict = [m.to_message_dict() for m in messages]
+    tools_dict = [t.to_dict() for t in tools]
+
+    # can't send empty list of tools
+    if len(tools_dict) < 1:
+        tools_dict = None
+    # prepend model's system prompt
     if model.prompt:
         messages_dict.insert(0, model.prompt.to_message_dict())
-
+    # create parameters dict
     parameters = dict(
         messages=messages_dict,
-        functions=tools_manager.to_dict(),
-        **model.params(),
+        functions=tools_dict,
+        **model.to_dict(),
     )
-    return {k: v for k, v in parameters.items() if v is not None}
+    # remove None values
+    return _clean_params(parameters)  # type: ignore
 
 
 def parse_completion(
@@ -322,3 +340,19 @@ def _parse_usage(completion, reply: chatgpt.core.ModelMessage, model):
     reply.reply_tokens = reply_tokens
     reply.cost = prompt_cost + completion_cost
     return reply
+
+
+def _clean_params(params):
+    """Remove invalid values from completion parameters."""
+
+    if isinstance(params, dict):
+        for key, value in list(params.items()):
+            if isinstance(value, (list, dict, tuple, set)):
+                params[key] = _clean_params(value)
+            elif value is None or key is None:
+                del params[key]
+    elif isinstance(params, (list, set, tuple)):
+        params = type(params)(
+            _clean_params(item) for item in params if item is not None
+        )
+    return params

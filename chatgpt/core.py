@@ -118,11 +118,10 @@ class ModelConfig(Serializable):
         """Tokens penalty based on usage frequency, in range [-2.0, 2.0]."""
         super().__init__(**kwargs)
 
-    def params(self) -> dict[str, str | float | list[str] | None]:
-        """Return the model parameters for a generation request."""
+    def to_dict(self) -> dict[str, str | float | list[str] | None]:
+        """Convert the model configuration to an OpenAI dictionary."""
         func_call = "none" if self.allowed_tool == "" else self.allowed_tool
-
-        model_params = dict(
+        return dict(
             model=self.model_name,
             function_call=func_call,
             max_tokens=self.max_tokens,
@@ -131,8 +130,6 @@ class ModelConfig(Serializable):
             frequency_penalty=self.frequency_penalty,
             stream=self.streaming,
         )
-        # remove None values
-        return {k: v for k, v in model_params.items() if v is not None}
 
 
 class Message(Serializable, abc.ABC):
@@ -155,6 +152,7 @@ class Message(Serializable, abc.ABC):
         super().__init__(**kwargs)
 
     def to_message_dict(self):
+        """Convert the message to an OpenAI message dictionary."""
         message = dict(
             role=type(self).ROLE,
             content=self.content,
@@ -224,14 +222,13 @@ class ToolUsage(ModelMessage):
         return json.loads(self.args_str)
 
     def to_message_dict(self):
-        message_dict = dict(
+        return dict(
             super().to_message_dict(),
             function_call=dict(
                 name=self.tool_name,
                 arguments=self.args_str,
             ),
         )
-        return {k: v for k, v in message_dict.items() if v is not None}
 
 
 class SummaryMessage(SystemMessage):

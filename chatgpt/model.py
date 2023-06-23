@@ -44,10 +44,6 @@ class ChatModel(chatgpt.openai.OpenAIModel):
                 await self._use_tool(reply)
                 continue  # send results to model
             break  # no tool used or model stopped
-
-        # trigger events and return reply
-        if isinstance(reply, chatgpt.core.ModelMessage):
-            await self.events_manager.trigger_model_reply(reply)
         return reply
 
     async def _use_tool(self, usage: chatgpt.core.ToolUsage):

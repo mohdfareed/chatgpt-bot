@@ -11,14 +11,16 @@ import chatgpt.tools
 
 class TestTool(chatgpt.tools.Tool):
     def __init__(self):
-        self.name = "test"
-        self.description = ""  # text + 2
+        self.name = "hello134"  # name + 1
+        self.description = "Now hello world how are you"  # text + 2
 
         self.parameters = [
             chatgpt.tools.ToolParameter(
-                type="boolean",  # 2
-                name="test",  # name + 1
-                description="",  # text + 2
+                type="null",  # 2
+                name="testisatest",  # name + 1
+                # description="1",  # text + 2
+                # enum=["1"],  # 1
+                optional=True,  # 1
             ),
         ]
 
@@ -30,7 +32,13 @@ console_handler = chatgpt.addons.ConsoleHandler()
 memory = chatgpt.memory.ChatMemory(
     "00000", -1, -1, chatgpt.core.SupportedModel.CHATGPT, True
 )
-search_tools = [TestTool()]
+search_tools = [
+    TestTool(),
+    # TestTool(),
+    # TestTool(),
+    # TestTool(),
+    # TestTool(),
+]
 model_config = chatgpt.core.ModelConfig(
     model_name=chatgpt.core.SupportedModel.CHATGPT,
     # streaming=True,
@@ -44,21 +52,24 @@ model = chatgpt.model.ChatModel(
     handlers=[console_handler],
 )
 
-# %%
-memory.chat_history.clear()
-message = chatgpt.core.UserMessage(
-    "Hi, can you use the test function with random arguments you choose?"
-)
-# await model.generate(message)
-
 
 # %%
 async def main():
     try:
+        memory.chat_history.clear()
+
+        message = chatgpt.core.UserMessage("Hi")
+        # memory.chat_history.add_message(message)
+        # message = chatgpt.core.ToolUsage(
+        #     "test_test_test_test", "{'test': True, 'test2': False, 'test3': 1}"
+        # )
+        # memory.chat_history.add_message(message)
+
+        # message = chatgpt.core.UserMessage("How are you?")
         task = asyncio.create_task(model.run(message))
+        await task
         # await asyncio.sleep(15)
         # await model.cancel()
-        await task
     except:
         pass
 

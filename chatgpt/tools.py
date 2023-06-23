@@ -29,12 +29,6 @@ class ToolsManager:
             result = chatgpt.core.ToolResult(result, tool.name)
         return result
 
-    def to_dict(self):
-        """The tools available to the model as a dictionary."""
-        if len(self.tools) == 0:
-            return None
-        return [tool.to_dict() for tool in self.tools]
-
     def _get_tool(self, tool_name: str):
         """Get a tool by name."""
         for tool in self.tools:
@@ -46,12 +40,18 @@ class ToolsManager:
 class Tool(abc.ABC):
     """A tool that can be used by a model to generate replies."""
 
-    name: str
-    """The name of the tool."""
-    description: str
-    """A description of the tool."""
-    parameters: list["ToolParameter"]
-    """A list of parameters for the tool."""
+    def __init__(
+        self,
+        name: str,
+        description: str | None = None,
+        parameters: list["ToolParameter"] = [],
+    ):
+        self.name = name
+        """The name of the tool."""
+        self.description = description
+        """A description of the tool."""
+        self.parameters = parameters
+        """A list of parameters for the tool."""
 
     async def use(self, **kwargs: typing.Any):
         """Use the tool."""
@@ -64,14 +64,14 @@ class Tool(abc.ABC):
         pass
 
     def to_dict(self):
-        """Convert the tool to a json schema dictionary."""
+        """Convert the tool to an OpenAPI dictionary."""
         parameters = {param.name: param.to_dict() for param in self.parameters}
         req_params = [
             param.name for param in self.parameters if not param.optional
         ]
         req_params = req_params if len(req_params) > 0 else None
 
-        tool_dict = dict(
+        return dict(
             name=self.name,
             description=self.description,
             parameters=dict(
@@ -80,7 +80,6 @@ class Tool(abc.ABC):
                 required=req_params,
             ),
         )
-        return {k: v for k, v in tool_dict.items() if v is not None}
 
     def _validate_params(self, params: list[str]):
         possible_params = [param.name for param in self.parameters]
@@ -100,7 +99,7 @@ class ToolParameter:
     """A parameter of a tool."""
 
     @property
-    def name(self):
+    def name(self) -> str:
         return self._name
 
     @name.setter
@@ -113,7 +112,7 @@ class ToolParameter:
         self,
         type: str,
         name: str,
-        description: str,
+        description: str | None = None,
         enum: list[str] | None = None,
         optional: bool = False,
     ):
@@ -129,10 +128,9 @@ class ToolParameter:
         """Whether the parameter is optional."""
 
     def to_dict(self):
-        """Convert the parameter to a json schema dictionary."""
-        params = dict(
+        """Convert the parameter to an OpenAPI dictionary."""
+        return dict(
             type=self.type,
             enum=self.enum,
             description=self.description,
         )
-        return {k: v for k, v in params.items() if v is not None}
