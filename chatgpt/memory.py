@@ -1,22 +1,14 @@
 """The memory of models."""
 
 import chatgpt.core
+import chatgpt.events
 import chatgpt.openai
 import chatgpt.tokenization
 import database as db
 
-SUMMARIZATION = """\
+SUMMARIZATION_PROMPT = """\
 Progressively summarize the lines of the conversation provided, adding onto \
-the previous summary and returning a new summary.
-
-Current summary:
-{0}
-
-New lines of conversation:
-{1}
-
-New summary:
-"""
+the previous summary and returning a new summary."""
 """The prompt for summarizing a conversation."""
 
 
@@ -29,13 +21,13 @@ class ChatMemory:
     @property
     def summary(self) -> "chatgpt.core.SummaryMessage":
         """The summary of the conversation."""
-        message = self.chat_history.get_message(self.SUMMARY_MESSAGE_ID)
+        message = self.history.get_message(self.SUMMARY_MESSAGE_ID)
         return chatgpt.core.SummaryMessage.deserialize(message.serialize())
 
     @summary.setter
     def summary(self, text: str):
-        self.chat_history.remove_message(self.SUMMARY_MESSAGE_ID)
-        self.chat_history.add_message(chatgpt.core.SummaryMessage(text))
+        self.history.remove_message(self.SUMMARY_MESSAGE_ID)
+        self.history.add_message(chatgpt.core.SummaryMessage(text))
 
     def __init__(
         self,
@@ -53,22 +45,20 @@ class ChatMemory:
         """The max number of tokens the history summary can contain."""
         self.tokenization_model = tokenization_model
         """The model used for counting tokens against the memory size."""
-        self.chat_history = ChatHistory(session_id, im_memory)
+        self.history = ChatHistory(session_id, im_memory)
         """The chat history in the memory."""
 
         # create summarization model
-        self.model = chatgpt.core.ModelConfig()
-        """The summarization model configuration."""
-        self.prompt = chatgpt.core.Prompt(SUMMARIZATION, ["summary", "chat"])
-        """The summarization prompt."""
+        self.summarizer = SummarizationModel()
+        """The summarization model."""
 
     @property
     def messages(self) -> list[chatgpt.core.Message]:
         """The messages in the memory."""
         if self.short_memory_size < 0:
-            return self.chat_history.messages
+            return self.history.messages
 
-        buffer = self.chat_history.messages
+        buffer = self.history.messages
         buffer_size = chatgpt.tokenization.messages_tokens(
             buffer, self.tokenization_model
         )
@@ -88,12 +78,8 @@ class ChatMemory:
         # internal summarizer uses the same technique to summarize the buffer
         # if it is too large (internally defined size).
 
-        self.summary = self._summarize(pruned_memory)
+        # self.summary = self._summarize(pruned_memory)
         return [self.summary] + buffer
-
-    def _summarize(self, messages: list[chatgpt.core.Message]) -> str:
-        """Summarize messages."""
-        return ""
 
 
 class ChatHistory:
@@ -126,6 +112,7 @@ class ChatHistory:
 
     def add_message(self, message: chatgpt.core.Message):
         """Add a message to the chat history."""
+        # TODO: provide custom ID for message
         db.models.Message(
             self.session_id, content=message.serialize(), engine=self.engine
         ).save()
@@ -148,3 +135,44 @@ class ChatHistory:
                 self.session_id, engine=self.engine
             )
         )
+
+
+class SummarizationModel(chatgpt.openai.OpenAIModel):
+    """Chat history summarization model."""
+
+    def __init__(
+        self,
+        summarization_prompt=SUMMARIZATION_PROMPT,
+        temperature=0.9,
+        handlers: list[chatgpt.events.ModelEvent] = [],
+    ):
+        model = chatgpt.core.ModelConfig(
+            temperature=temperature,
+            prompt=summarization_prompt,
+        )
+        super().__init__(model, handlers=handlers)
+
+    async def run(
+        self,
+        prev_summary: chatgpt.core.SummaryMessage,
+        messages: list[chatgpt.core.Message],
+    ) -> chatgpt.core.SummaryMessage | None:
+        """Run the model."""
+        # start running the model
+        await self.events_manager.trigger_model_run((prev_summary, messages))
+        reply = await self._run_model(self._core_logic(prev_summary, messages))
+        # check if the model successfully summarized the messages
+        if isinstance(reply, chatgpt.core.ModelMessage):
+            await self.events_manager.trigger_model_reply(reply)
+            reply = chatgpt.core.SummaryMessage(reply.content)
+        # return the reply
+        return reply
+
+    async def _core_logic(
+        self,
+        previous_summary: chatgpt.core.SummaryMessage,
+        new_messages: list[chatgpt.core.Message],
+    ) -> chatgpt.core.ModelMessage | None:
+        messages = [previous_summary] + new_messages
+        reply = await self._generate_reply(messages)
+        return reply

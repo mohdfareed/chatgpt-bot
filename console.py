@@ -56,7 +56,7 @@ model = chatgpt.model.ChatModel(
 # %%
 async def main():
     try:
-        memory.chat_history.clear()
+        memory.history.clear()
 
         message = chatgpt.core.UserMessage("Hi")
         # memory.chat_history.add_message(message)

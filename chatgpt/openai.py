@@ -342,8 +342,6 @@ def _parse_usage(completion, reply: chatgpt.core.ModelMessage, model):
 
 
 def _clean_params(params):
-    """Remove invalid values from completion parameters."""
-
     if isinstance(params, dict):
         for key, value in list(params.items()):
             if isinstance(value, (list, dict, tuple, set)):
