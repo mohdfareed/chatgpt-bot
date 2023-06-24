@@ -6,6 +6,7 @@ import chatgpt.core
 import chatgpt.events
 import chatgpt.memory
 import chatgpt.model
+import chatgpt.supported_models
 import chatgpt.tools
 
 
@@ -30,7 +31,7 @@ class TestTool(chatgpt.tools.Tool):
 
 console_handler = chatgpt.addons.ConsoleHandler()
 memory = chatgpt.memory.ChatMemory(
-    "00000", -1, -1, chatgpt.core.SupportedModel.CHATGPT, True
+    "00000", -1, -1, chatgpt.supported_models.CHATGPT, True
 )
 search_tools = [
     TestTool(),
@@ -40,13 +41,13 @@ search_tools = [
     # TestTool(),
 ]
 model_config = chatgpt.core.ModelConfig(
-    model_name=chatgpt.core.SupportedModel.CHATGPT,
+    model_name=chatgpt.supported_models.CHATGPT,
     # streaming=True,
 )
 prompt = "You are a helpful assistant named ChatGPT."
 
 model = chatgpt.model.ChatModel(
-    model=model_config,
+    config=model_config,
     memory=memory,
     tools=search_tools,  # type: ignore
     handlers=[console_handler],

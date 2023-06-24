@@ -148,12 +148,12 @@ class SummarizationModel(chatgpt.openai.OpenAIModel):
         temperature=0.9,
         handlers: list[chatgpt.events.ModelEvent] = [],
     ):
-        model = chatgpt.core.ModelConfig(
+        config = chatgpt.core.ModelConfig(
             temperature=temperature,
             prompt=summarization_prompt,
             max_tokens=summary_size,
         )
-        super().__init__(model, handlers=handlers)
+        super().__init__(config, handlers=handlers)
         self.summary_size = summary_size
         """The max number of tokens the summary can contain."""
 
@@ -181,3 +181,43 @@ class SummarizationModel(chatgpt.openai.OpenAIModel):
         messages = [previous_summary] + new_messages
         reply = await self._generate_reply(messages)
         return reply
+
+        # # the buffer of messages to add to the summary
+        # buffer: list[chatgpt.core.Message] = [previous_summary]
+        # buffer_size = chatgpt.tokenization.messages_tokens(
+        #     buffer, self.config.model
+        # )
+        # # the remaining messages to summarize
+        # remaining_messages = new_messages[:]
+
+        # # summarize messages progressively
+        # while remaining_messages:
+        #     # take the first remaining message
+        #     message = remaining_messages[0]
+        #     message_size = calculate_size(message)
+
+        #     # If the size of the messages to summarize and the size of the message do not exceed the maximum size
+        #     if buffer_size + message_size <= self.config.max_tokens:
+        #         # Add the message to the messages to summarize
+        #         buffer.append(message)
+
+        #         # Add the size of the message to the size to summarize
+        #         buffer_size += message_size
+
+        #         # Remove the message from the remaining messages
+        #         remaining_messages.pop(0)
+        #     else:
+        #         # Summarize the messages to summarize
+        #         summary = summarize(messages_to_summarize)
+
+        #         # Update the list of messages to summarize with the summary
+        #         messages_to_summarize = [summary]
+
+        #         # Update the size of the messages to summarize with the size of the summary
+        #         buffer_size = calculate_size(summary)
+
+        # # Summarize the remaining messages to summarize
+        # summary = summarize(messages_to_summarize)
+
+        # # Return the summary
+        # return summary

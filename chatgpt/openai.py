@@ -22,7 +22,7 @@ class OpenAIModel:
 
     def __init__(
         self,
-        model: chatgpt.core.ModelConfig,
+        config: chatgpt.core.ModelConfig,
         tools: list[chatgpt.tools.Tool] = [],
         handlers: list[chatgpt.events.ModelEvent] = [],
     ) -> None:
@@ -31,7 +31,7 @@ class OpenAIModel:
         self._metrics = MetricsHandler()
         handlers = handlers + [self._metrics]
 
-        self.model = model
+        self.config = config
         """The model's configuration."""
         self.tools_manager = chatgpt.tools.ToolsManager(tools)
         """The manager of tools available to the model."""
@@ -70,7 +70,7 @@ class OpenAIModel:
 
     async def _generate_reply(self, messages: list[chatgpt.core.Message]):
         # generate a reply to a list of messages
-        params = (self.model, messages, self.tools_manager.tools)
+        params = (self.config, messages, self.tools_manager.tools)
         await self.events_manager.trigger_model_start(*params)
         reply = await self._request_completion(*params)
 
@@ -94,11 +94,11 @@ class OpenAIModel:
             return completion
 
         # return streamed response if streaming
-        if self.model.streaming:  # triggers model generation events
+        if self.config.streaming:  # triggers model generation events
             return await self._cancelable(self._stream_completion(completion))  # type: ignore
 
         # return processed response if not streaming
-        reply = parse_completion(completion, self.model.model)  # type: ignore
+        reply = parse_completion(completion, self.config.model)  # type: ignore
         await self.events_manager.trigger_model_generation(reply)
         return reply
 
@@ -106,7 +106,7 @@ class OpenAIModel:
         aggregator = MessageAggregator()
         try:  # start a task to parse the completion packets
             async for packet in completion:
-                reply = parse_completion(packet, self.model.model)
+                reply = parse_completion(packet, self.config.model)
                 await self.events_manager.trigger_model_generation(reply)
                 # aggregate messages into one
                 aggregator.add(reply)
@@ -262,7 +262,7 @@ async def generate_completion(
 
 
 def create_completion_params(
-    model: chatgpt.core.ModelConfig,
+    config: chatgpt.core.ModelConfig,
     messages: list[chatgpt.core.Message],
     tools: list[chatgpt.tools.Tool],
 ) -> dict:
@@ -274,13 +274,13 @@ def create_completion_params(
     if len(tools_dict) < 1:
         tools_dict = None
     # prepend model's system prompt
-    if model.prompt:
-        messages_dict.insert(0, model.prompt.to_message_dict())
+    if config.prompt:
+        messages_dict.insert(0, config.prompt.to_message_dict())
     # create parameters dict
     parameters = dict(
         messages=messages_dict,
         functions=tools_dict,
-        **model.to_dict(),
+        **config.to_dict(),
     )
     # remove None values
     return _clean_params(parameters)  # type: ignore
@@ -322,7 +322,11 @@ def _parse_finish_reason(completion, reply: chatgpt.core.ModelMessage):
     return reply
 
 
-def _parse_usage(completion, reply: chatgpt.core.ModelMessage, model):
+def _parse_usage(
+    completion,
+    reply: chatgpt.core.ModelMessage,
+    model: chatgpt.supported_models.SupportedModel,
+):
     try:  # default to 0 if not present
         prompt_tokens = completion["usage"]["prompt_tokens"]
         reply_tokens = completion["usage"]["completion_tokens"]

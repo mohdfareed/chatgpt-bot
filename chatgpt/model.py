@@ -12,12 +12,12 @@ class ChatModel(chatgpt.openai.OpenAIModel):
 
     def __init__(
         self,
-        model: chatgpt.core.ModelConfig,
+        config: chatgpt.core.ModelConfig,
         memory: chatgpt.memory.ChatMemory,
         tools: list[chatgpt.tools.Tool] = [],
         handlers: list[chatgpt.events.ModelEvent] = [],
     ) -> None:
-        super().__init__(model, tools, handlers)
+        super().__init__(config, tools, handlers)
         self.memory = memory
         """The memory of the model."""
 
