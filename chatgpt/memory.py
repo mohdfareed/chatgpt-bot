@@ -3,6 +3,7 @@
 import chatgpt.core
 import chatgpt.events
 import chatgpt.openai
+import chatgpt.supported_models
 import chatgpt.tokenization
 import database as db
 
@@ -18,6 +19,27 @@ class ChatMemory:
     SUMMARY_MESSAGE_ID = -1
     """The ID of the summary message in the chat history."""
 
+    def __init__(
+        self,
+        session_id: str,
+        short_memory_size: int,
+        long_memory_size: int,
+        tokenization_model: chatgpt.supported_models.SupportedModel,
+        im_memory: bool = False,
+    ):
+        """Initialize a chat summarization memory."""
+
+        self.memory_size = short_memory_size
+        """The max number of tokens the memory can contain."""
+        self.tokenization_model = tokenization_model
+        """The model used for counting tokens against the memory size."""
+        self.history = ChatHistory(session_id, im_memory)
+        """The chat history in the memory."""
+
+        # create summarization model
+        self.summarizer = SummarizationModel(long_memory_size)
+        """The summarization model."""
+
     @property
     def summary(self) -> "chatgpt.core.SummaryMessage":
         """The summary of the conversation."""
@@ -27,35 +49,13 @@ class ChatMemory:
     @summary.setter
     def summary(self, text: str):
         self.history.remove_message(self.SUMMARY_MESSAGE_ID)
-        self.history.add_message(chatgpt.core.SummaryMessage(text))
-
-    def __init__(
-        self,
-        session_id: str,
-        short_memory_size: int,
-        long_memory_size: int,
-        tokenization_model: chatgpt.core.SupportedModel,
-        im_memory: bool = False,
-    ):
-        """Initialize a chat summarization memory."""
-
-        self.short_memory_size = short_memory_size
-        """The max number of tokens the memory can contain."""
-        self.long_memory_size = long_memory_size
-        """The max number of tokens the history summary can contain."""
-        self.tokenization_model = tokenization_model
-        """The model used for counting tokens against the memory size."""
-        self.history = ChatHistory(session_id, im_memory)
-        """The chat history in the memory."""
-
-        # create summarization model
-        self.summarizer = SummarizationModel()
-        """The summarization model."""
+        new_summary = chatgpt.core.SummaryMessage(text)
+        self.history.add_message(new_summary, ChatMemory.SUMMARY_MESSAGE_ID)
 
     @property
     def messages(self) -> list[chatgpt.core.Message]:
         """The messages in the memory."""
-        if self.short_memory_size < 0:
+        if self.memory_size < 0:  # unlimited memory
             return self.history.messages
 
         buffer = self.history.messages
@@ -64,7 +64,7 @@ class ChatMemory:
         )
 
         pruned_memory: list[chatgpt.core.Message] = []
-        while buffer_size > self.short_memory_size:
+        while buffer_size > self.memory_size:
             pruned_memory.append(buffer.pop(0))
             buffer_size = chatgpt.tokenization.messages_tokens(
                 buffer, self.tokenization_model
@@ -110,11 +110,16 @@ class ChatHistory:
         ).load()
         return chatgpt.core.Message.deserialize(db_message.content)
 
-    def add_message(self, message: chatgpt.core.Message):
+    def add_message(
+        self, message: chatgpt.core.Message, message_id: int | None = None
+    ):
         """Add a message to the chat history."""
         # TODO: provide custom ID for message
         db.models.Message(
-            self.session_id, content=message.serialize(), engine=self.engine
+            self.session_id,
+            id=message_id,
+            content=message.serialize(),
+            engine=self.engine,
         ).save()
 
     def remove_message(self, message_id: int):
@@ -122,10 +127,6 @@ class ChatHistory:
         db.models.Message(
             id=message_id, session_id=self.session_id, engine=self.engine
         ).delete()
-
-    def load(self, messages: list[chatgpt.core.Message]) -> None:
-        """Load the chat history into the database."""
-        (self.add_message(message) for message in messages)
 
     def clear(self) -> None:
         """Clear the chat history."""
@@ -142,6 +143,7 @@ class SummarizationModel(chatgpt.openai.OpenAIModel):
 
     def __init__(
         self,
+        summary_size: int,
         summarization_prompt=SUMMARIZATION_PROMPT,
         temperature=0.9,
         handlers: list[chatgpt.events.ModelEvent] = [],
@@ -149,8 +151,11 @@ class SummarizationModel(chatgpt.openai.OpenAIModel):
         model = chatgpt.core.ModelConfig(
             temperature=temperature,
             prompt=summarization_prompt,
+            max_tokens=summary_size,
         )
         super().__init__(model, handlers=handlers)
+        self.summary_size = summary_size
+        """The max number of tokens the summary can contain."""
 
     async def run(
         self,

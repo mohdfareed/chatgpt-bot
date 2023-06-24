@@ -29,12 +29,12 @@ class EventsManager:
 
     async def trigger_model_start(
         self,
-        model: chatgpt.core.ModelConfig,
+        config: chatgpt.core.ModelConfig,
         context: list[chatgpt.core.Message],
         tools: list[chatgpt.tools.Tool],
     ):
         """Trigger the on_model_start event for all handlers."""
-        await self._trigger(ModelStart, model, context, tools)
+        await self._trigger(ModelStart, config, context, tools)
 
     async def trigger_model_generation(
         self, packet: chatgpt.core.ModelMessage
@@ -116,7 +116,7 @@ class ModelStart(ModelEvent, abc.ABC):
     @abc.abstractmethod
     def on_model_start(
         self,
-        model: chatgpt.core.ModelConfig,
+        config: chatgpt.core.ModelConfig,
         context: list[chatgpt.core.Message],
         tools: list[chatgpt.tools.Tool],
     ):

@@ -3,23 +3,25 @@
 import tiktoken
 
 import chatgpt.core
+import chatgpt.supported_models
 import chatgpt.tools
 
 
-def tokens(string: str, model: chatgpt.core.SupportedModel):
+def tokens(string: str, model: chatgpt.supported_models.SupportedModel):
     """Get the number of tokens in a string using the model's tokenizer.
     Defaults to 'cl100k_base' if the model does not have a tokenizer.
     """
 
     try:  # check if a model tokenizer is available
-        encoding = tiktoken.encoding_for_model(model)
+        encoding = tiktoken.encoding_for_model(model.name)
     except:  # the default tokenizer
         encoding = tiktoken.get_encoding("cl100k_base")
     return len(encoding.encode(string))
 
 
 def messages_tokens(
-    messages: list[chatgpt.core.Message], model: chatgpt.core.SupportedModel
+    messages: list[chatgpt.core.Message],
+    model: chatgpt.supported_models.SupportedModel,
 ):
     """Get the number of tokens in a list of messages."""
 
@@ -30,7 +32,8 @@ def messages_tokens(
 
 
 def message_tokens(
-    message: chatgpt.core.Message, model: chatgpt.core.SupportedModel
+    message: chatgpt.core.Message,
+    model: chatgpt.supported_models.SupportedModel,
 ):
     """Get the number of tokens in a message."""
     count = 0
@@ -47,7 +50,8 @@ def message_tokens(
 
 
 def tools_tokens(
-    tools: list[chatgpt.tools.Tool], model: chatgpt.core.SupportedModel
+    tools: list[chatgpt.tools.Tool],
+    model: chatgpt.supported_models.SupportedModel,
 ):
     """Get the number of tokens in a list of tools."""
     # FIXME: this is a very rough estimate
@@ -68,7 +72,7 @@ def tools_tokens(
 
 def model_tokens(
     generation: chatgpt.core.ModelMessage,
-    model: chatgpt.core.SupportedModel,
+    model: chatgpt.supported_models.SupportedModel,
     has_tools=False,
 ):
     """Get the number of tokens in a model generation results."""
@@ -84,16 +88,8 @@ def model_tokens(
 
 
 def tokens_cost(
-    tokens: int, model: chatgpt.core.SupportedModel, is_reply: bool
+    tokens: int, model: chatgpt.supported_models.SupportedModel, is_reply: bool
 ):
     """Get the cost for a number of tokens in USD."""
-    # read https://openai.com/pricing/ for more information
-    if model is chatgpt.core.SupportedModel.CHATGPT:
-        cost = 0.002 if is_reply else 0.0015
-    elif model is chatgpt.core.SupportedModel.CHATGPT_16K:
-        cost = 0.004 if is_reply else 0.003
-    elif model is chatgpt.core.SupportedModel.GPT4:
-        cost = 0.06 if is_reply else 0.03
-    elif model is chatgpt.core.SupportedModel.GPT4_32K:
-        cost = 0.12 if is_reply else 0.06
+    cost = model.output_cost if is_reply else model.input_cost
     return float(tokens) / 1000 * cost

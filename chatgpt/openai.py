@@ -10,6 +10,7 @@ import tenacity
 
 import chatgpt.core
 import chatgpt.events
+import chatgpt.supported_models
 import chatgpt.tokenization
 import chatgpt.tools
 
@@ -97,7 +98,7 @@ class OpenAIModel:
             return await self._cancelable(self._stream_completion(completion))  # type: ignore
 
         # return processed response if not streaming
-        reply = parse_completion(completion, self.model.model_name)  # type: ignore
+        reply = parse_completion(completion, self.model.model)  # type: ignore
         await self.events_manager.trigger_model_generation(reply)
         return reply
 
@@ -105,7 +106,7 @@ class OpenAIModel:
         aggregator = MessageAggregator()
         try:  # start a task to parse the completion packets
             async for packet in completion:
-                reply = parse_completion(packet, self.model.model_name)
+                reply = parse_completion(packet, self.model.model)
                 await self.events_manager.trigger_model_generation(reply)
                 # aggregate messages into one
                 aggregator.add(reply)
@@ -136,8 +137,8 @@ class MetricsHandler(chatgpt.events.ModelStart, chatgpt.events.ModelEnd):
         self.cost: float
         """The total cost of all generations."""
 
-    async def on_model_start(self, model, context, tools):
-        self._model = model.model_name
+    async def on_model_start(self, config, context, tools):
+        self._model = config.model
         self._prompts = context
         self._tools = tools
         # reset metrics
@@ -287,7 +288,7 @@ def create_completion_params(
 
 def parse_completion(
     completion: dict,
-    model: chatgpt.core.SupportedModel,
+    model: chatgpt.supported_models.SupportedModel,
 ) -> chatgpt.core.ModelMessage:
     """Parse a completion response from the OpenAI API. Returns the appropriate
     model message. Required fields are set to default values if not present."""

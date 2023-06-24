@@ -5,6 +5,8 @@ import enum
 import json
 import typing
 
+import chatgpt.supported_models
+
 T = typing.TypeVar("T", bound="Serializable")
 
 
@@ -52,52 +54,12 @@ class Serializable(abc.ABC):
         return None
 
 
-class SupportedModel(enum.StrEnum):
-    """The supported GPT models."""
-
-    CHATGPT = "gpt-3.5-turbo-0613"
-    """The GPT-3.5 model."""
-    CHATGPT_16K = "gpt-3.5-turbo-16k"
-    """The GPT-3.5 model with a 16k token limit."""
-    GPT4 = "gpt-4"
-    """The GPT-4 model."""
-    GPT4_32K = "gpt-4-32k"
-    """The GPT-4 model with a 32k token limit."""
-
-    @classmethod
-    def gpt3_models(cls):
-        """The GPT-3.5 models."""
-        return [cls.CHATGPT, cls.CHATGPT_16K]
-
-    @classmethod
-    def gpt4_models(cls):
-        """The GPT-4 models."""
-        return [cls.GPT4, cls.GPT4_32K]
-
-
-class FinishReason(enum.StrEnum):
-    """The possible reasons for a completion to finish."""
-
-    DONE = "stop"
-    """The full completion was generated."""
-    TOOL_USE = "function_call"
-    """The model is using a tool."""
-    LIMIT_REACHED = "length"
-    """The token limit or maximum completion tokens was reached."""
-    FILTERED = "content_filter"
-    """Completion content omitted due to content filter."""
-    CANCELLED = "canceled"
-    """The completion was canceled by the user."""
-    UNDEFINED = "null"
-    """The completion is still in progress or incomplete."""
-
-
 class ModelConfig(Serializable):
     """ChatGPT model configuration and parameters."""
 
     def __init__(self, **kwargs: typing.Any) -> None:
-        self.model_name = SupportedModel.CHATGPT
-        """The name of the model used for chat completions."""
+        self.model = chatgpt.supported_models.CHATGPT
+        """The the model used for chat completions."""
         self.allowed_tool: str | None = None
         """The name of the tool the model must call. Set to an empty string to
         disable tool usage. Defaults to using any tool."""
@@ -122,7 +84,7 @@ class ModelConfig(Serializable):
         """Convert the model configuration to an OpenAI dictionary."""
         func_call = "none" if self.allowed_tool == "" else self.allowed_tool
         return dict(
-            model=self.model_name,
+            model=self.model.name,
             function_call=func_call,
             max_tokens=self.max_tokens,
             temperature=self.temperature,
@@ -240,29 +202,24 @@ class SummaryMessage(SystemMessage):
         return "summary_of_previous_messages"
 
 
-class Prompt(Serializable):
-    """A prompt to be used in a generation request."""
+class FinishReason(enum.StrEnum):
+    """The possible reasons for a completion to finish."""
 
-    def __init__(
-        self, template: str, variables: list[str], **kwargs: typing.Any
-    ):
-        self.template = template
-        """The template of the prompt."""
-        self.variables = variables
-        """The variables in the prompt."""
-        super().__init__(**kwargs)
-
-    def load(self, **kwargs: str):
-        """Load the prompt with variables."""
-        self._validate_args(**kwargs)
-        return self.template.format(**kwargs)
-
-    def _validate_args(self, **kwargs):
-        """Validate the arguments (variables) the prompt."""
-        for arg in kwargs:
-            if arg not in self.variables:
-                raise ValueError(f"Invalid argument: {arg}")
+    DONE = "stop"
+    """The full completion was generated."""
+    TOOL_USE = "function_call"
+    """The model is using a tool."""
+    LIMIT_REACHED = "length"
+    """The token limit or maximum completion tokens was reached."""
+    FILTERED = "content_filter"
+    """Completion content omitted due to content filter."""
+    CANCELLED = "canceled"
+    """The completion was canceled by the user."""
+    UNDEFINED = "null"
+    """The completion is still in progress or incomplete."""
 
 
 class ModelError(Exception):
     """Exception raised for model errors."""
+
+    pass

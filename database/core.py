@@ -1,6 +1,7 @@
 """Database core functionality."""
 
 import typing
+from typing import Any
 
 import sqlalchemy as sql
 import sqlalchemy.exc as sql_exc
@@ -20,6 +21,11 @@ class DatabaseModel(orm.DeclarativeBase):
     database engine."""
     id: orm.Mapped[int] = orm.mapped_column(primary_key=True)
     """The model's unique ID."""
+
+    def __init__(self, id=None, **kw: Any):
+        if id is not None:
+            kw["id"] = id
+        super().__init__(**kw)
 
     def load(self):
         """Load the model instance from the database if it exists."""

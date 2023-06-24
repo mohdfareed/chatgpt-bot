@@ -36,7 +36,7 @@ class ConsoleHandler(
 
     async def on_model_start(self, model, context, tools):
         self.streaming = model.streaming
-        rich.print(f"[magenta]Model:[/] {model.model_name}")
+        rich.print(f"[magenta]Model:[/] {model.model}")
         rich.print(f"[magenta]Tools:[/] {', '.join(t.name for t in tools)}")
         for message in context:
             rich.print(message.serialize())
