@@ -24,7 +24,7 @@ class EventsManager:
         self.handlers.remove(handler)
 
     async def trigger_model_run(self, input: typing.Any):
-        """Trigger the on_model_start event for all handlers."""
+        """Trigger the on_model_run event for all handlers."""
         await self._trigger(ModelRun, input)
 
     async def trigger_model_start(

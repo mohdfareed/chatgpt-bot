@@ -3,9 +3,11 @@
 import typing
 
 import sqlalchemy as sql
+import sqlalchemy.ext.asyncio as async_sql
 import sqlalchemy.orm as orm
 import sqlalchemy_utils
 from sqlalchemy_utils.types.encrypted import encrypted_type
+from typing_extensions import override
 
 import database
 
@@ -14,92 +16,77 @@ _encrypted = sqlalchemy_utils.StringEncryptedType(
 )
 
 
-class User(database.core.DatabaseModel):
-    """A telegram user."""
-
-    __tablename__ = "users"
-
-    token_usage: orm.Mapped[int] = orm.mapped_column(default=0)
-    """The user's cumulative token usage."""
-    usage: orm.Mapped[float] = orm.mapped_column(default=0)
-    """The user's cumulative usage in USD."""
-
-    def __init__(self, id: int, **kw: typing.Any):
-        super().__init__(id=id, **kw)
-
-    @orm.validates("token_usage", "usage")
-    def validate_usage(self, _, value):
-        return _validate_usage(value)
-
-
-class Message(database.core.DatabaseModel):
-    """A message in a chat history."""
-
-    __tablename__ = "messages"
-
-    session_id: orm.Mapped[str] = orm.mapped_column()
-    """The session to which the message belongs."""
-    content: orm.Mapped[str] = orm.mapped_column(_encrypted)
-    """The message's contents."""
-
-    def __init__(self, session_id: str, **kw: typing.Any):
-        super().__init__(session_id=session_id, **kw)
-
-    @classmethod
-    def load_messages(cls, session_id: str, engine: sql.Engine | None = None):
-        """Load a chat history by its session ID."""
-
-        statement = sql.select(cls).where(cls.session_id == session_id)
-        with orm.Session(engine or database.core.engine()) as session:
-            return session.scalars(statement).all()
-
-
-class ChatModel(database.core.DatabaseModel):
-    """A ChatGPT model's parameters."""
-
-    __tablename__ = "models"
-
-    session_id: orm.Mapped[str] = orm.mapped_column(unique=True)
-    """The unique session to which the model belongs."""
-    parameters: orm.Mapped[str] = orm.mapped_column(_encrypted)
-    """The model's parameters."""
-
-    def __init__(self, session_id: str, **kw: typing.Any):
-        super().__init__(session_id=session_id, **kw)
-
-    def _loading_statement(self):
-        # load a model by its ID or session ID
-        return sql.select(ChatModel).where(
-            (ChatModel.id == self.id)
-            | (ChatModel.session_id == self.session_id)
-        )
-
-
 class Chat(database.core.DatabaseModel):
-    """A telegram private chat (user), group chat, forum, or channel."""
+    """A chat session with a chat model."""
 
     __tablename__ = "chats"
 
-    topic_id: orm.Mapped[int | None] = orm.mapped_column()
-    """The chat's topic ID. None for a general chat."""
-    token_usage: orm.Mapped[int] = orm.mapped_column()
-    """The chat's cumulative token usage."""
-    usage: orm.Mapped[float] = orm.mapped_column()
-    """The chat's cumulative usage in USD."""
+    chat_id: orm.Mapped[str] = orm.mapped_column(unique=True)
+    """The chat's unique ID."""
+    messages: orm.Mapped[list["Message"]] = orm.relationship()
+    """The chat's messages."""
+    data: orm.Mapped[str] = orm.mapped_column(_encrypted, default="{}")
+    """The chat's data."""
+
+    def __init__(
+        self,
+        id: int | None = None,
+        chat_id: str | None = None,
+        data: str | None = None,
+        engine: async_sql.AsyncEngine | None = None,
+        **kw: typing.Any
+    ):
+        super().__init__(
+            id=id,
+            chat_id=chat_id,
+            data=data,
+            engine=engine,
+            **kw,
+        )
+
 
     @property
-    def session_id(self):
-        """The chat's session ID."""
-        return f"{self.id}:{self.topic_id}"
+    @override
+    def _loading_statement(self):
+        return (
+            sql.select(type(self))
+            .where(
+                (type(self).id == self.id)
+                | (type(self).chat_id == self.chat_id)
+            )
+            .options(orm.selectinload(type(self).messages))
+        )
 
-    def __init__(self, id: int, topic_id: int | None = None, **kw: typing.Any):
-        super().__init__(id=id, topic_id=topic_id, **kw)
 
-    @orm.validates("token_usage", "usage")
-    def validate_usage(self, _, value):
-        return _validate_usage(value)
+class Message(database.core.DatabaseModel):
+    """A message in a chat."""
 
+    __tablename__ = "messages"
 
-def _validate_usage(usage):
-    assert usage >= 0, "Usage and token usage must be non-negative"
-    return usage
+    message_id: orm.Mapped[str] = orm.mapped_column()
+    """The message's ID. Unique within a chat."""
+    chat_id: orm.Mapped[str] = orm.mapped_column(sql.ForeignKey(Chat.chat_id))
+    """The ID of the chat to which the message belongs."""
+    data: orm.Mapped[str] = orm.mapped_column(_encrypted, default="{}")
+    """The message's data."""
+
+    def __init__(
+        self,
+        id: int | None = None,
+        message_id: str | None = None,
+        chat_id: str | None = None,
+        data: str | None = None,
+        engine: async_sql.AsyncEngine | None = None,
+        **kw: typing.Any
+    ):
+        super().__init__(
+            id=id,
+            message_id=message_id,
+            chat_id=chat_id,
+            data=data,
+            engine=engine,
+            **kw,
+        )
+
+    # message id and chat id are a unique combination
+    __table_args__ = (sql.UniqueConstraint("message_id", "chat_id"),)

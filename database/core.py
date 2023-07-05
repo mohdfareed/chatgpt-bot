@@ -1,79 +1,96 @@
 """Database core functionality."""
 
 import typing
-from typing import Any
 
 import sqlalchemy as sql
 import sqlalchemy.exc as sql_exc
+import sqlalchemy.ext.asyncio as async_sql
 import sqlalchemy.orm as orm
 import tenacity
 
 import database
 
-_engine: sql.Engine | None = None  # global database engine
+_engine: async_sql.AsyncEngine | None = None  # global database engine
 
 
-class DatabaseModel(orm.DeclarativeBase):
+class DatabaseModel(orm.DeclarativeBase, async_sql.AsyncAttrs):
     __abstract__ = True
 
-    engine: sql.Engine | None = None
-    """The database to which the object belongs. Defaults to the global
-    database engine."""
     id: orm.Mapped[int] = orm.mapped_column(primary_key=True)
     """The model's unique ID."""
 
-    def __init__(self, id=None, **kw: Any):
-        if id is not None:
-            kw["id"] = id
-        super().__init__(**kw)
+    @property
+    def _loading_statement(self):
+        """The statement used to load the model from the database."""
+        return (
+            sql.select(type(self))
+            .where((type(self).id == self.id))
+            .options(orm.selectinload("*"))
+        )
 
-    def load(self):
+    def __init__(
+        self, engine: async_sql.AsyncEngine | None = None, **kwargs: typing.Any
+    ):
+        self.engine = engine
+        """The database of the model. Defaults to the global database."""
+        super().__init__()
+        # set attributes
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+
+    async def load(self):
         """Load the model instance from the database if it exists."""
         try:
-            with orm.Session(self.engine or engine()) as session:
-                db_instance = session.query(type(self)).get(self.id)
-                self._overwrite(db_instance) if db_instance else None
+            engine = self.engine or await db_engine()
+            statement = self._loading_statement
+            async with async_sql.AsyncSession(engine) as session:
+                # async with session.begin(): # REVIEW: check if this is needed
+                db_model = await session.scalar(statement)
+            self._overwrite(db_model) if db_model else None
         except sql_exc.SQLAlchemyError as e:
             raise DatabaseError("Could not load model") from e
         return self
 
-    def save(self):
+    async def save(self):
         """Store the model in the database, overwriting it if it exists."""
         try:
-            with orm.Session(self.engine or engine()) as session:
-                db_instance = session.merge(self)
-                session.commit()
-                self._overwrite(db_instance)  # load updated instance
+            # use eager loading to prevent errors
+            engine = self.engine or await db_engine()
+            async with async_sql.AsyncSession(engine) as session:
+                async with session.begin():
+                    await session.merge(self)
+                    await session.commit()
         except sql_exc.SQLAlchemyError as e:
             raise DatabaseError("Could not save model") from e
-        return self
+        return
 
-    def delete(self):
+    async def delete(self):
         """Delete the model from the database if it exists."""
         try:
-            with orm.Session(self.engine or engine()) as session:
-                if db_obj := session.get(type(self), self.id):
-                    session.delete(db_obj)
-                    session.commit()
+            engine = self.engine or await db_engine()
+            async with async_sql.AsyncSession(engine) as session:
+                async with session.begin():
+                    if db_model := await session.get(type(self), self.id):
+                        await session.delete(db_model)
+                        await session.commit()
         except sql_exc.SQLAlchemyError as e:
             raise DatabaseError("Could not delete model") from e
         return self
 
     def _overwrite(self, other: typing.Self):
         for field in sql.inspect(type(self)).attrs.keys():
-            other_field = getattr(other, field)
+            other_field = getattr(other, field, None)
             setattr(self, field, other_field)
         return self
-
-    def _loading_statement(self):
-        return sql.select(type(self)).where(type(self).id == self.id)
 
 
 class DatabaseError(Exception):
     """Exception raised for database errors."""
 
+    pass
 
-def engine():
+
+async def db_engine():
     """Returns the database engine. If it is not initialized, database
     connection is established and the engine is created.
 
@@ -84,20 +101,21 @@ def engine():
 
     # start database if no engine is available
     if not _engine:
-        _engine = start_engine(database.url)
+        _engine = await start_engine(database.url)
     # validate and return engine
-    _validate_connection(_engine)
+    await _validate_connection(_engine)
     return _engine
 
 
-def start_engine(url):
+async def start_engine(url):
     """Start a new database engine."""
     # initialize database
-    database.logger.info("Initializing database...")
-    engine = sql.create_engine(url)
-    _validate_connection(engine)
+    engine = async_sql.create_async_engine(url)
+    await _validate_connection(engine)
+
     # create database schema
-    DatabaseModel.metadata.create_all(engine)
+    async with engine.begin() as connection:
+        await connection.run_sync(DatabaseModel.metadata.create_all)
     database.logger.info(f"Connected to database: {url}")
     return engine
 
@@ -109,8 +127,10 @@ def start_engine(url):
     retry=tenacity.retry_if_exception_type(ConnectionError),
     reraise=True,
 )
-def _validate_connection(engine):
+async def _validate_connection(engine: async_sql.AsyncEngine):
     try:  # creating a session to validate connection
-        orm.Session(engine).close()
+        async with async_sql.AsyncSession(engine) as session:
+            async with session.begin():
+                pass
     except Exception:
         raise ConnectionError("Failed to connect to database")

@@ -8,9 +8,10 @@ python-telegram-bot[webhooks,rate-limiter]
 beautifulsoup4
 
 # database
-sqlalchemy
+sqlalchemy[asyncio]
 sqlalchemy-utils
 cryptography
+aiosqlite  # async sqlite
 
 # environment
 python-dotenv

@@ -1,11 +1,14 @@
 """The memory of models."""
 
+from email import message
+
 import chatgpt.core
 import chatgpt.events
-import chatgpt.openai
-import chatgpt.supported_models
-import chatgpt.tokenization
+import chatgpt.openai.chat_model
+import chatgpt.openai.supported_models
+import chatgpt.openai.tokenization
 import database as db
+from chatgpt.core import Message, SummaryMessage
 
 SUMMARIZATION_PROMPT = """\
 Progressively summarize the lines of the conversation provided, adding onto \
@@ -16,129 +19,206 @@ the previous summary and returning a new summary."""
 class ChatMemory:
     """The memory of a chat conversation stored by a session ID."""
 
-    SUMMARY_MESSAGE_ID = -1
-    """The ID of the summary message in the chat history."""
-
     def __init__(
         self,
-        session_id: str,
+        chat_id: str,
         short_memory_size: int,
         long_memory_size: int,
-        tokenization_model: chatgpt.supported_models.SupportedModel,
-        im_memory: bool = False,
+        summarization_handlers: list[chatgpt.events.ModelEvent] = [],
     ):
         """Initialize a chat summarization memory."""
 
         self.memory_size = short_memory_size
         """The max number of tokens the memory can contain."""
-        self.tokenization_model = tokenization_model
-        """The model used for counting tokens against the memory size."""
-        self.history = ChatHistory(session_id, im_memory)
+        self.history = ChatHistory(chat_id)
         """The chat history in the memory."""
-
-        # create summarization model
-        self.summarizer = SummarizationModel(long_memory_size)
+        self.summarizer = SummarizationModel(
+            long_memory_size, handlers=summarization_handlers
+        )
         """The summarization model."""
 
+    async def initialize(self, in_memory: bool = False):
+        """Initialize the memory."""
+        await self.history.initialize(in_memory)
+
     @property
-    def summary(self) -> "chatgpt.core.SummaryMessage":
+    async def summary(self) -> SummaryMessage | None:
         """The summary of the conversation."""
-        message = self.history.get_message(self.SUMMARY_MESSAGE_ID)
-        return chatgpt.core.SummaryMessage.deserialize(message.serialize())
-
-    @summary.setter
-    def summary(self, text: str):
-        self.history.remove_message(self.SUMMARY_MESSAGE_ID)
-        new_summary = chatgpt.core.SummaryMessage(text)
-        self.history.add_message(new_summary, ChatMemory.SUMMARY_MESSAGE_ID)
+        message = await self.history.get_message(SummaryMessage.ID)
+        if message is None:
+            return None
+        if isinstance(message, SummaryMessage):
+            return message
+        raise TypeError(f"Expected {SummaryMessage}, got {type(message)}")
 
     @property
-    def messages(self) -> list[chatgpt.core.Message]:
+    async def messages(self) -> list[Message]:
         """The messages in the memory."""
+        # get all messages except the summary
+        (
+            short_memory,
+            history_messages,
+            summary,
+        ) = await self._retrieve_messages()
+
         if self.memory_size < 0:  # unlimited memory
-            return self.history.messages
-
-        buffer = self.history.messages
-        buffer_size = chatgpt.tokenization.messages_tokens(
-            buffer, self.tokenization_model
-        )
-
-        pruned_memory: list[chatgpt.core.Message] = []
-        while buffer_size > self.memory_size:
-            pruned_memory.append(buffer.pop(0))
-            buffer_size = chatgpt.tokenization.messages_tokens(
-                buffer, self.tokenization_model
+            return _create_prompt(
+                (await self.history.model).prompt,
+                summary,
+                history_messages,
+                short_memory,
             )
 
-        # REVIEW: loop over buffer until size of both the buffer and summary
-        # combined is less than memory_size. Each iteration, keep popping from
-        # the buffer until the combined size is less than memory_size. Then
-        # summarize the popped messages along the current summary. Keep
-        # repeating until both the summary and buffer are under memory_size.
-        # internal summarizer uses the same technique to summarize the buffer
-        # if it is too large (internally defined size).
+        # summarize the history
+        new_summary = await self.summarizer.run(summary, history_messages)
+        if not new_summary:  # no new summary
+            return _create_prompt(
+                (await self.history.model).prompt, summary, short_memory
+            )
+        # add the new summary to the history
+        new_summary.last_message_id = await self.history.get_id(
+            history_messages[-1].id
+        )
+        await self.history.add_message(new_summary)
+        return _create_prompt(
+            (await self.history.model).prompt, summary, short_memory
+        )
 
-        # self.summary = self._summarize(pruned_memory)
-        return [self.summary] + buffer
+    async def _retrieve_messages(
+        self,
+    ) -> tuple[list[Message], list[Message], SummaryMessage | None]:
+        short_memory: list[Message] = []
+        history_messages: list[Message] = []
+        summary: SummaryMessage | None = None
+
+        # get db messages
+        db_messages = await self.history.messages
+        db_messages.reverse()  # start from most recent
+        last_summarized_id: int | None = None  # id of last summarized message
+        for message in db_messages:
+            # retrieve the summary
+            if isinstance(message, SummaryMessage):
+                summary = message
+                last_summarized_id = summary.last_message_id
+                continue
+
+            # fill the short memory
+            new_memory = _create_prompt(message, short_memory)
+            if await self._calculate_size(new_memory) < self.memory_size:
+                short_memory.insert(0, message)
+                continue
+
+            # fill the un-summarized history
+            message_id = await self.history.get_id(message.id)
+            if last_summarized_id is None:
+                history_messages.insert(0, message)
+                continue  # un-summarized if no summary exists
+            if message_id is None:
+                history_messages.insert(0, message)
+                continue  # un-summarized if not in history
+
+            # un-summarized if after the last summarized message
+            if message_id > last_summarized_id:
+                history_messages.insert(0, message)
+                continue
+
+            break  # otherwise, the message is summarized, thus not in history
+
+        return short_memory, history_messages, summary
+
+    async def _calculate_size(self, messages: list[Message]) -> int:
+        return chatgpt.openai.tokenization.messages_tokens(
+            _create_prompt((await self.history.model).prompt, messages),
+            (await self.history.model).model,
+        )
 
 
 class ChatHistory:
-    """SQL implementation of a chat history stored by a session ID."""
+    """SQL implementation of a chat history stored by a serialized ID."""
 
-    def __init__(self, session_id: str, im_memory=False):
-        memory_engine = (  # set up in-memory database
-            db.core.start_engine("sqlite:///:memory:") if im_memory else None
-        )
+    def __init__(self, chat_id: str):
+        self.engine = None
+        """The history database engine."""
+        self.chat_id = chat_id
+        """The database chat ID."""
+
+    async def initialize(self, in_memory=False) -> None:
+        # set up in-memory database
+        if in_memory:
+            memory_engine = await db.core.start_engine(db.in_memory)
+        else:
+            memory_engine = None
         self.engine = memory_engine
-        self.session_id = session_id
+
+        # create the chat if it does not exist
+        chat = await db.models.Chat(chat_id=self.chat_id).load()
+        await chat.save()
 
     @property
-    def messages(self) -> list[chatgpt.core.Message]:
+    async def model(self) -> chatgpt.core.ModelConfig:
+        """The model of the chat."""
+        chat = await db.models.Chat(chat_id=self.chat_id).load()
+        if chat.data is not None:  # otherwise, model does not exist
+            return chatgpt.core.ModelConfig.deserialize(chat.data)
+        return chatgpt.core.ModelConfig()
+
+    @property
+    async def messages(self) -> list[Message]:
         """The messages in the chat history."""
-        messages = db.models.Message.load_messages(
-            session_id=self.session_id, engine=self.engine
-        )
+        chat = await db.models.Chat(chat_id=self.chat_id).load()
+        db_messages = list(chat.messages)
+        db_messages.sort(key=lambda m: m.id)
         return [
-            chatgpt.core.Message.deserialize(db_message.content)
-            for db_message in messages
+            Message.deserialize(db_message.data) for db_message in db_messages
         ]
 
-    def get_message(self, message_id: int) -> chatgpt.core.Message:
+    async def set_model(self, model: chatgpt.core.ModelConfig | None):
+        """Set the model of the chat."""
+        chat = await db.models.Chat(chat_id=self.chat_id).load()
+        chat.data = model.serialize() if model else "{}"
+        await chat.save()
+
+    async def get_message(self, id: str) -> Message | None:
         """Get a message from the chat history."""
-        db_message = db.models.Message(
-            id=message_id, session_id=self.session_id, engine=self.engine
+        db_message = await db.models.Message(
+            message_id=id, chat_id=self.chat_id, engine=self.engine
         ).load()
-        return chatgpt.core.Message.deserialize(db_message.content)
+        if db_message.id is not None:  # otherwise, message does not exist
+            return Message.deserialize(db_message.data)
+        return None
 
-    def add_message(
-        self, message: chatgpt.core.Message, message_id: int | None = None
-    ):
-        """Add a message to the chat history."""
-        # TODO: provide custom ID for message
-        db.models.Message(
-            self.session_id,
-            id=message_id,
-            content=message.serialize(),
+    async def add_message(self, message: Message):
+        """Add a message to the history. Overwrites existing message."""
+        db_message = await db.models.Message(
+            message_id=message.id,
+            chat_id=self.chat_id,
             engine=self.engine,
-        ).save()
+        ).load()
+        db_message.data = message.serialize()
+        await db_message.save()
 
-    def remove_message(self, message_id: int):
+    async def remove_message(self, id: str):
         """Remove a message from the chat history."""
-        db.models.Message(
-            id=message_id, session_id=self.session_id, engine=self.engine
+        await db.models.Message(
+            message_id=id, chat_id=self.chat_id, engine=self.engine
         ).delete()
 
-    def clear(self) -> None:
+    async def get_id(self, message_id: str) -> int | None:
+        """Get the database id of a message by its message id."""
+        db_message = await db.models.Message(
+            message_id=message_id,
+            chat_id=self.chat_id,
+            engine=self.engine,
+        ).load()
+        return db_message.id
+
+    async def clear(self) -> None:
         """Clear the chat history."""
-        (
-            message.delete()
-            for message in db.models.Message.load_messages(
-                self.session_id, engine=self.engine
-            )
-        )
+        chat = await db.models.Chat(chat_id=self.chat_id).load()
+        (await message.delete() for message in chat.messages)
 
 
-class SummarizationModel(chatgpt.openai.OpenAIModel):
+class SummarizationModel(chatgpt.openai.chat_model.OpenAIChatModel):
     """Chat history summarization model."""
 
     def __init__(
@@ -155,13 +235,13 @@ class SummarizationModel(chatgpt.openai.OpenAIModel):
         )
         super().__init__(config, handlers=handlers)
         self.summary_size = summary_size
-        """The max number of tokens the summary can contain."""
+        """The max number of tokens a generated summary will contain."""
 
     async def run(
         self,
-        prev_summary: chatgpt.core.SummaryMessage,
-        messages: list[chatgpt.core.Message],
-    ) -> chatgpt.core.SummaryMessage | None:
+        prev_summary: SummaryMessage | None,
+        messages: list[Message],
+    ) -> SummaryMessage | None:
         """Run the model."""
         # start running the model
         await self.events_manager.trigger_model_run((prev_summary, messages))
@@ -169,55 +249,77 @@ class SummarizationModel(chatgpt.openai.OpenAIModel):
         # check if the model successfully summarized the messages
         if isinstance(reply, chatgpt.core.ModelMessage):
             await self.events_manager.trigger_model_reply(reply)
-            reply = chatgpt.core.SummaryMessage(reply.content)
+            reply = SummaryMessage(reply.content)
         # return the reply
         return reply
 
     async def _core_logic(
         self,
-        previous_summary: chatgpt.core.SummaryMessage,
-        new_messages: list[chatgpt.core.Message],
+        previous_summary: SummaryMessage | None,
+        new_messages: list[Message],
     ) -> chatgpt.core.ModelMessage | None:
-        messages = [previous_summary] + new_messages
-        reply = await self._generate_reply(messages)
-        return reply
+        # start with the previous summary or an empty summary
+        summary = previous_summary or SummaryMessage("")
+        # the summarization prompt of the model
+        prompt = _create_prompt(self.config.prompt, summary)
 
-        # # the buffer of messages to add to the summary
-        # buffer: list[chatgpt.core.Message] = [previous_summary]
-        # buffer_size = chatgpt.tokenization.messages_tokens(
-        #     buffer, self.config.model
-        # )
-        # # the remaining messages to summarize
-        # remaining_messages = new_messages[:]
+        buffer: list[Message] = []  # the buffer of messages to summarize
+        remaining_messages = new_messages[:]  # the messages to summarize
+        usage = chatgpt.core.ModelMessage("")  # track usage through a reply
 
-        # # summarize messages progressively
-        # while remaining_messages:
-        #     # take the first remaining message
-        #     message = remaining_messages[0]
-        #     message_size = calculate_size(message)
+        # summarize messages progressively
+        while remaining_messages:
+            # take the first remaining message
+            message = remaining_messages[0]
+            total_size = self._calculate_size(
+                _create_prompt(prompt, buffer, message)
+            )
 
-        #     # If the size of the messages to summarize and the size of the message do not exceed the maximum size
-        #     if buffer_size + message_size <= self.config.max_tokens:
-        #         # Add the message to the messages to summarize
-        #         buffer.append(message)
+            # if the message can fit in the buffer
+            if total_size <= self.config.model.size:
+                # transfer the message to the buffer and continue
+                buffer.append(message)
+                remaining_messages.pop(0)
+                continue
 
-        #         # Add the size of the message to the size to summarize
-        #         buffer_size += message_size
+            else:  # summarize the current buffer otherwise
+                new_reply = await self._generate_reply(
+                    _create_prompt(prompt, buffer)
+                )
+                if not isinstance(new_reply, chatgpt.core.ModelMessage):
+                    return None  # model failed to generate a summary
 
-        #         # Remove the message from the remaining messages
-        #         remaining_messages.pop(0)
-        #     else:
-        #         # Summarize the messages to summarize
-        #         summary = summarize(messages_to_summarize)
+                # track the summary generation usage
+                usage.prompt_tokens += new_reply.prompt_tokens
+                usage.reply_tokens += new_reply.reply_tokens
+                usage.cost += new_reply.cost
 
-        #         # Update the list of messages to summarize with the summary
-        #         messages_to_summarize = [summary]
+                # update the summary and model prompt
+                summary.content = new_reply.content
+                prompt = _create_prompt(prompt, summary)
 
-        #         # Update the size of the messages to summarize with the size of the summary
-        #         buffer_size = calculate_size(summary)
+        # return the summary as a model message
+        usage.content = summary.content
+        return usage
 
-        # # Summarize the remaining messages to summarize
-        # summary = summarize(messages_to_summarize)
+    def _calculate_size(self, messages: list[Message]) -> int:
+        return chatgpt.openai.tokenization.messages_tokens(
+            _create_prompt(self.config.prompt, messages),
+            (self.config).model,
+        )
 
-        # # Return the summary
-        # return summary
+
+def _create_prompt(*messages: list | Message | None) -> list[Message]:
+    history = []
+    for message_item in messages:
+        if not message_item:
+            continue
+
+        if isinstance(message_item, Message):
+            history.append(message_item)
+
+        if isinstance(message_item, list):
+            for sub_item in message_item:
+                if sub_list := _create_prompt(sub_item):
+                    history.extend(sub_list)
+    return history

@@ -44,10 +44,10 @@ class ConsoleHandler(
     async def on_model_generation(self, packet):
         if not self.streaming:
             return
-        print(packet.content, end="", flush=True)
+        rich.print(packet.content, end="", flush=True)
         if isinstance(packet, chatgpt.core.ToolUsage):
-            print(packet.tool_name, end="", flush=True)
-            print(packet.args_str, end="", flush=True)
+            rich.print(packet.tool_name, end="", flush=True)
+            rich.print(packet.args_str, end="", flush=True)
 
     async def on_tool_use(self, usage):
         if self.streaming:

@@ -10,19 +10,19 @@ import tenacity
 
 import chatgpt.core
 import chatgpt.events
-import chatgpt.supported_models
-import chatgpt.tokenization
+import chatgpt.openai.supported_models
+import chatgpt.openai.tokenization
 import chatgpt.tools
 
 T = typing.TypeVar("T")
 
 
-class OpenAIModel:
+class OpenAIChatModel:
     """Class responsible for interacting with the OpenAI API."""
 
     def __init__(
         self,
-        config: chatgpt.core.ModelConfig,
+        config: chatgpt.core.ModelConfig = chatgpt.core.ModelConfig(),
         tools: list[chatgpt.tools.Tool] = [],
         handlers: list[chatgpt.events.ModelEvent] = [],
     ) -> None:
@@ -50,6 +50,22 @@ class OpenAIModel:
 
         if interrupted:  # trigger interrupt event
             await self.events_manager.trigger_model_interrupt()
+
+    async def run(self, messages: list[chatgpt.core.Message]):
+        """Run the model."""
+        # example implementation of the model's run method
+
+        # broadcast input and start running the model
+        await self.events_manager.trigger_model_run(messages)
+        reply = await self._run_model(self._core_logic(messages))
+        # broadcast reply if any
+        if isinstance(reply, chatgpt.core.ModelMessage):
+            await self.events_manager.trigger_model_reply(reply)
+        return reply
+
+    async def _core_logic(self, messages: list[chatgpt.core.Message]):
+        # example implementation of the model's core logic
+        return await self._generate_reply(messages)
 
     async def _run_model(
         self, core_logic: typing.Coroutine[typing.Any, typing.Any, T]
@@ -88,8 +104,8 @@ class OpenAIModel:
 
     async def _request_completion(self, *params):
         # request response from openai
-        request = create_completion_params(*params)
-        completion = await self._cancelable(generate_completion(**request))
+        request = _create_completion_params(*params)
+        completion = await self._cancelable(_generate_completion(**request))
         if completion is None:  # canceled
             return completion
 
@@ -98,7 +114,7 @@ class OpenAIModel:
             return await self._cancelable(self._stream_completion(completion))  # type: ignore
 
         # return processed response if not streaming
-        reply = parse_completion(completion, self.config.model)  # type: ignore
+        reply = _parse_completion(completion, self.config.model)  # type: ignore
         await self.events_manager.trigger_model_generation(reply)
         return reply
 
@@ -106,7 +122,7 @@ class OpenAIModel:
         aggregator = MessageAggregator()
         try:  # start a task to parse the completion packets
             async for packet in completion:
-                reply = parse_completion(packet, self.config.model)
+                reply = _parse_completion(packet, self.config.model)
                 await self.events_manager.trigger_model_generation(reply)
                 # aggregate messages into one
                 aggregator.add(reply)
@@ -141,6 +157,7 @@ class MetricsHandler(chatgpt.events.ModelStart, chatgpt.events.ModelEnd):
         self._model = config.model
         self._prompts = context
         self._tools = tools
+
         # reset metrics
         self.prompts_tokens = 0
         self.generated_tokens = 0
@@ -153,26 +170,26 @@ class MetricsHandler(chatgpt.events.ModelStart, chatgpt.events.ModelEnd):
             return
 
         # compute prompt tokens count
-        self.prompts_tokens = chatgpt.tokenization.messages_tokens(
+        self.prompts_tokens = chatgpt.openai.tokenization.messages_tokens(
             self._prompts, self._model
         )
         # compute generated tokens count
-        self.generated_tokens = chatgpt.tokenization.model_tokens(
+        self.generated_tokens = chatgpt.openai.tokenization.model_tokens(
             message, self._model, self.has_tools
         )
         # compute tools tokens count
-        self.tools_tokens = chatgpt.tokenization.tools_tokens(
+        self.tools_tokens = chatgpt.openai.tokenization.tools_tokens(
             self._tools, self._model
         )
 
         self.cost = (  # compute cost of all tokens
-            chatgpt.tokenization.tokens_cost(
+            chatgpt.openai.tokenization.tokens_cost(
                 self.prompts_tokens, self._model, is_reply=False
             )
-            + chatgpt.tokenization.tokens_cost(
+            + chatgpt.openai.tokenization.tokens_cost(
                 self.tools_tokens, self._model, is_reply=False
             )
-            + chatgpt.tokenization.tokens_cost(
+            + chatgpt.openai.tokenization.tokens_cost(
                 self.generated_tokens, self._model, is_reply=True
             )
         )
@@ -251,31 +268,27 @@ def retry(min_wait=1, max_wait=60, max_attempts=6):
 
 
 @retry()
-async def generate_completion(
+async def _generate_completion(
     **kwargs: typing.Any,
 ) -> typing.AsyncIterator[dict] | dict | None:
-    """Generate a completion with retry. Returns None if canceled."""
     try:
         return await openai.ChatCompletion.acreate(**kwargs)  # type: ignore
     except (asyncio.CancelledError, KeyboardInterrupt):
         return None
 
 
-def create_completion_params(
+def _create_completion_params(
     config: chatgpt.core.ModelConfig,
     messages: list[chatgpt.core.Message],
     tools: list[chatgpt.tools.Tool],
 ) -> dict:
-    """Create the parameters for the OpenAI API call."""
     messages_dict = [m.to_message_dict() for m in messages]
     tools_dict = [t.to_dict() for t in tools]
 
     # can't send empty list of tools
     if len(tools_dict) < 1:
         tools_dict = None
-    # prepend model's system prompt
-    if config.prompt:
-        messages_dict.insert(0, config.prompt.to_message_dict())
+
     # create parameters dict
     parameters = dict(
         messages=messages_dict,
@@ -286,12 +299,10 @@ def create_completion_params(
     return _clean_params(parameters)  # type: ignore
 
 
-def parse_completion(
+def _parse_completion(
     completion: dict,
-    model: chatgpt.supported_models.SupportedModel,
+    model: chatgpt.core.SupportedChatModel,
 ) -> chatgpt.core.ModelMessage:
-    """Parse a completion response from the OpenAI API. Returns the appropriate
-    model message. Required fields are set to default values if not present."""
     choice: dict = completion["choices"][0]
     message: dict = choice.get("message") or choice.get("delta") or {}
 
@@ -325,7 +336,7 @@ def _parse_finish_reason(completion, reply: chatgpt.core.ModelMessage):
 def _parse_usage(
     completion,
     reply: chatgpt.core.ModelMessage,
-    model: chatgpt.supported_models.SupportedModel,
+    model: chatgpt.core.SupportedChatModel,
 ):
     try:  # default to 0 if not present
         prompt_tokens = completion["usage"]["prompt_tokens"]
@@ -334,10 +345,10 @@ def _parse_usage(
         prompt_tokens = 0
         reply_tokens = 0
 
-    prompt_cost = chatgpt.tokenization.tokens_cost(
+    prompt_cost = chatgpt.openai.tokenization.tokens_cost(
         prompt_tokens, model, is_reply=False
     )
-    completion_cost = chatgpt.tokenization.tokens_cost(
+    completion_cost = chatgpt.openai.tokenization.tokens_cost(
         reply_tokens, model, is_reply=True
     )
     reply.prompt_tokens = prompt_tokens

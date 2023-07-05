@@ -11,7 +11,9 @@ _db_file = os.path.join(_root, "database.db")
 
 logger = logging.getLogger(__name__)
 """The database logger."""
-url = os.environ.get("DATABASE_URL") or f"sqlite:///{_db_file}"
+in_memory = "sqlite+aiosqlite:///:memory:"
+"""The in-memory database URL."""
+url = os.environ.get("DATABASE_URL") or f"sqlite+aiosqlite:///{_db_file}"
 """The database URL."""
 encryption_key = bytes(os.environ.get("ENCRYPTION_KEY", ""), "utf-8")
 """The database encryption key."""

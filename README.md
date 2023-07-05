@@ -116,51 +116,21 @@ fly logs -a {app name}
 
 ## Database
 
-The database is a docker container running a PostgreSQL database. It acts as a
-persistent storage for the bot. The database contains inforamtion that builds
-the context of the conversation. The following is the database schema:
+The database holds all information used by models. It is the memory used by all
+models. The database is encrypted using Fernet symmetric encryption. The
+following is the database schema:
 
 ```mermaid
 erDiagram
-    Chat ||--o{ Message : contains
-    Topic |o--o{ Message : contains
-    Chat ||--o{ Topic : has
-    User |o--o{ Message : sends
-    Message ||--o{ Message : replies_to
+    Chat ||--|{ Message : contains
+
     Chat {
         int id
-    }
-    Topic {
-        int id
-        int chat_id
-    }
-    User {
-        int id
+        encrypted data
     }
     Message {
         int id
         int chat_id
+        encrypted data
     }
 ```
-
-## Pre-Made System Prompts
-
-The bot comes with a few pre-made prompts that can be presented to the user.
-The prompts are stored in `chatgpt_bot/prompts.txt`. Text proceeding the first
-title is considered the default prompt for the bot. The default's prompt's
-name is `Default`, unless changed in the source code. Each prompt starts with
-a title and is followed by the prompt itself. The file has the following format:
-
-```markdown
-# Default (optional)
-The default prompt's content.
-
-# Title
-The prompt's content.
-
-# Another Title
-Another prompt's content.
-```
-
-The prompts' content is trimmed of leading and trailing whitespace, allowing
-for better organization of the prompts in the file.
