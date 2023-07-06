@@ -9,8 +9,6 @@ import telegram
 import telegram.ext as telegram_extensions
 
 import bot.models
-import database
-import database.models
 from bot import formatter, utils
 from chatgpt import memory
 
@@ -95,14 +93,18 @@ class UsageCommand(Command):
             return
 
         message = bot.models.TextMessage(update_message)
-        db_user = database.models.User(message.user.id).load()
-        db_chat = database.models.Chat(message.chat.id).load()
+        db_user = await bot.models.TelegramMetrics(
+            model_id=str(message.user.id)
+        ).load()
+        db_chat = await bot.models.TelegramMetrics(
+            model_id=message.chat_id
+        ).load()
 
         usage = (
             f"User usage: ${round(db_user.usage, 4)}\n"
-            f"    tokens: {db_user.token_usage}\n"
+            f"    tokens: {db_user.usage_cost}\n"
             f"Chat usage: ${round(db_chat.usage, 4)}\n"
-            f"    tokens: {db_chat.token_usage}"
+            f"    tokens: {db_chat.usage_cost}"
         )
         await utils.reply_code(update_message, usage)
 
@@ -117,7 +119,8 @@ class DeleteHistoryCommand(Command):
             return
 
         message = bot.models.TextMessage(update_message)
-        memory.ChatMemory.delete(database.url, message.session)
+        chat_history = await memory.ChatHistory.initialize(message.chat_id)
+        await chat_history.clear()
         await utils.reply_code(update_message, "Chat history deleted")
 
 
@@ -144,7 +147,7 @@ class PromptCommand(Command):
             raise ValueError("No text found in message or reply")
 
         # create new system message
-        utils.save_prompt(message.chat.id, message.topic_id, sys_message)
+        await utils.save_prompt(message, sys_message)
         await utils.reply_code(
             update_message, f"System prompt edited successfully"
         )
@@ -161,9 +164,8 @@ class GetSystemPrompt(Command):
 
         message = bot.models.TextMessage(update_message)
         text = (
-            utils.load_prompt(message.chat.id, message.topic_id)
-            or "No system prompt found"
-        )
+            await utils.load_prompt(message)
+        ).content or "No system prompt found"
         await utils.reply_code(update_message, text)
 
 

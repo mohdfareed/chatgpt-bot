@@ -1,27 +1,49 @@
 """Models of Telegram entities."""
 
+import typing
+
+import sqlalchemy as sql
+import sqlalchemy.ext.asyncio as async_sql
+import sqlalchemy.orm as orm
 import telegram
+from typing_extensions import override
+
+import chatgpt.core as chatgpt
+import database.core as database
 
 
 class TextMessage:
     """Telegram text message."""
 
-    id: int
-    """The message ID."""
-    topic_id = None
-    """The topic ID if any."""
-    chat: "TelegramChat"
-    """The chat in which the message was sent."""
-    user: "TelegramUser"
-    """The user who sent the message."""
-    reply = None
-    """The message to which this message is a reply if any."""
-    text: str
-    """The message text."""
+    def __init__(self, message: telegram.Message):
+        """Initialize a text message from a Telegram message."""
+        message_user = message.from_user or message.sender_chat or message.chat
+
+        self.id = message.message_id
+        """The message ID."""
+        self.topic_id: int | None = None
+        """The topic ID if any."""
+        self.chat = TelegramChat(message.chat)
+        """The chat in which the message was sent."""
+        self.user = TelegramUser(message_user)
+        """The user who sent the message."""
+        self.reply: TextMessage | None = None
+        """The message to which this message is a reply if any."""
+        self.text = message.text or message.caption or ""
+        """The message text."""
+        self.telegram_message = message
+        """The Telegram message instance."""
+
+        # fill-in the topic if any
+        if message.is_topic_message and message.message_thread_id:
+            self.topic_id = message.message_thread_id
+        # fill-in reply message if any
+        if reply := message.reply_to_message:
+            self.reply = TextMessage(reply)
 
     @property
-    def session(self) -> str:
-        """The session ID of the message."""
+    def chat_id(self) -> str:
+        """The chat ID used by the chat model."""
         return f"{self.chat.id}_{self.topic_id or ''}"
 
     @property
@@ -37,106 +59,98 @@ class TextMessage:
 
     def to_chat_message(self):
         """Convert the message to a chat model message."""
-        pass
-
-    @classmethod
-    def from_telegram_message(cls, message: telegram.Message) -> None:
-        """Initialize a text message from a Telegram message.
-
-        Args:
-            message (Message): The update's message.
-        """
-
-        # create message
-        message_instance = cls()
-        message_instance.id = message.message_id
-        message_instance.chat = TelegramChat.from_telegram_chat(message.chat)
-        message_instance.user = TelegramUser.from_telegram_user(
-            message.from_user or message.sender_chat or message.chat
-        )
-
-        # fill-in the topic if any
-        if message.is_topic_message and message.message_thread_id:
-            message_instance.topic_id = message.message_thread_id
-        # fill-in reply message if any
-        if reply := message.reply_to_message:
-            message_instance.reply = TextMessage(reply)
-
-        message_instance.text = message.text or message.caption or ""
-        return message_instance
+        return chatgpt.UserMessage(self.text, metadata=self.metadata)
 
 
 class TelegramChat:
     """Telegram chat."""
 
-    id: int
-    """The chat ID."""
-    title: str = ""
-    """The chat title if any."""
-    _username = None
+    def __init__(self, chat: telegram.Chat):
+        """Initialize a chat from a Telegram chat."""
+        self.id = chat.id
+        """The chat ID."""
+        self.title = chat.title or ""
+        """The chat title if any."""
+        self.telegram_chat = chat
+        """The Telegram chat instance."""
+        self._username = chat.username
 
     @property
     def username(self) -> str:
         """The chat's username. The chat title if no username."""
-
         return self._username or self.title
-
-    @classmethod
-    def from_telegram_chat(cls, chat: telegram.Chat) -> None:
-        """Initialize a chat from a Telegram chat.
-
-        Args:
-            chat (Chat): The update's chat.
-        """
-
-        chat_instance = cls()
-        chat_instance.id = chat.id
-        chat_instance.title = chat.title or chat_instance.title
-        chat_instance._username = chat.username
-        return chat_instance
 
 
 class TelegramUser:
     """Telegram user."""
 
-    id: int
-    """The user ID."""
-    first_name: str
-    """The user first name if any."""
-    last_name: str | None = None
-    """The user last name if any."""
-    _username = None
+    def __init__(self, user: telegram.User | telegram.Chat):
+        """Initialize a user from a Telegram user."""
+        self.id = user.id
+        """The user ID."""
+        self.first_name: str
+        """The user first name if any."""
+        self.last_name = user.last_name
+        """The user last name if any."""
+        self.telegram_user = user
+        """The Telegram user or chat instance."""
+        self._username = user.username
+
+        # fill-in first name
+        if isinstance(user, telegram.User):
+            self.first_name = user.first_name
+        else:  # first name for chats is the title
+            self.first_name = TelegramChat(user).title
 
     @property
     def username(self) -> str:
         """The user's username. The user's fullname if no username."""
-
         return self._username or self.fullname
 
     @property
     def fullname(self) -> str:
         """The user's fullname."""
-
         first_last = f"{self.first_name} {self.last_name or ''}"
         return first_last.strip()
 
-    @classmethod
-    def from_telegram_user(cls, user: telegram.User | telegram.Chat) -> None:
-        """Initialize a user from a Telegram user.
 
-        Args:
-            user (User): The update's user.
-        """
+class TelegramMetrics(database.DatabaseModel):
+    """Telegram metrics."""
 
-        user_instance = cls()
-        user_instance.id = user.id
-        user_instance._username = user.username
-        user_instance.last_name = user.last_name
+    __tablename__ = "telegram_metrics"
 
-        # first name is title for chats
-        if isinstance(user, telegram.Chat):
-            user_instance.first_name = TelegramChat(user).title
-        else:
-            user_instance.first_name = user.first_name
+    model_id: orm.Mapped[str] = orm.mapped_column(unique=True)
+    """The entity's model ID (user, chat, or forum)."""
+    usage: orm.Mapped[int] = orm.mapped_column()
+    """The entity's token usage count."""
+    usage_cost: orm.Mapped[float] = orm.mapped_column()
+    """The entity's token usage cost."""
+    data: orm.Mapped[str] = orm.mapped_column()
+    """Entity related data."""
 
-        return user_instance
+    def __init__(
+        self,
+        id: int | None = None,
+        model_id: str | None = None,
+        usage: int | None = None,
+        usage_cost: float | None = None,
+        data: str | None = None,
+        engine: async_sql.AsyncEngine | None = None,
+        **kw: typing.Any,
+    ):
+        super().__init__(
+            id=id,
+            model_id=model_id,
+            usage=usage,
+            usage_cost=usage_cost,
+            data=data,
+            engine=engine,
+            **kw,
+        )
+
+    @property
+    @override
+    def _loading_statement(self):
+        return sql.select(type(self)).where(
+            (type(self).id == self.id) | (type(self).model_id == self.model_id)
+        )

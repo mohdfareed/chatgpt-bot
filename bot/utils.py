@@ -4,52 +4,44 @@ import telegram
 
 import bot.models
 import chatgpt.core
+import chatgpt.memory
 import chatgpt.model
-import database
 
 
 async def reply_code(message: telegram.Message | None, reply):
     """Reply to a message with a code block."""
-
     if message:
         await message.reply_html(text=f"<code>{reply}</code>")
 
 
-def load_prompt(id: int, topic_id: int | None):
-    db_chat = database.models.Chat(id, topic_id).load()
-    db_model = database.models.ChatModel(db_chat.session_id).load()
-    model = chatgpt.model.ChatModel().from_json(db_model.parameters)
-    return model.prompt
+async def load_prompt(message: bot.models.TextMessage):
+    chat_history = await chatgpt.memory.ChatHistory.initialize(message.chat_id)
+    chat_model = await chat_history.model
+    return chat_model.prompt
 
 
-def save_prompt(id: int, topic_id: int | None, prompt: str):
-    db_chat = database.models.Chat(id, topic_id).load()
-    db_model = database.models.ChatModel(db_chat.session_id).load()
-    model = chatgpt.core.ChatModel().from_json(db_model.parameters)
-    model.prompt = prompt
-    db_model.parameters = model.to_json()
-    db_model.save()
+async def save_prompt(message: bot.models.TextMessage, prompt: str):
+    chat_history = await chatgpt.memory.ChatHistory.initialize(message.chat_id)
+    chat_model = await chat_history.model
+    chat_model.prompt = chatgpt.core.SystemMessage(prompt)
+    await chat_history.set_model(chat_model)
 
 
-def count_usage(
+async def count_usage(
     message: bot.models.TextMessage, results: chatgpt.core.ModelMessage
 ):
     total_usage = results.prompt_tokens + results.reply_tokens
 
     # count towards user
-    db_user = database.models.User(message.user.id).load()
-    db_user.token_usage += total_usage
-    db_user.usage += results.cost
-    db_user.save()
+    db_user = await bot.models.TelegramMetrics(
+        model_id=str(message.user.id)
+    ).load()
+    db_user.usage += total_usage
+    db_user.usage_cost += results.cost
+    await db_user.save()
 
     # count towards chat
-    db_chat = database.models.Chat(message.chat.id, message.topic_id).load()
-    db_chat.token_usage += total_usage
-    db_chat.usage += results.cost
-    db_chat.save()
-
-
-def parse_update(update):
-    if not (update_message := update.effective_message):
-        return
-    message = bot.models.TextMessage.from_telegram_message(update_message)
+    db_chat = await bot.models.TelegramMetrics(model_id=message.chat_id).load()
+    db_chat.usage += total_usage
+    db_chat.usage_cost += results.cost
+    await db_chat.save()
