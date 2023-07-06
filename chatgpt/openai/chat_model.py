@@ -13,6 +13,8 @@ import chatgpt.events
 import chatgpt.openai.supported_models
 import chatgpt.openai.tokenization
 import chatgpt.tools
+from chatgpt.openai.aggregator import MessageAggregator
+from chatgpt.openai.metrics import MetricsHandler
 
 T = typing.TypeVar("T")
 
@@ -115,7 +117,7 @@ class OpenAIChatModel:
 
         # return processed response if not streaming
         reply = _parse_completion(completion, self.config.model)  # type: ignore
-        await self.events_manager.trigger_model_generation(reply)
+        await self.events_manager.trigger_model_generation(reply, None)
         return reply
 
     async def _stream_completion(self, completion: typing.AsyncIterator):
@@ -123,9 +125,11 @@ class OpenAIChatModel:
         try:  # start a task to parse the completion packets
             async for packet in completion:
                 reply = _parse_completion(packet, self.config.model)
-                await self.events_manager.trigger_model_generation(reply)
                 # aggregate messages into one
                 aggregator.add(reply)
+                await self.events_manager.trigger_model_generation(
+                    reply, aggregator
+                )
         except (asyncio.CancelledError, KeyboardInterrupt):  # canceled
             aggregator.finish_reason = chatgpt.core.FinishReason.CANCELLED
         return aggregator.reply
@@ -137,115 +141,6 @@ class OpenAIChatModel:
         results = await self._generator
         self._generator = None
         return results
-
-
-class MetricsHandler(chatgpt.events.ModelStart, chatgpt.events.ModelEnd):
-    """Calculates request metrics as the model is used."""
-
-    def __init__(self):
-        super().__init__()
-        self.prompts_tokens: int
-        """The total number of tokens in all prompts."""
-        self.generated_tokens: int
-        """The total number of tokens in all generations."""
-        self.tools_tokens: int
-        """The total number of tokens taken by tools declarations."""
-        self.cost: float
-        """The total cost of all generations."""
-
-    async def on_model_start(self, config, context, tools):
-        self._model = config.model
-        self._prompts = context
-        self._tools = tools
-
-        # reset metrics
-        self.prompts_tokens = 0
-        self.generated_tokens = 0
-        self.tools_tokens = 0
-        self.cost = 0.0
-        self.has_tools = len(tools) > 0
-
-    async def on_model_end(self, message):
-        if not self._model:
-            return
-
-        # compute prompt tokens count
-        self.prompts_tokens = chatgpt.openai.tokenization.messages_tokens(
-            self._prompts, self._model
-        )
-        # compute generated tokens count
-        self.generated_tokens = chatgpt.openai.tokenization.model_tokens(
-            message, self._model, self.has_tools
-        )
-        # compute tools tokens count
-        self.tools_tokens = chatgpt.openai.tokenization.tools_tokens(
-            self._tools, self._model
-        )
-
-        self.cost = (  # compute cost of all tokens
-            chatgpt.openai.tokenization.tokens_cost(
-                self.prompts_tokens, self._model, is_reply=False
-            )
-            + chatgpt.openai.tokenization.tokens_cost(
-                self.tools_tokens, self._model, is_reply=False
-            )
-            + chatgpt.openai.tokenization.tokens_cost(
-                self.generated_tokens, self._model, is_reply=True
-            )
-        )
-
-        # if reply includes usage, compare to computed usage
-        if message.prompt_tokens or message.reply_tokens:
-            if (
-                message.prompt_tokens
-                != self.prompts_tokens + self.tools_tokens
-            ):
-                chatgpt.logger.warning(
-                    "Prompt tokens mismatch: {actual: %s, computed: %s}",
-                    message.prompt_tokens,
-                    self.prompts_tokens + self.tools_tokens,
-                )
-            if message.reply_tokens != self.generated_tokens:
-                chatgpt.logger.warning(
-                    "Reply tokens mismatch: {actual: %s, computed: %s}",
-                    message.reply_tokens,
-                    self.generated_tokens,
-                )
-
-
-class MessageAggregator:
-    """Aggregates message chunks into a single message."""
-
-    def __init__(self):
-        self._is_aggregating = False
-        self.content = ""
-        self.tool_name = None
-        self.args_str = None
-        self.finish_reason = chatgpt.core.FinishReason.UNDEFINED
-
-    def add(self, message: chatgpt.core.ModelMessage):
-        self._is_aggregating = True
-        self.content += message.content
-        self.finish_reason = message.finish_reason
-        if isinstance(message, chatgpt.core.ToolUsage):
-            self.tool_name = (self.tool_name or "") + message.tool_name
-            self.args_str = (self.args_str or "") + message.args_str
-
-    @property
-    def reply(self):
-        if not self._is_aggregating:
-            return None  # no messages received
-
-        # create reply from aggregated messages
-        if self.tool_name or self.args_str:
-            reply = chatgpt.core.ToolUsage(
-                self.tool_name or "", self.args_str or "", self.content
-            )
-        else:  # normal message
-            reply = chatgpt.core.ModelMessage(self.content)
-
-        reply.finish_reason = self.finish_reason
-        return reply
 
 
 def retry(min_wait=1, max_wait=60, max_attempts=6):

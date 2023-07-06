@@ -42,7 +42,7 @@ class ConsoleHandler(
         for message in context:
             rich.print(message.serialize())
 
-    async def on_model_generation(self, packet):
+    async def on_model_generation(self, packet, aggregator):
         if not self.streaming:
             return
         rich.print(packet.content, end="", flush=True)
