@@ -6,19 +6,19 @@ import chatgpt.core
 import chatgpt.events
 import chatgpt.memory
 import chatgpt.model
-import chatgpt.supported_models
+import chatgpt.openai.supported_models
 import chatgpt.tools
 
 
 class TestTool(chatgpt.tools.Tool):
     def __init__(self):
         self.name = "hello134"  # name + 1
-        self.description = "Now hello world how are you"  # text + 2
+        self.description = "Says hello world to the user."  # text + 2
 
         self.parameters = [
             chatgpt.tools.ToolParameter(
                 type="null",  # 2
-                name="testisatest",  # name + 1
+                name="test_test_test",  # name + 1
                 # description="1",  # text + 2
                 # enum=["1"],  # 1
                 optional=True,  # 1
@@ -30,9 +30,7 @@ class TestTool(chatgpt.tools.Tool):
 
 
 console_handler = chatgpt.addons.ConsoleHandler()
-memory = chatgpt.memory.ChatMemory(
-    "00000", -1, -1, chatgpt.supported_models.CHATGPT, True
-)
+prompt = "You are a helpful assistant named ChatGPT."
 search_tools = [
     TestTool(),
     # TestTool(),
@@ -40,24 +38,29 @@ search_tools = [
     # TestTool(),
     # TestTool(),
 ]
-model_config = chatgpt.core.ModelConfig(
-    model_name=chatgpt.supported_models.CHATGPT,
-    # streaming=True,
-)
-prompt = "You are a helpful assistant named ChatGPT."
-
-model = chatgpt.model.ChatModel(
-    config=model_config,
-    memory=memory,
-    tools=search_tools,  # type: ignore
-    handlers=[console_handler],
-)
 
 
 # %%
 async def main():
     try:
-        memory.history.clear()
+        print("Initializing memory...")
+        memory = await chatgpt.memory.ChatMemory.initialize(
+            "00000", -1, -1, False
+        )
+        model_config = chatgpt.core.ModelConfig(
+            model=chatgpt.openai.supported_models.CHATGPT,
+            prompt=prompt,
+            streaming=True,
+        )
+        model = chatgpt.model.ChatModel(
+            memory=memory,
+            tools=search_tools,  # type: ignore
+            handlers=[console_handler],
+        )
+        # await memory.initialize()
+        print("Initializing model...")
+        await memory.history.clear()
+        await memory.history.set_model(model_config)
 
         message = chatgpt.core.UserMessage("Hi")
         # memory.chat_history.add_message(message)
@@ -68,11 +71,12 @@ async def main():
 
         # message = chatgpt.core.UserMessage("How are you?")
         task = asyncio.create_task(model.run(message))
+        print("Running model...")
         await task
         # await asyncio.sleep(15)
         # await model.cancel()
-    except:
-        pass
+    except Exception as e:
+        raise e
 
 
 asyncio.run(main())

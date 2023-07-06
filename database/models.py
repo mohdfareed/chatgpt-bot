@@ -44,7 +44,6 @@ class Chat(database.core.DatabaseModel):
             **kw,
         )
 
-
     @property
     @override
     def _loading_statement(self):
@@ -87,6 +86,13 @@ class Message(database.core.DatabaseModel):
             engine=engine,
             **kw,
         )
+
+    @override
+    async def save(self):
+        # create the chat if it doesn't exist
+        await (await Chat(chat_id=self.chat_id).load()).save()
+        # save the message
+        await super().save()
 
     # message id and chat id are a unique combination
     __table_args__ = (sql.UniqueConstraint("message_id", "chat_id"),)

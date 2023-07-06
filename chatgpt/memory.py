@@ -1,6 +1,6 @@
 """The memory of models."""
 
-from email import message
+import sqlalchemy.ext.asyncio as async_sql
 
 import chatgpt.core
 import chatgpt.events
@@ -21,25 +21,38 @@ class ChatMemory:
 
     def __init__(
         self,
-        chat_id: str,
+        chat_history: "ChatHistory",
         short_memory_size: int,
         long_memory_size: int,
         summarization_handlers: list[chatgpt.events.ModelEvent] = [],
     ):
-        """Initialize a chat summarization memory."""
-
+        """Create an uninitialized chat summarization memory."""
         self.memory_size = short_memory_size
         """The max number of tokens the memory can contain."""
-        self.history = ChatHistory(chat_id)
+        self.history = chat_history
         """The chat history in the memory."""
         self.summarizer = SummarizationModel(
             long_memory_size, handlers=summarization_handlers
         )
         """The summarization model."""
 
-    async def initialize(self, in_memory: bool = False):
-        """Initialize the memory."""
-        await self.history.initialize(in_memory)
+    @classmethod
+    async def initialize(
+        cls,
+        chat_id: str,
+        short_memory_size: int,
+        long_memory_size: int,
+        in_memory: bool = False,
+        summarization_handlers: list[chatgpt.events.ModelEvent] = [],
+    ):
+        """Initialize a chat model memory instance."""
+        chat_history = await ChatHistory.initialize(chat_id, in_memory)
+        return cls(
+            chat_history,
+            short_memory_size,
+            long_memory_size,
+            summarization_handlers,
+        )
 
     @property
     async def summary(self) -> SummaryMessage | None:
@@ -136,23 +149,22 @@ class ChatMemory:
 class ChatHistory:
     """SQL implementation of a chat history stored by a serialized ID."""
 
-    def __init__(self, chat_id: str):
-        self.engine = None
-        """The history database engine."""
+    def __init__(self, chat_id: str, engine: async_sql.AsyncEngine | None):
         self.chat_id = chat_id
         """The database chat ID."""
+        self.engine = engine
+        """The history database engine."""
 
-    async def initialize(self, in_memory=False) -> None:
-        # set up in-memory database
-        if in_memory:
-            memory_engine = await db.core.start_engine(db.in_memory)
-        else:
-            memory_engine = None
-        self.engine = memory_engine
-
+    @classmethod
+    async def initialize(cls, chat_id: str, in_memory=False) -> "ChatHistory":
+        engine = None
+        if in_memory:  # set up in-memory database
+            engine = await db.core.start_engine(db.in_memory)
         # create the chat if it does not exist
-        chat = await db.models.Chat(chat_id=self.chat_id).load()
+        chat = await db.models.Chat(chat_id=chat_id).load()
         await chat.save()
+        # return the chat history provider
+        return cls(chat_id, engine)
 
     @property
     async def model(self) -> chatgpt.core.ModelConfig:

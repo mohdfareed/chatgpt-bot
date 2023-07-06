@@ -19,6 +19,7 @@ class ConsoleHandler(
     chatgpt.events.ModelRun,
     chatgpt.events.ModelStart,
     chatgpt.events.ModelGeneration,
+    chatgpt.events.ModelEnd,
     chatgpt.events.ToolUse,
     chatgpt.events.ToolResult,
     chatgpt.events.ModelReply,
@@ -34,9 +35,9 @@ class ConsoleHandler(
     async def on_model_run(self, _):
         rich.print(f"[bold blue]STARTING...[/]")
 
-    async def on_model_start(self, model, context, tools):
-        self.streaming = model.streaming
-        rich.print(f"[magenta]Model:[/] {model.model}")
+    async def on_model_start(self, config, context, tools):
+        self.streaming = config.streaming
+        rich.print(f"[magenta]Model:[/] {config.model}")
         rich.print(f"[magenta]Tools:[/] {', '.join(t.name for t in tools)}")
         for message in context:
             rich.print(message.serialize())
@@ -48,6 +49,9 @@ class ConsoleHandler(
         if isinstance(packet, chatgpt.core.ToolUsage):
             rich.print(packet.tool_name, end="", flush=True)
             rich.print(packet.args_str, end="", flush=True)
+
+    async def on_model_end(self, message):
+        pass
 
     async def on_tool_use(self, usage):
         if self.streaming:
