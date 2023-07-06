@@ -12,8 +12,8 @@ import chatgpt.core as chatgpt
 import database.core as database
 
 
-class TextMessage:
-    """Telegram text message."""
+class TelegramMessage:
+    """Telegram message."""
 
     def __init__(self, message: telegram.Message):
         """Initialize a text message from a Telegram message."""
@@ -27,10 +27,8 @@ class TextMessage:
         """The chat in which the message was sent."""
         self.user = TelegramUser(message_user)
         """The user who sent the message."""
-        self.reply: TextMessage | None = None
+        self.reply: TelegramMessage | None = None
         """The message to which this message is a reply if any."""
-        self.text = message.text or message.caption or ""
-        """The message text."""
         self.telegram_message = message
         """The Telegram message instance."""
 
@@ -56,10 +54,6 @@ class TextMessage:
         )
         metadata = {k: v for k, v in metadata.items() if v is not None}
         return metadata
-
-    def to_chat_message(self):
-        """Convert the message to a chat model message."""
-        return chatgpt.UserMessage(self.text, metadata=self.metadata)
 
 
 class TelegramChat:
@@ -154,3 +148,16 @@ class TelegramMetrics(database.DatabaseModel):
         return sql.select(type(self)).where(
             (type(self).id == self.id) | (type(self).model_id == self.model_id)
         )
+
+
+class TextMessage(TelegramMessage):
+    """A Telegram text message."""
+
+    def __init__(self, message: telegram.Message):
+        super().__init__(message)
+        self.text = message.text or message.caption or ""
+        """The message text."""
+
+    def to_chat_message(self):
+        """Convert the message to a chat model message."""
+        return chatgpt.UserMessage(self.text, metadata=self.metadata)

@@ -9,6 +9,8 @@ import chatgpt.model
 import chatgpt.openai.supported_models
 import chatgpt.tools
 
+# TODO: rework as a console interface
+
 
 class TestTool(chatgpt.tools.Tool):
     def __init__(self):

@@ -6,7 +6,7 @@ import telegram.constants
 import telegram.ext as telegram_extensions
 
 import chatgpt.memory
-from bot import models
+from bot import chat_handler, models
 
 _default_context = telegram_extensions.ContextTypes.DEFAULT_TYPE
 
@@ -39,4 +39,4 @@ async def mention_callback(update: telegram.Update, context: _default_context):
 
 
 async def _reply_to_user(message: models.TextMessage):
-    pass
+    await chat_handler.generate_reply(message)

@@ -141,15 +141,15 @@ class PromptCommand(Command):
             pass
 
         # parse text from reply if no text was found in message
-        if not sys_message and message.reply:
-            sys_message = message.reply.text
+        if isinstance(message.reply, bot.models.TextMessage):
+            sys_message = sys_message or message.reply.text
         if not sys_message:
             raise ValueError("No text found in message or reply")
 
         # create new system message
         await utils.save_prompt(message, sys_message)
         await utils.reply_code(
-            update_message, f"System prompt edited successfully"
+            update_message, f"System prompt updated successfully"
         )
 
 
@@ -165,13 +165,13 @@ class GetSystemPrompt(Command):
         message = bot.models.TextMessage(update_message)
         text = (
             await utils.load_prompt(message)
-        ).content or "No system prompt found"
+        ).content or "No system prompt exists"
         await utils.reply_code(update_message, text)
 
 
 def all_commands(command=Command):
-    """All available bot commands. Recursively yields all concrete subclasses
-    of the base class."""
+    """All available bot commands.
+    Recursively yields all concrete subclasses of the base class."""
     if not inspect.isabstract(command):
         yield command()  # type: ignore
     for subcommand in command.__subclasses__():

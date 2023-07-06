@@ -82,7 +82,6 @@ def _setup_handlers(app: telegram_extensions.Application):
             callback=handlers.private_callback,
         )
     )
-
     app.add_handler(
         telegram_extensions.MessageHandler(
             filters=telegram_extensions.filters.Entity(
@@ -91,7 +90,6 @@ def _setup_handlers(app: telegram_extensions.Application):
             callback=handlers.mention_callback,
         )
     )
-
     app.add_handler(
         telegram_extensions.MessageHandler(
             filters=telegram_extensions.filters.ALL,
