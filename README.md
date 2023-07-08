@@ -16,7 +16,7 @@ The following environment variables are optional:
 
 - `DATABASE_URL`: Database URL for persistent storage
 - `ENCRYPTION_KEY`: Encryption key for encrypting database
-- `WEBHOOK`: Webhook URL for Telegram bot
+- `WEBHOOK`: Webhook URL for Telegram bot, defaults to polling (development)
 - `WEBHOOK_ADDR`: Webhook address for Telegram bot
 - `WEBHOOK_PORT`: Webhook port for Telegram bot
 
@@ -35,13 +35,6 @@ cd path/to/repo
 Fill in the provided example environment file and renamed it to `.env`.
 
 ### For local development
-
-Set the following environment variables in `.env`:
-
-```sh
-OPENAI_API_KEY='sk-{...}'
-TELEGRAM_BOT_TOKEN='{...}:{...}'  # use separate token for development
-```
 
 Run the bot using the container:
 

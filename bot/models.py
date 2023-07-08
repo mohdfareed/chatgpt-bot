@@ -42,7 +42,9 @@ class TelegramMessage:
     @property
     def chat_id(self) -> str:
         """The chat ID used by the chat model."""
-        return f"{self.chat.id}_{self.topic_id or ''}"
+        # user -1 as the topic ID if none (general chat)
+        # topic ID's are always positive, thus this is unique
+        return f"{self.chat.id}|{self.topic_id or -1}"
 
     @property
     def metadata(self) -> dict[str, str]:

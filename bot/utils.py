@@ -2,10 +2,28 @@
 
 import telegram
 
+import bot.chat_handler
 import bot.models
 import chatgpt.core
 import chatgpt.memory
 import chatgpt.model
+
+
+async def reply_to_user(message: bot.models.TextMessage, reply=False):
+    """Reply to a user with a generated model reply."""
+    # create handler
+    handler = bot.chat_handler.ModelMessageHandler(message, reply=reply)
+    # initialize model's memory
+    memory = await chatgpt.memory.ChatMemory.initialize(
+        message.chat_id, 3500, 2500
+    )
+    # setup the model
+    model = chatgpt.model.ChatModel(
+        memory=memory,
+        handlers=[handler],
+    )
+    # generate a reply
+    return await model.run(message.to_chat_message())
 
 
 async def reply_code(message: telegram.Message | None, reply):
@@ -41,8 +59,18 @@ async def count_usage(
     await user_metrics.save()
 
     chat_metrics = await bot.models.TelegramMetrics(
-        entity_id=str(message.chat.id)
+        entity_id=message.chat_id
     ).load()
     chat_metrics.usage += token_usage
     chat_metrics.usage_cost += usage_cost
     await chat_metrics.save()
+
+
+async def add_message(message: bot.models.TextMessage):
+    chat_history = await chatgpt.memory.ChatHistory.initialize(message.chat_id)
+    await chat_history.add_message(message.to_chat_message())
+
+
+async def delete_message(message: bot.models.TextMessage):
+    chat_history = await chatgpt.memory.ChatHistory.initialize(message.chat_id)
+    await chat_history.remove_message(str(message.id))

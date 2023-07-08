@@ -9,9 +9,8 @@ import telegram.constants
 import telegram.ext as telegram_extensions
 from typing_extensions import override
 
-import chatgpt.memory
 import chatgpt.model
-from bot import chat_handler, models
+from bot import models, utils
 
 _default_context = telegram_extensions.ContextTypes.DEFAULT_TYPE
 
@@ -59,12 +58,10 @@ class ConversationHandler(MessageHandler):
     @override
     @staticmethod
     async def callback(update: telegram.Update, _: _default_context):
-        if not (update_message := update.message or update.channel_post):
-            return  # TODO: update edited messages (user effective message)
+        if not (update_message := update.effective_message):
+            return
         message = models.TextMessage(update_message)
-
-        history = await chatgpt.memory.ChatHistory.initialize(message.chat_id)
-        await history.add_message(message.to_chat_message())
+        await utils.add_message(message)
 
 
 class PrivateMessageHandler(MessageHandler):
@@ -84,9 +81,9 @@ class PrivateMessageHandler(MessageHandler):
             return
         message = models.TextMessage(update_message)
 
-        await _reply_to_user(  # reply only to mentions
+        await utils.reply_to_user(
             message, reply=(f"@{context.bot.name}" in message.text)
-        )
+        )  # reply only to mentions
 
 
 def all_handlers(handler=MessageHandler):
@@ -96,19 +93,3 @@ def all_handlers(handler=MessageHandler):
         yield handler()  # type: ignore
     for sub_handler in handler.__subclasses__():
         yield from all_handlers(sub_handler)
-
-
-async def _reply_to_user(message: models.TextMessage, reply=False):
-    # create handler
-    message_handler = chat_handler.ModelMessageHandler(message, reply=reply)
-    # initialize model's memory
-    memory = await chatgpt.memory.ChatMemory.initialize(
-        message.chat_id, 3500, 2500
-    )
-    # setup the model
-    model = chatgpt.model.ChatModel(
-        memory=memory,
-        handlers=[message_handler],
-    )
-    # generate a reply
-    return await model.run(message.to_chat_message())
