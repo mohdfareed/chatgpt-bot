@@ -5,6 +5,9 @@ import os
 
 import requests
 
+SERPER_API_KEY = os.getenv("SERPER_API_KEY", "")
+"""The environment's Serper API key for Google search."""
+
 logger = logging.getLogger(__name__)
 """The bot logger."""
 token = os.getenv("TELEGRAM_BOT_TOKEN") or ""
