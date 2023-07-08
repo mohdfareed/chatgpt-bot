@@ -2,9 +2,6 @@
 
 import abc
 import asyncio
-import importlib
-import inspect
-import pkgutil
 import typing
 
 import chatgpt.core
@@ -20,7 +17,7 @@ class ToolsManager:
     async def use(self, tool_usage: chatgpt.core.ToolUsage):
         """Execute a tool."""
         result = None
-        tool = Tool.from_tool_name(tool_usage.tool_name)
+        tool = self._tool_from_name(tool_usage.tool_name)
         try:  # get the tool's result
             result = await tool.use(**tool_usage.arguments)
         except (asyncio.CancelledError, KeyboardInterrupt):
@@ -31,6 +28,13 @@ class ToolsManager:
         if result is not None:
             result = chatgpt.core.ToolResult(result, tool.name)
         return result
+
+    def _tool_from_name(self, name: str) -> "Tool":
+        """Get a tool from its name."""
+        for tool in self.tools:
+            if tool.name == name:
+                return tool
+        raise ValueError(f"Tool not found: {name}")
 
 
 class Tool(chatgpt.core.Serializable, abc.ABC):
@@ -61,27 +65,6 @@ class Tool(chatgpt.core.Serializable, abc.ABC):
         params = list(kwargs.keys())
         self._validate_params(params)
         return await self._run(**kwargs)
-
-    @classmethod
-    def available_tools(cls):
-        """Returns all the available tools."""
-        if not inspect.isabstract(cls):
-            yield cls()  # type: ignore
-        # for sub_tool in cls.__subclasses__():
-        #     yield from sub_tool.available_tools()
-        for _, name, _ in pkgutil.walk_packages():
-            module = importlib.import_module(name)
-            for _, sub_tool in inspect.getmembers(module, inspect.isclass):
-                if issubclass(sub_tool, cls):
-                    yield sub_tool()
-
-    @classmethod
-    def from_tool_name(cls, tool_name: str):
-        """Get a tool by name."""
-        for tool in cls.available_tools():
-            if tool.name == tool_name:
-                return tool
-        raise ValueError("Invalid tool name")
 
     def to_dict(self):
         """Convert the tool to an OpenAPI dictionary."""

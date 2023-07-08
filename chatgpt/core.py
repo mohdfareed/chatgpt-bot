@@ -21,7 +21,8 @@ class ModelError(Exception):
 
 
 class Serializable(abc.ABC):
-    """An object that can be serialized to a JSON dictionary string."""
+    """An object that can be serialized to a JSON dictionary string. Supports
+    nested objects, basic types, lists, and dictionaries."""
 
     def __init__(self, **kwargs: typing.Any):
         self.__dict__.update(kwargs)
@@ -33,9 +34,7 @@ class Serializable(abc.ABC):
             "serialized_type": type(self).__qualname__,
             # recursively serialize all serializable attributes
             "serialized_params": {
-                key: value.serialize()
-                if isinstance(value, Serializable)
-                else value
+                key: Serializable._serialize_value(value)
                 for key, value in self.__dict__.items()
             },
         }
@@ -55,21 +54,43 @@ class Serializable(abc.ABC):
                 f"Could not deserialize {serialized_type} as {cls.__name__}"
             )
 
-        # handle nested serialized objects
+        # deserialize parameters and create instance
         for key, value in parameters.items():
-            if isinstance(value, str):
-                try:  # check if value is a serialized object string
-                    potential_object_dict = json.loads(value)
-                    if (
-                        isinstance(potential_object_dict, dict)
-                        and "serialized_type" in potential_object_dict
-                    ):
-                        parameters[key] = Serializable.deserialize(value)
-                except json.JSONDecodeError:
-                    pass  # value is not a serialized object string
-
-        # create instance
+            parameters[key] = Serializable._deserialize_value(value)
         return derivative(**parameters)
+
+    @staticmethod
+    def _serialize_value(value: typing.Any) -> typing.Any:
+        if isinstance(value, Serializable):
+            return value.serialize()
+        elif isinstance(value, list):
+            return [Serializable._serialize_value(v) for v in value]
+        elif isinstance(value, dict):
+            return {
+                k: Serializable._serialize_value(v) for k, v in value.items()
+            }
+        else:
+            return value
+
+    @staticmethod
+    def _deserialize_value(value: typing.Any) -> typing.Any:
+        if isinstance(value, str):
+            try:
+                potential_object_dict = json.loads(value)
+                if (
+                    isinstance(potential_object_dict, dict)
+                    and "serialized_type" in potential_object_dict
+                ):
+                    return Serializable.deserialize(value)
+            except json.JSONDecodeError:
+                pass
+        elif isinstance(value, list):
+            return [Serializable._deserialize_value(v) for v in value]
+        elif isinstance(value, dict):
+            return {
+                k: Serializable._deserialize_value(v) for k, v in value.items()
+            }
+        return value
 
     @staticmethod
     def _get_subclass(
