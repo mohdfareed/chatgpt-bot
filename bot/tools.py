@@ -1,6 +1,5 @@
 """Tools available to models."""
 
-import inspect
 import io
 import sys
 
@@ -96,12 +95,3 @@ class Python(chatgpt.tools.Tool):
 
         output = buffer.getvalue()
         return (output or "").strip()
-
-
-def all_tools(tool=chatgpt.tools.Tool):
-    """All available model tools.
-    Recursively yields all concrete subclasses of the base class."""
-    if not inspect.isabstract(tool):
-        yield command()  # type: ignore
-    for sub_tool in tool.__subclasses__():
-        yield from all_tools(sub_tool)

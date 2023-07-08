@@ -10,6 +10,8 @@ import telegram.ext as telegram_extensions
 from typing_extensions import override
 
 import chatgpt.core
+import chatgpt.tools
+import database.core
 from bot import formatter, handlers, models, utils
 
 _default_context = telegram_extensions.ContextTypes.DEFAULT_TYPE
@@ -41,6 +43,14 @@ class Command(handlers.MessageHandler, abc.ABC):
     @property
     def bot_command(self) -> telegram.BotCommand:
         return telegram.BotCommand(self.names[0], self.description)
+
+    @classmethod
+    def all_commands(cls):
+        """Returns all the commands."""
+        if not inspect.isabstract(cls):
+            yield cls()  # type: ignore
+        for subcommand in cls.__subclasses__():
+            yield from subcommand.all_commands()
 
 
 class Help(Command):
@@ -77,7 +87,28 @@ class Models(Command):
         available_models = []
         for model in chatgpt.core.ModelConfig.chat_models():
             available_models.append(f"<code>{model.name}</code>")
-        await utils.reply_code(message, "\n".join(available_models))
+        await message.telegram_message.reply_html(
+            "\n".join(available_models).strip() or "No models available"
+        )
+
+
+class Tools(Command):
+    names = ("tools", "available_tools")
+    description = "Show the available tools"
+
+    @override
+    @staticmethod
+    async def callback(update: telegram.Update, context: _default_context):
+        if not (update_message := update.effective_message):
+            return
+        message = models.TextMessage(update_message)
+
+        available_tools = []
+        for tool in chatgpt.tools.Tool.available_tools():
+            available_tools.append(f"<code>{tool.name}</code>")
+        await message.telegram_message.reply_html(
+            "\n".join(available_tools).strip() or "No tools available"
+        )
 
 
 class Usage(Command):
@@ -139,7 +170,7 @@ class Model(Command):
 
         message = models.TextMessage(update_message)
         config_text = await utils.load_config(message)
-        await utils.reply_code(message, config_text)
+        await message.telegram_message.reply_html(config_text)
 
 
 class SetModel(Command):
@@ -164,6 +195,36 @@ class SetModel(Command):
 
         await utils.set_model(message, model.name)
         await utils.reply_code(message, "Model set successfully")
+
+
+class SetTools(Command):
+    names: tuple = ("set_tools",)
+    description = "Set the model's tools, separated by spaces or newlines"
+
+    @override
+    @staticmethod
+    async def callback(update: telegram.Update, _: _default_context):
+        if not (update_message := update.effective_message):
+            return
+        message = models.TextMessage(update_message)
+
+        # use default tools if no tools are found
+        selected_tools = chatgpt.core.ModelConfig().tools
+        message_text = message.text.split(" ", 1)[-1].strip()
+        try:  # parse the tool names from the message
+            message_tools = message_text.split(" ", 1)[1].strip()
+            for tool in message_tools.split():
+                try:  # check if the tool is valid
+                    selected_tool = chatgpt.tools.Tool.from_tool_name(tool)
+                except:  # stop if the tool is invalid
+                    await utils.reply_code(message, f"Invalid tool: {tool}")
+                    return
+                selected_tools.append(selected_tool)
+        except IndexError:
+            pass  # use default tools if no tools were provided
+
+        await utils.set_tools(message, selected_tools)
+        await utils.reply_code(message, "Tools set successfully")
 
 
 class SetSystemPrompt(Command):
@@ -255,12 +316,3 @@ class Stop(Command):
         else:
             await utils.stop_model(message, stop_all=True)
             await utils.reply_code(message, "All models stopped")
-
-
-def all_commands(command=Command):
-    """All available bot commands.
-    Recursively yields all concrete subclasses of the base class."""
-    if not inspect.isabstract(command):
-        yield command()  # type: ignore
-    for subcommand in command.__subclasses__():
-        yield from all_commands(subcommand)

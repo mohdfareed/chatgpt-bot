@@ -68,7 +68,7 @@ def setup():
 
 def setup_commands(app: telegram_extensions.Application):
     bot_commands = []
-    for command in commands.all_commands():
+    for command in commands.Command.all_commands():
         app.add_handler(command.handler, command.group)
         bot_commands.append(command.bot_command)
     return bot_commands
@@ -76,7 +76,7 @@ def setup_commands(app: telegram_extensions.Application):
 
 def setup_handlers(app: telegram_extensions.Application):
     app.add_error_handler(_error_handler)
-    for handler in handlers.all_handlers():
+    for handler in handlers.MessageHandler.all_handlers():
         app.add_handler(handler.handler, handler.group)
 
 

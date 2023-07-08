@@ -5,6 +5,8 @@ import bot.models
 import chatgpt.core
 import chatgpt.memory
 import chatgpt.model
+import chatgpt.tools
+import database
 
 running_models: list[chatgpt.model.ChatModel] = []
 """A dictionary of running models."""
@@ -58,7 +60,7 @@ async def add_message(message: bot.models.TextMessage):
 
 async def delete_message(message: bot.models.TelegramMessage):
     chat_history = await chatgpt.memory.ChatHistory.initialize(message.chat_id)
-    await chat_history.remove_message(str(message.id))
+    await chat_history.delete_message(str(message.id))
 
 
 async def delete_history(message: bot.models.TelegramMessage):
@@ -113,6 +115,15 @@ async def set_model(message: bot.models.TelegramMessage, model_name: str):
     chat_history = await chatgpt.memory.ChatHistory.initialize(message.chat_id)
     chat_model = await chat_history.model
     chat_model.model = chatgpt.core.ModelConfig.chat_model(model_name)
+    await chat_history.set_model(chat_model)
+
+
+async def set_tools(
+    message: bot.models.TelegramMessage, tools: list[chatgpt.tools.Tool]
+):
+    chat_history = await chatgpt.memory.ChatHistory.initialize(message.chat_id)
+    chat_model = await chat_history.model
+    chat_model.tools = tools
     await chat_history.set_model(chat_model)
 
 

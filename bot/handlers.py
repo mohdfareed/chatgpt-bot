@@ -44,6 +44,14 @@ class MessageHandler(abc.ABC):
         """The callback function for the command."""
         pass
 
+    @classmethod
+    def all_handlers(cls):
+        """Returns all the handlers."""
+        if not inspect.isabstract(cls):
+            yield cls()  # type: ignore
+        for sub_handler in cls.__subclasses__():
+            yield from sub_handler.all_handlers()
+
 
 class ConversationHandler(MessageHandler):
     """Stores conversation messages as context to the chat's model."""
@@ -84,12 +92,3 @@ class PrivateMessageHandler(MessageHandler):
         await utils.reply_to_user(
             message, reply=(f"@{context.bot.name}" in message.text)
         )  # reply only to mentions
-
-
-def all_handlers(handler=MessageHandler):
-    """All available update handlers.
-    Recursively yields all concrete subclasses of the base class."""
-    if not inspect.isabstract(handler):
-        yield handler()  # type: ignore
-    for sub_handler in handler.__subclasses__():
-        yield from all_handlers(sub_handler)

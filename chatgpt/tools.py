@@ -2,6 +2,7 @@
 
 import abc
 import asyncio
+import inspect
 import typing
 
 import chatgpt.core
@@ -16,8 +17,8 @@ class ToolsManager:
 
     async def use(self, tool_usage: chatgpt.core.ToolUsage):
         """Execute a tool."""
-        tool = self._get_tool(tool_usage.tool_name)
         result = None
+        tool = Tool.from_tool_name(tool_usage.tool_name)
         try:  # get the tool's result
             result = await tool.use(**tool_usage.arguments)
         except (asyncio.CancelledError, KeyboardInterrupt):
@@ -28,13 +29,6 @@ class ToolsManager:
         if result is not None:
             result = chatgpt.core.ToolResult(result, tool.name)
         return result
-
-    def _get_tool(self, tool_name: str):
-        """Get a tool by name."""
-        for tool in self.tools:
-            if tool.name == tool_name:
-                return tool
-        raise ValueError("Invalid tool name")
 
 
 class Tool(chatgpt.core.Serializable, abc.ABC):
@@ -66,6 +60,22 @@ class Tool(chatgpt.core.Serializable, abc.ABC):
         """The method's arguments must match the tool's parameters' types and
         names."""
         pass
+
+    @classmethod
+    def available_tools(cls):
+        """Returns all the available tools."""
+        if not inspect.isabstract(cls):
+            yield cls()  # type: ignore
+        for sub_tool in cls.__subclasses__():
+            yield from sub_tool.available_tools()
+
+    @classmethod
+    def from_tool_name(cls, tool_name: str):
+        """Get a tool by name."""
+        for tool in cls.available_tools():
+            if tool.name == tool_name:
+                return tool
+        raise ValueError("Invalid tool name")
 
     def to_dict(self):
         """Convert the tool to an OpenAPI dictionary."""
