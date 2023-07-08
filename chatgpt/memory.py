@@ -6,7 +6,6 @@ from typing_extensions import override
 import chatgpt.core
 import chatgpt.events
 import chatgpt.openai.chat_model
-import chatgpt.openai.supported_models
 import chatgpt.openai.tokenization
 import database as db
 from chatgpt.core import Message, SummaryMessage, SystemMessage

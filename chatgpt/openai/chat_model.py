@@ -10,7 +10,6 @@ import tenacity
 
 import chatgpt.core
 import chatgpt.events
-import chatgpt.openai.supported_models
 import chatgpt.openai.tokenization
 import chatgpt.tools
 from chatgpt.openai.aggregator import MessageAggregator

@@ -3,7 +3,6 @@
 import tiktoken
 
 import chatgpt.core
-import chatgpt.openai.supported_models
 import chatgpt.tools
 
 
