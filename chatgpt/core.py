@@ -3,6 +3,7 @@
 import abc
 import enum
 import json
+import textwrap
 import typing
 import uuid
 
@@ -232,7 +233,15 @@ class UserMessage(Message):
 class SystemMessage(Message):
     """A system message sent to the model."""
 
-    CORE_MESSAGE = "\nNEVER INCLUDE METADATA IN YOUR REPLIES"
+    CORE_MESSAGE = textwrap.dedent(
+        """
+        You may only use the following markdown in your replies:
+        *bold* _italic_ ~strikethrough~ __underline__ ||spoiler|| \
+        [inline URL](http://www.example.com/) `monospaced` @mentions #hashtags
+        ```code blocks (without language)```
+        NEVER INCLUDE THE MESSAGE METADATA IN YOUR REPLIES
+        """
+    ).strip()
     """The core message included at the end of all system messages."""
 
     @staticmethod
