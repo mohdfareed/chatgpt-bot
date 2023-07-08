@@ -55,7 +55,6 @@ class ModelMessageHandler(
         await self.user_message.telegram_message.chat.send_action("typing")
         # set handler states
         self.counter = 0  # the accumulated packets counter
-        self.last_message = ""  # the last message sent
         self.reply = None  # the model's reply message
 
     @override
@@ -104,18 +103,12 @@ class ModelMessageHandler(
 
     async def _send_packet(self, new_message: chatgpt.core.ModelMessage):
         message = _create_message(new_message)  # parse message
-        if message == self.last_message:
-            return  # don't send empty packets
-
-        # send new message if no reply has been sent yet
-        if not self.reply:
+        if self.reply:  # edit the existing reply
+            await self._edit(message)
+        else:  # send new message if no reply has been sent yet
             await self._reply(
                 message, isinstance(new_message, chatgpt.core.ToolUsage)
             )
-        else:  # edit the existing reply otherwise
-            await self.reply.edit_text(message)
-        # update last message
-        self.last_message = message
 
     async def _reply(self, new_message: str, tool_usage=False):
         # send message without replying if using a tool or not replying
@@ -129,6 +122,15 @@ class ModelMessageHandler(
             self.reply = await self.user_message.telegram_message.reply_html(
                 new_message
             )
+
+    async def _edit(self, new_message: str):
+        try:  # try to edit the existing reply
+            await self.reply.edit_text(new_message, PARSE_MODE)
+        except Exception as e:
+            if "Message is not modified" in str(e):
+                return  # ignore if the message is not modified
+            else:  # raise if the error is not due to the message not changing
+                raise e
 
 
 def _create_message(message: chatgpt.core.ModelMessage) -> str:
