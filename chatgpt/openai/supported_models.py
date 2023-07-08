@@ -26,10 +26,23 @@ GPT4 = chatgpt.core.SupportedChatModel(
 )
 """The supported GPT-4 model."""
 
-GPT4_16K = chatgpt.core.SupportedChatModel(
-    "gpt-4-16k",
+GPT4_32K = chatgpt.core.SupportedChatModel(
+    "gpt-4-32k",
     size=32000,
     input_cost=0.06,
     output_cost=0.12,
 )
 """A supported GPT-4 model with extended size."""
+
+
+def chat_models():
+    """Return a list of all supported chat models."""
+    return [CHATGPT, CHATGPT_16K, GPT4, GPT4_32K]
+
+
+def chat_model(name: str):
+    """Return a supported chat model by name."""
+    for model in chat_models():
+        if model.name == name:
+            return model
+    raise ValueError(f"Unsupported chat model: {name}")

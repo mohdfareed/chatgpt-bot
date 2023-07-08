@@ -12,6 +12,7 @@ from typing_extensions import override
 import bot.models
 from bot import formatter, handlers, utils
 from chatgpt import memory
+from chatgpt.openai import supported_models
 
 _default_context = telegram_extensions.ContextTypes.DEFAULT_TYPE
 
@@ -44,7 +45,7 @@ class Command(handlers.MessageHandler, abc.ABC):
         return telegram.BotCommand(self.names[0], self.description)
 
 
-class HelpCommand(Command):
+class Help(Command):
     names = ("start", "help")
     description = "Show the help message"
 
@@ -68,14 +69,14 @@ class HelpCommand(Command):
     @override
     @staticmethod
     async def callback(update: telegram.Update, context: _default_context):
-        dummy_message = formatter.md_html(HelpCommand.help_message)
+        dummy_message = formatter.md_html(Help.help_message)
         dummy_message = dummy_message.format(bot=context.bot.username)
         await update.effective_chat.send_message(
             dummy_message, parse_mode=telegram.constants.ParseMode.HTML
         )
 
 
-class UsageCommand(Command):
+class Usage(Command):
     names = ("usage",)
     description = "Show the user and chat usage"
 
@@ -86,24 +87,12 @@ class UsageCommand(Command):
             return
 
         message = bot.models.TextMessage(update_message)
-        db_user = await bot.models.TelegramMetrics(
-            entity_id=str(message.user.id)
-        ).load()
-        db_chat = await bot.models.TelegramMetrics(
-            entity_id=message.chat_id
-        ).load()
-
-        usage = (
-            f"User usage: ${round(db_user.usage, 4)}\n"
-            f"    tokens: {db_user.usage_cost}\n"
-            f"Chat usage: ${round(db_chat.usage, 4)}\n"
-            f"    tokens: {db_chat.usage_cost}"
-        )
-        await utils.reply_code(update_message, usage)
+        usage = await utils.get_usage(message)
+        await utils.reply_code(message, usage)
 
 
-class DeleteHistoryCommand(Command):
-    names = ("delete_history", "delete")
+class DeleteHistory(Command):
+    names = ("delete_history",)
     description = "Delete the chat history"
 
     @override
@@ -115,12 +104,64 @@ class DeleteHistoryCommand(Command):
         message = bot.models.TextMessage(update_message)
         chat_history = await memory.ChatHistory.initialize(message.chat_id)
         await chat_history.clear()
-        await utils.reply_code(update_message, "Chat history deleted")
+        await utils.reply_code(message, "Chat history deleted")
 
 
-class PromptCommand(Command):
-    names = ("edit_sys", "edit")
-    description = "Edit the system prompt"
+class DeleteMessage(Command):
+    names = ("delete", "delete_message")
+    description = "Delete a message from the chat history"
+
+    @override
+    @staticmethod
+    async def callback(update: telegram.Update, _: _default_context):
+        if not (update_message := update.effective_message):
+            return
+        message = bot.models.TextMessage(update_message)
+        chat_history = await memory.ChatHistory.initialize(message.chat_id)
+        await chat_history.remove_message(str(message.reply.id))
+        await utils.reply_code(message, "Message deleted")
+
+
+class Model(Command):
+    names: tuple = ("model",)
+    description = "Get the chat model's configuration"
+
+    @override
+    @staticmethod
+    async def callback(update: telegram.Update, _: _default_context):
+        if not (update_message := update.effective_message):
+            return
+
+        message = bot.models.TextMessage(update_message)
+        config_text = await utils.load_config(message)
+        await utils.reply_code(message, config_text)
+
+
+class SetModel(Command):
+    names: tuple = ("set_model",)
+    description = "Set the chat model"
+
+    @override
+    @staticmethod
+    async def callback(update: telegram.Update, _: _default_context):
+        if not (update_message := update.effective_message):
+            return
+
+        message = bot.models.TextMessage(update_message)
+        try:  # parse the model name from the message
+            model_name = message.text.split(" ", 1)[1].strip()
+            model = supported_models.chat_model(model_name)
+        except (IndexError, ValueError):
+            await utils.reply_code(message, "Invalid model name")
+            return
+
+        await utils.set_model(message, model.name)
+        await utils.reply_code(message, "Model set successfully")
+
+
+class SetSystemPrompt(Command):
+    names = ("sys", "set_sys")
+    description = "Set the system prompt of the model"
 
     @override
     @staticmethod
@@ -141,32 +182,75 @@ class PromptCommand(Command):
 
         if not sys_message:  # no text found
             await utils.reply_code(
-                update_message, f"No text found in message or reply"
+                message, f"No text found in message or reply"
             )
             return
 
         # create new system message
-        await utils.save_prompt(message, sys_message)
-        await utils.reply_code(
-            update_message, f"System prompt updated successfully"
-        )
+        await utils.set_prompt(message, sys_message)
+        await utils.reply_code(message, f"System prompt updated successfully")
 
 
-class GetSystemPrompt(Command):
-    names: tuple = ("get_sys", "sys")
-    description = "Get the system prompt"
+class SetTemperature(Command):
+    names: tuple = ("temp", "set_temp")
+    description = "Set the model's temperature"
 
     @override
     @staticmethod
-    async def callback(update: telegram.Update, context: _default_context):
+    async def callback(update: telegram.Update, _: _default_context):
         if not (update_message := update.effective_message):
             return
 
         message = bot.models.TextMessage(update_message)
-        text = (
-            await utils.load_prompt(message)
-        ).content or "No system prompt exists"
-        await utils.reply_code(update_message, text)
+        try:  # parse the temperature from the message
+            temp_str = message.text.split(" ", 1)[1].strip()
+            temp = float(temp_str)
+            if not 0.0 <= temp <= 2.0:
+                raise ValueError
+        except (IndexError, ValueError):
+            await utils.reply_code(
+                message, "Temperature must be between 0.0 and 2.0"
+            )
+            return
+
+        await utils.set_temp(message, temp)
+        await utils.reply_code(message, "Temperature set successfully")
+
+
+class ToggleStreaming(Command):
+    names: tuple = ("stream", "toggle_stream")
+    description = "Toggle whether the model streams messages"
+
+    @override
+    @staticmethod
+    async def callback(update: telegram.Update, _: _default_context):
+        if not (update_message := update.effective_message):
+            return
+
+        message = bot.models.TextMessage(update_message)
+        if await utils.toggle_streaming(message):
+            await utils.reply_code(message, "Streaming enabled")
+        else:
+            await utils.reply_code(message, "Streaming disabled")
+
+
+class Stop(Command):
+    names: tuple = ("stop",)
+    description = "Stop the model from generating the message"
+
+    @override
+    @staticmethod
+    async def callback(update: telegram.Update, _: _default_context):
+        if not (update_message := update.effective_message):
+            return
+
+        message = bot.models.TextMessage(update_message)
+        if message.reply:
+            await utils.stop_model(message)
+            await utils.reply_code(message.reply, "Model stopped")
+        else:
+            await utils.stop_model(message, stop_all=True)
+            await utils.reply_code(message, "All models stopped")
 
 
 def all_commands(command=Command):

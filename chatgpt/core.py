@@ -110,37 +110,21 @@ class SupportedChatModel(Serializable):
 
     def __init__(
         self,
-        name="",
+        name: str,
         size=0,
         input_cost=0.0,
         output_cost=0.0,
         **kwargs: typing.Any,
     ):
-        self._name = name
-        self._size = size
-        self._input_cost = input_cost
-        self._output_cost = output_cost
-        super().__init__(**kwargs)
-
-    @property
-    def name(cls) -> str:
+        self.name = name
         """The name of the model."""
-        return cls._name
-
-    @property
-    def size(cls) -> int:
+        self.size = size
         """The size of input the model can accept in tokens."""
-        return cls._size
-
-    @property
-    def input_cost(cls) -> float:
+        self.input_cost = input_cost
         """The cost of input tokens, in USD and per 1k tokens."""
-        return cls._input_cost
-
-    @property
-    def output_cost(cls) -> float:
+        self.output_cost = output_cost
         """The cost of output tokens, in USD and per 1k tokens."""
-        return cls._output_cost
+        super().__init__(**kwargs)
 
 
 class ModelConfig(Serializable):

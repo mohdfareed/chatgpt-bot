@@ -3,22 +3,21 @@ manages the bot's lifecycle and tunneling updates to handlers."""
 
 import asyncio
 import secrets
-import threading
 
 import telegram
 import telegram.ext as telegram_extensions
 
 import bot
-from bot import commands, formatter, handlers, utils
+from bot import commands, formatter, handlers, models, utils
 
 
 def run():
     """Setup and run the bot."""
-    # asyncio.run(run_async())
-    run_async()
+    asyncio.run(run_async())
+    # run_async()
 
 
-def run_async():
+async def run_async():
     """Setup and run the bot asynchronously."""
 
     # configure the bot
@@ -43,13 +42,7 @@ def run_async():
     # setup the bot
     _setup_handlers(application)
     commands = _setup_commands(application)
-    # await _setup_profile(application, commands)
-    # asyncio.run(_setup_profile(application, commands))
-    # loop = asyncio.get_event_loop()
-    # loop.run_until_complete(_setup_profile(application, commands))
-    # thread = threading.Thread(target=_setup_profile, args=(application,))
-    # thread.start()
-    # thread.join()
+    await _setup_profile(application, commands)
     # FIXME: resolve threading issues
 
     # start the bot
@@ -93,10 +86,10 @@ def _setup_handlers(app: telegram_extensions.Application):
 
 
 async def _error_handler(update, context: telegram_extensions.CallbackContext):
-    if isinstance(update, telegram.Update):
+    # reply with the error message if possible
+    if isinstance(update, telegram.Update) and update.effective_message:
+        message = models.TelegramMessage(update.effective_message)
         error = formatter.md_html(str(context.error))
-        await utils.reply_code(update.effective_message, error)
-
+        await utils.reply_code(message, error)
     # re-raise the error to be logged
-    if context.error:
-        raise context.error
+    raise context.error or Exception("Unknown error encountered...")

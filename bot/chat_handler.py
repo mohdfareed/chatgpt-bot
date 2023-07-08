@@ -40,7 +40,7 @@ class ModelMessageHandler(
     CHUNK_SIZE = 10
     """The number of packets to send at once."""
 
-    def __init__(self, message: bot.models.TextMessage, reply=False):
+    def __init__(self, message: bot.models.TelegramMessage, reply=False):
         self.user_message = message
         """The user message to which the model is replying."""
         self.is_replying = reply
