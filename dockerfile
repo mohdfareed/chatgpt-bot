@@ -1,7 +1,7 @@
 FROM python
 
 # copy bot files
-WORKDIR /usr/src/bot
+WORKDIR /usr/src/app
 COPY bot ./bot
 COPY chatgpt ./chatgpt
 COPY database ./database

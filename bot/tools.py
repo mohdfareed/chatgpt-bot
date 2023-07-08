@@ -25,8 +25,8 @@ class InternetSearch(chatgpt.tools.Tool):
 
         self.parameters = [
             chatgpt.tools.ToolParameter(
-                type="string",
                 name="query",
+                type="string",
                 description="A targeted search query.",
             ),
         ]
@@ -49,8 +49,8 @@ class WikiSearch(chatgpt.tools.Tool):
 
         self.parameters = [
             chatgpt.tools.ToolParameter(
-                type="string",
                 name="query",
+                type="string",
                 description="A targeted search query or subject.",
             ),
         ]

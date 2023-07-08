@@ -4,6 +4,7 @@ import telegram.constants
 
 import bot.formatter as formatter
 import bot.models
+import bot.utils as utils
 import chatgpt.core
 import chatgpt.events
 import chatgpt.memory
@@ -76,38 +77,20 @@ class ModelMessageHandler(
         message.metadata = bot.models.TelegramMessage(self.reply).metadata
 
     async def on_tool_use(self, usage):
-        await self._handle_metrics(usage)
+        await utils.count_usage(self.user_message, usage)
 
     async def on_tool_result(self, results):
         # send results as a reply to the model's reply
         await self.reply.reply_html(f"<code>{results.content}</code>")
 
     async def on_model_reply(self, reply):
-        await self._handle_metrics(reply)
+        await utils.count_usage(self.user_message, reply)
 
     async def on_model_error(self, _):
         pass
 
     async def on_model_interrupt(self):
         pass
-
-    async def _handle_metrics(self, message: chatgpt.core.ModelMessage):
-        token_usage = message.prompt_tokens + message.reply_tokens
-        usage_cost = message.cost
-
-        user_metrics = await bot.models.TelegramMetrics(
-            model_id=str(self.user_message.user.id)
-        ).load()
-        user_metrics.usage += token_usage
-        user_metrics.usage_cost += usage_cost
-        await user_metrics.save()
-
-        chat_metrics = await bot.models.TelegramMetrics(
-            model_id=str(self.user_message.chat.id)
-        ).load()
-        chat_metrics.usage += token_usage
-        chat_metrics.usage_cost += usage_cost
-        await chat_metrics.save()
 
     async def _send_packet(self, new_message: chatgpt.core.ModelMessage):
         message = _create_message(new_message)  # parse message

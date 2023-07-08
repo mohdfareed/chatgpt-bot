@@ -56,14 +56,15 @@ class Tool(chatgpt.core.Serializable, abc.ABC):
         super().__init__(**kwargs)
 
     async def use(self, **kwargs: typing.Any):
-        """Use the tool. The keyword arguments must match the tools's
-        parameters' types and names."""
+        """Use the tool."""
         params = list(kwargs.keys())
         self._validate_params(params)
         return await self._run(**kwargs)
 
     @abc.abstractmethod
     async def _run(self, **kwargs: typing.Any) -> str:
+        """The method's arguments must match the tool's parameters' types and
+        names."""
         pass
 
     def to_dict(self):
@@ -101,20 +102,10 @@ class Tool(chatgpt.core.Serializable, abc.ABC):
 class ToolParameter(chatgpt.core.Serializable):
     """A parameter of a tool."""
 
-    @property
-    def name(self) -> str:
-        return self._name
-
-    @name.setter
-    def name(self, value):
-        if not str.isalnum(value.replace("_", "") or ""):
-            raise TypeError("Name must be alphanumeric and 1-64 characters")
-        self._name = value
-
     def __init__(
         self,
         type: str,
-        name: str = "",
+        name: str,
         description: str | None = None,
         enum: list[str] | None = None,
         optional: bool = False,
@@ -123,7 +114,7 @@ class ToolParameter(chatgpt.core.Serializable):
         self.type = type
         """The json type of the parameter."""
         self.name = name
-        """The name of the parameter."""
+        """The name of the parameter. Must be alphanumeric and 1-64 chars."""
         self.description = description
         """A description of the parameter."""
         self.enum = enum

@@ -30,18 +30,19 @@ async def save_prompt(message: bot.models.TextMessage, prompt: str):
 async def count_usage(
     message: bot.models.TextMessage, results: chatgpt.core.ModelMessage
 ):
-    total_usage = results.prompt_tokens + results.reply_tokens
+    token_usage = results.prompt_tokens + results.reply_tokens
+    usage_cost = results.cost
 
-    # count towards user
-    db_user = await bot.models.TelegramMetrics(
+    user_metrics = await bot.models.TelegramMetrics(
         model_id=str(message.user.id)
     ).load()
-    db_user.usage += total_usage
-    db_user.usage_cost += results.cost
-    await db_user.save()
+    user_metrics.usage += token_usage
+    user_metrics.usage_cost += usage_cost
+    await user_metrics.save()
 
-    # count towards chat
-    db_chat = await bot.models.TelegramMetrics(model_id=message.chat_id).load()
-    db_chat.usage += total_usage
-    db_chat.usage_cost += results.cost
-    await db_chat.save()
+    chat_metrics = await bot.models.TelegramMetrics(
+        model_id=str(message.chat.id)
+    ).load()
+    chat_metrics.usage += token_usage
+    chat_metrics.usage_cost += usage_cost
+    await chat_metrics.save()

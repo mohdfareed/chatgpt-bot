@@ -17,6 +17,6 @@ aiosqlite  # async sqlite
 python-dotenv
 rich
 
-# temp
+# REVIEW: temp
 langchain
 wikipedia

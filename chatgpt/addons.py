@@ -80,8 +80,8 @@ class Calculator(chatgpt.tools.Tool):
 
         self.parameters = [
             chatgpt.tools.ToolParameter(
-                type="string",
                 name="expression",
+                type="string",
                 description="A valid numerical expression.",
             ),
         ]
