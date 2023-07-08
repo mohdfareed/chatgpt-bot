@@ -151,9 +151,15 @@ def _format_tool_usage(usage: chatgpt.core.ToolUsage, results=None) -> str:
         return TOOL_USAGE_MESSAGE.format(
             tool_name=usage.tool_name, args_str=usage.args_str
         )
-    else:
-        return TOOL_RESULTS_MESSAGE.format(
-            tool_name=usage.tool_name,
-            args_str=usage.args_str,
-            results=results.content,
-        )
+
+    # truncate results to 450 characters with ellipsis
+    results = formatter.md_html(
+        results.content[:450] + "..."
+        if len(results.content) > 450
+        else results.content
+    )  # parse results
+    return TOOL_RESULTS_MESSAGE.format(
+        tool_name=usage.tool_name,
+        args_str=usage.args_str,
+        results=results,
+    )
