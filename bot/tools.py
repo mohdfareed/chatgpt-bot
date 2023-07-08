@@ -20,10 +20,12 @@ class InternetSearch(chatgpt.tools.Tool):
     """A tool for searching the internet."""
 
     @property
+    @override
     def name(self):
         return "internet_search"
 
     @property
+    @override
     def description(self):
         return (
             "Search the internet. Useful for finding up-to-date information "
@@ -31,6 +33,7 @@ class InternetSearch(chatgpt.tools.Tool):
         )
 
     @property
+    @override
     def parameters(self):
         return [
             chatgpt.tools.ToolParameter(
@@ -51,10 +54,12 @@ class WikiSearch(chatgpt.tools.Tool):
     """A tool for searching Wikipedia."""
 
     @property
+    @override
     def name(self):
         return "wiki_search"
 
     @property
+    @override
     def description(self):
         return (
             "Search Wikipedia. Useful for finding information about new or "
@@ -62,6 +67,7 @@ class WikiSearch(chatgpt.tools.Tool):
         )
 
     @property
+    @override
     def parameters(self):
         return [
             chatgpt.tools.ToolParameter(
@@ -80,10 +86,12 @@ class Python(chatgpt.tools.Tool):
     """A tool for executing Python code."""
 
     @property
+    @override
     def name(self):
         return "python"
 
     @property
+    @override
     def description(self):
         return (
             "Execute Python code. Useful for performing complex calculations"
@@ -93,6 +101,7 @@ class Python(chatgpt.tools.Tool):
         )
 
     @property
+    @override
     def parameters(self):
         return [
             chatgpt.tools.ToolParameter(

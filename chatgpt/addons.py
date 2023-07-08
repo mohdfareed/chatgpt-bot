@@ -82,14 +82,17 @@ class ConsoleHandler(
 class Calculator(chatgpt.tools.Tool):
     """A tool for solving math problems."""
 
+    @property
     @override
     def name(self) -> str:
         return "calculator"
 
+    @property
     @override
     def description(self) -> str:
         return "Answer math questions. Useful for solving math problems."
 
+    @property
     @override
     def parameters(self) -> list[chatgpt.tools.ToolParameter]:
         return [

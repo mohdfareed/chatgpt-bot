@@ -15,9 +15,7 @@ PARSE_MODE = telegram.constants.ParseMode.HTML
 
 TOOL_USAGE_MESSAGE = """
 ```
-Using tool:
-{tool_name}
-
+Using tool: {tool_name}
 With options:
 {args_str}
 ```
@@ -141,5 +139,5 @@ def _create_message(message: chatgpt.core.ModelMessage) -> str:
 
 def _format_tool_usage(usage: chatgpt.core.ToolUsage) -> str:
     return TOOL_USAGE_MESSAGE.format(
-        tool_name=usage.tool_name, args_str=usage.args_str[:1000]
+        tool_name=usage.tool_name, args_str=usage.args_str
     )

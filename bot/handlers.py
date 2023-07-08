@@ -9,7 +9,6 @@ import telegram.constants
 import telegram.ext as telegram_extensions
 from typing_extensions import override
 
-import chatgpt.model
 from bot import models, utils
 
 _default_context = telegram_extensions.ContextTypes.DEFAULT_TYPE
