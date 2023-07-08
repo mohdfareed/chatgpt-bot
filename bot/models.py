@@ -160,4 +160,6 @@ class TextMessage(TelegramMessage):
 
     def to_chat_message(self):
         """Convert the message to a chat model message."""
-        return chatgpt.UserMessage(self.text, metadata=self.metadata)
+        return chatgpt.UserMessage(
+            self.text, id=self.id, metadata=self.metadata
+        )

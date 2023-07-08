@@ -68,20 +68,21 @@ class ModelMessageHandler(
         self.counter = 0  # reset counter
 
     async def on_model_end(self, message):
-        # set the reply's message ID
+        # send remaining packets or new message (if not streaming)
+        if not self.reply or self.counter > 0:
+            await self._send_packet(message)
+        # set the usage's message ID
         message.id = str(self.reply.message_id)
 
     async def on_tool_use(self, usage):
-        if self.counter > 0:  # send remaining packets
-            await self._send_packet(usage)
+        pass
 
     async def on_tool_result(self, results):
         # send results as a reply to the model's reply
         await self.reply.reply_html(f"<code>{results.content}</code>")
 
     async def on_model_reply(self, reply):
-        if self.counter > 0:  # send remaining packets
-            await self._send_packet(reply)
+        pass
 
     async def on_model_error(self, _):
         pass

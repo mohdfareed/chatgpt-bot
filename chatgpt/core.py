@@ -9,6 +9,12 @@ import uuid
 T = typing.TypeVar("T", bound="Serializable")
 
 
+class ModelError(Exception):
+    """Exception raised for model errors."""
+
+    pass
+
+
 class Serializable(abc.ABC):
     """An object that can be serialized to a JSON dictionary string."""
 
@@ -94,12 +100,6 @@ class FinishReason(enum.StrEnum):
     """The completion is still in progress or incomplete."""
 
 
-class ModelError(Exception):
-    """Exception raised for model errors."""
-
-    pass
-
-
 class SupportedChatModel(Serializable):
     """A supported GPT model."""
 
@@ -142,7 +142,7 @@ class ModelConfig(Serializable):
     """ChatGPT model configuration and parameters."""
 
     def __init__(self, **kwargs: typing.Any) -> None:
-        self.model = SupportedChatModel("unknown", 0, 0, 0)
+        self.model = CHATGPT
         """The the model used for chat completions."""
         self.allowed_tool: str | None = None
         """The name of the tool the model must call. Set to an empty string to
@@ -313,3 +313,36 @@ class SummaryMessage(SystemMessage):
     def name(self) -> str:
         """Summary message name."""
         return "summary_of_previous_messages"
+
+
+CHATGPT = SupportedChatModel(
+    "gpt-3.5-turbo-0613",
+    size=4000,
+    input_cost=0.0015,
+    output_cost=0.002,
+)
+"""The supported GPT-3.5 model."""
+
+CHATGPT_16K = SupportedChatModel(
+    "gpt-3.5-turbo-16k",
+    size=16000,
+    input_cost=0.003,
+    output_cost=0.004,
+)
+"""The supported GPT-3.5 model with extended size."""
+
+GPT4 = SupportedChatModel(
+    "gpt-4",
+    size=8000,
+    input_cost=0.03,
+    output_cost=0.06,
+)
+"""The supported GPT-4 model."""
+
+GPT4_16K = SupportedChatModel(
+    "gpt-4-16k",
+    size=32000,
+    input_cost=0.06,
+    output_cost=0.12,
+)
+"""A supported GPT-4 model with extended size."""

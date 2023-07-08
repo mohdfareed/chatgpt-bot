@@ -170,7 +170,7 @@ class ChatHistory:
         return cls(chat_id, engine)
 
     @property
-    async def model(self) -> chatgpt.core.ModelConfig | None:
+    async def model(self) -> chatgpt.core.ModelConfig:
         """The model of the chat."""
         chat = await db.models.Chat(chat_id=self.chat_id).load()
         if chat.data is not None:  # otherwise, model does not exist
