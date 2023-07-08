@@ -52,42 +52,50 @@ class MessageHandler(abc.ABC):
             yield from sub_handler.all_handlers()
 
 
-class ConversationHandler(MessageHandler):
-    """Stores conversation messages as context to the chat's model."""
-
-    filters = MessageHandler.filters & (
-        ~telegram_extensions.filters.ChatType.PRIVATE
-        & ~telegram_extensions.filters.Entity(
-            telegram.constants.MessageEntityType.MENTION
-        )
-    )
-
-    @override
-    @staticmethod
-    async def callback(update: telegram.Update, _: _default_context):
-        if not (update_message := update.effective_message):
-            return
-        message = models.TextMessage(update_message)
-        await utils.add_message(message)
-
-
 class PrivateMessageHandler(MessageHandler):
     """Handle a private message."""
 
-    filters = MessageHandler.filters & (
-        telegram_extensions.filters.ChatType.PRIVATE
-        | telegram_extensions.filters.Entity(
-            telegram.constants.MessageEntityType.MENTION
-        )
+    filters = (
+        MessageHandler.filters & telegram_extensions.filters.ChatType.PRIVATE
     )
 
     @override
     @staticmethod
     async def callback(update: telegram.Update, context: _default_context):
-        if not (update_message := update.message or update.channel_post):
+        try:  # check if text message was sent
+            message = models.TextMessage.from_update(update)
+        except ValueError:
             return
-        message = models.TextMessage(update_message)
 
-        await utils.reply_to_user(
-            message, reply=(f"@{context.bot.name}" in message.text)
-        )  # reply only to mentions
+        # reply to new messages
+        if update.message or update.channel_post:
+            await utils.reply_to_user(message, reply=False)
+        else:  # if a message was edited
+            await utils.add_message(message) if message.text else None
+
+
+class GroupMessageHandler(MessageHandler):
+    """Handle a group message."""
+
+    filters = (
+        MessageHandler.filters & telegram_extensions.filters.ChatType.GROUPS
+    )
+
+    @override
+    @staticmethod
+    async def callback(update: telegram.Update, context: _default_context):
+        try:  # check if text message was sent
+            message = models.TextMessage.from_update(update)
+        except ValueError:
+            return
+
+        # add edited messages
+        if not (update.message or update.channel_post):
+            await utils.add_message(message)
+            return  # don't reply to edited messages
+
+        # reply only to mentions of the bot
+        if context.bot.name in message.text:
+            await utils.reply_to_user(message, reply=True)
+        else:  # store other messages as context
+            await utils.add_message(message)

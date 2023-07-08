@@ -162,3 +162,11 @@ class TextMessage(TelegramMessage):
         return chatgpt.UserMessage(
             self.text, id=self.id, metadata=self.metadata
         )
+
+    @classmethod
+    def from_update(cls, update: telegram.Update):
+        if not (update_message := update.effective_message):
+            raise ValueError("Update has no message")
+        if not update_message.text:
+            raise ValueError("Update message has no text")
+        return cls(update_message)

@@ -14,11 +14,15 @@ import chatgpt.model
 PARSE_MODE = telegram.constants.ParseMode.HTML
 
 TOOL_USAGE_MESSAGE = """
-```
-Using tool: {tool_name}
-With options:
-{args_str}
-```
+Using tool: <code>{tool_name}</code>
+With parameters:
+<code>{args_str}</code>
+""".strip()
+
+TOOL_RESULTS_MESSAGE = f"""
+{TOOL_USAGE_MESSAGE}
+Results:
+<code>{{results}}</code>
 """.strip()
 
 
@@ -80,12 +84,13 @@ class ModelMessageHandler(
 
     @override
     async def on_tool_use(self, usage):
+        self.usage = usage  # store usage message for appending results
         await utils.count_usage(self.user_message, usage)
 
     @override
     async def on_tool_result(self, results):
-        # send results as a reply to the model's reply
-        await self.reply.reply_html(f"<code>{results.content}</code>")
+        # append the results to the reply
+        await self._edit(_create_message(self.usage, results))
 
     @override
     async def on_model_reply(self, reply):
@@ -109,6 +114,8 @@ class ModelMessageHandler(
             )
 
     async def _reply(self, new_message: str, tool_usage=False):
+        if not new_message:  # don't send empty messages
+            return
         # send message without replying if using a tool or not replying
         if not self.is_replying or tool_usage:
             self.reply = (
@@ -131,13 +138,22 @@ class ModelMessageHandler(
                 raise e
 
 
-def _create_message(message: chatgpt.core.ModelMessage) -> str:
+def _create_message(message: chatgpt.core.ModelMessage, results=None) -> str:
     if isinstance(message, chatgpt.core.ToolUsage):
-        return formatter.md_html(_format_tool_usage(message))
+        return formatter.md_html(_format_tool_usage(message, results))
     return formatter.md_html(message.content)
 
 
-def _format_tool_usage(usage: chatgpt.core.ToolUsage) -> str:
-    return TOOL_USAGE_MESSAGE.format(
-        tool_name=usage.tool_name, args_str=usage.args_str
-    )
+def _format_tool_usage(usage: chatgpt.core.ToolUsage, results=None) -> str:
+    if not usage:
+        return ""
+    if not results:
+        return TOOL_USAGE_MESSAGE.format(
+            tool_name=usage.tool_name, args_str=usage.args_str
+        )
+    else:
+        return TOOL_RESULTS_MESSAGE.format(
+            tool_name=usage.tool_name,
+            args_str=usage.args_str,
+            results=results.content,
+        )

@@ -80,9 +80,10 @@ class Models(Command):
     @override
     @staticmethod
     async def callback(update: telegram.Update, context: _default_context):
-        if not (update_message := update.effective_message):
+        try:  # check if text message was sent
+            message = models.TextMessage.from_update(update)
+        except ValueError:
             return
-        message = models.TextMessage(update_message)
 
         available_models = []
         for model in chatgpt.core.ModelConfig.chat_models():
@@ -99,9 +100,10 @@ class Tools(Command):
     @override
     @staticmethod
     async def callback(update: telegram.Update, context: _default_context):
-        if not (update_message := update.effective_message):
+        try:  # check if text message was sent
+            message = models.TextMessage.from_update(update)
+        except ValueError:
             return
-        message = models.TextMessage(update_message)
 
         available_tools = []
         for tool in tools.available_tools():
@@ -118,10 +120,11 @@ class Usage(Command):
     @override
     @staticmethod
     async def callback(update: telegram.Update, _: _default_context):
-        if not (update_message := update.effective_message):
+        try:  # check if text message was sent
+            message = models.TextMessage.from_update(update)
+        except ValueError:
             return
 
-        message = models.TextMessage(update_message)
         usage = await utils.get_usage(message)
         await utils.reply_code(message, usage)
 
@@ -133,10 +136,11 @@ class DeleteHistory(Command):
     @override
     @staticmethod
     async def callback(update: telegram.Update, _: _default_context):
-        if not (update_message := update.effective_message):
+        try:  # check if text message was sent
+            message = models.TextMessage.from_update(update)
+        except ValueError:
             return
 
-        message = models.TextMessage(update_message)
         await utils.delete_history(message)
         await utils.reply_code(message, "Chat history deleted")
 
@@ -148,9 +152,10 @@ class DeleteMessage(Command):
     @override
     @staticmethod
     async def callback(update: telegram.Update, _: _default_context):
-        if not (update_message := update.effective_message):
+        try:  # check if text message was sent
+            message = models.TextMessage.from_update(update)
+        except ValueError:
             return
-        message = models.TextMessage(update_message)
         try:
             await utils.delete_message(message.reply or message)
             await utils.reply_code(message, "Message deleted")
@@ -165,10 +170,11 @@ class Model(Command):
     @override
     @staticmethod
     async def callback(update: telegram.Update, _: _default_context):
-        if not (update_message := update.effective_message):
+        try:  # check if text message was sent
+            message = models.TextMessage.from_update(update)
+        except ValueError:
             return
 
-        message = models.TextMessage(update_message)
         config_text = await utils.load_config(message)
         await message.telegram_message.reply_html(config_text)
 
@@ -180,10 +186,11 @@ class SetModel(Command):
     @override
     @staticmethod
     async def callback(update: telegram.Update, _: _default_context):
-        if not (update_message := update.effective_message):
+        try:  # check if text message was sent
+            message = models.TextMessage.from_update(update)
+        except ValueError:
             return
 
-        message = models.TextMessage(update_message)
         try:  # parse the model name from the message
             model_name = message.text.split(" ", 1)[1].strip()
             # use default model if no model name was found
@@ -204,9 +211,10 @@ class SetTools(Command):
     @override
     @staticmethod
     async def callback(update: telegram.Update, _: _default_context):
-        if not (update_message := update.effective_message):
+        try:  # check if text message was sent
+            message = models.TextMessage.from_update(update)
+        except ValueError:
             return
-        message = models.TextMessage(update_message)
 
         # use default tools if no tools are found
         selected_tools = chatgpt.core.ModelConfig().tools
@@ -233,9 +241,10 @@ class SetSystemPrompt(Command):
     @override
     @staticmethod
     async def callback(update: telegram.Update, context: _default_context):
-        if not (update_message := update.effective_message):
+        try:  # check if text message was sent
+            message = models.TextMessage.from_update(update)
+        except ValueError:
             return
-        message = models.TextMessage(update_message)
 
         sys_message = None
         try:  # parse the message in the format `/command content`
@@ -260,10 +269,11 @@ class SetTemperature(Command):
     @override
     @staticmethod
     async def callback(update: telegram.Update, _: _default_context):
-        if not (update_message := update.effective_message):
+        try:  # check if text message was sent
+            message = models.TextMessage.from_update(update)
+        except ValueError:
             return
 
-        message = models.TextMessage(update_message)
         try:  # parse the temperature from the message
             temp_str = message.text.split(" ", 1)[1].strip()
             # use default temp if no text was found
@@ -288,10 +298,11 @@ class ToggleStreaming(Command):
     @override
     @staticmethod
     async def callback(update: telegram.Update, _: _default_context):
-        if not (update_message := update.effective_message):
+        try:  # check if text message was sent
+            message = models.TextMessage.from_update(update)
+        except ValueError:
             return
 
-        message = models.TextMessage(update_message)
         if await utils.toggle_streaming(message):
             await utils.reply_code(message, "Streaming enabled")
         else:
@@ -305,10 +316,11 @@ class Stop(Command):
     @override
     @staticmethod
     async def callback(update: telegram.Update, _: _default_context):
-        if not (update_message := update.effective_message):
+        try:  # check if text message was sent
+            message = models.TextMessage.from_update(update)
+        except ValueError:
             return
 
-        message = models.TextMessage(update_message)
         if message.reply:
             await utils.stop_model(message)
             await utils.reply_code(message.reply, "Model stopped")
