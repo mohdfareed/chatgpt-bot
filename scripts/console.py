@@ -1,6 +1,23 @@
+#!/usr/bin/env python3
+
 # %%
 import asyncio
+import os
+import sys
 
+from dotenv import load_dotenv
+
+# add package directory to the path
+os.chdir(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+sys.path.append(os.getcwd())
+# load environment variables
+load_dotenv(override=True)
+# add package directory to the path
+os.chdir(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+sys.path.append(os.getcwd())
+# load environment variables
+load_dotenv(override=True)
+# load the bot
 import chatgpt.addons
 import chatgpt.core
 import chatgpt.events
@@ -9,7 +26,7 @@ import chatgpt.model
 import chatgpt.openai.supported_models
 import chatgpt.tools
 
-# TODO: rework as a console interface
+# TODO: rework as a console REPL app
 
 
 class TestTool(chatgpt.tools.Tool):
@@ -45,14 +62,8 @@ search_tools = [
 # %%
 async def main():
     try:
-        print("Initializing memory...")
         memory = await chatgpt.memory.ChatMemory.initialize(
             "00000", -1, -1, False
-        )
-        model_config = chatgpt.core.ModelConfig(
-            model=chatgpt.openai.supported_models.CHATGPT,
-            prompt=prompt,
-            streaming=True,
         )
         model = chatgpt.model.ChatModel(
             memory=memory,
@@ -60,23 +71,16 @@ async def main():
             handlers=[console_handler],
         )
         # await memory.initialize()
-        print("Initializing model...")
         await memory.history.clear()
-        await memory.history.set_model(model_config)
 
         message = chatgpt.core.UserMessage("Hi")
-        # memory.chat_history.add_message(message)
-        # message = chatgpt.core.ToolUsage(
-        #     "test_test_test_test", "{'test': True, 'test2': False, 'test3': 1}"
-        # )
-        # memory.chat_history.add_message(message)
-
-        # message = chatgpt.core.UserMessage("How are you?")
-        task = asyncio.create_task(model.run(message))
-        print("Running model...")
-        await task
-        # await asyncio.sleep(15)
-        # await model.cancel()
+        await model.run(message)
+        message = chatgpt.core.UserMessage("Do you know what my username is?")
+        await model.run(message)
+        message = chatgpt.core.UserMessage(
+            "What's the metadata of your last message?"
+        )
+        await model.run(message)
     except Exception as e:
         raise e
 

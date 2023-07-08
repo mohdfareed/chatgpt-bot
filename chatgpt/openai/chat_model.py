@@ -91,6 +91,7 @@ class OpenAIChatModel:
         params = (self.config, messages, self.tools_manager.tools)
         await self.events_manager.trigger_model_start(*params)
         reply = await self._request_completion(*params)
+        # FIXME: filter metadata out of reply's text if accidentally included
 
         # trigger model end event if model was not canceled
         if not isinstance(reply, chatgpt.core.ModelMessage):

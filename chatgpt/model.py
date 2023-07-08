@@ -6,6 +6,14 @@ import chatgpt.memory
 import chatgpt.openai.chat_model
 import chatgpt.tools
 
+INSTRUCTIONS = """\
+You may only use the following markdown in your replies:
+*bold* _italic_ ~strikethrough~ __underline__ ||spoiler|| \
+[inline URL](http://www.example.com/) `monospaced` @mentions #hashtags
+```code blocks (without language)```
+NEVER INCLUDE THE MESSAGE METADATA IN YOUR REPLIES"""
+"""The core message included at the end of all system messages."""
+
 
 class ChatModel(chatgpt.openai.chat_model.OpenAIChatModel):
     """Class responsible for interacting with the OpenAI API."""
@@ -36,8 +44,11 @@ class ChatModel(chatgpt.openai.chat_model.OpenAIChatModel):
         reply = None
 
         while True:  # run until model has replied or is stopped
+            # retrieve history and add core instructions
+            history = await self.memory.messages
+            history.append(chatgpt.core.SystemMessage(INSTRUCTIONS))
             # generate reply and add to memory
-            reply = await self._generate_reply(await self.memory.messages)
+            reply = await self._generate_reply(history)
             if reply is not None:  # potentially partial reply was generated
                 await self.memory.history.add_message(reply)
 

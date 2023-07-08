@@ -3,7 +3,6 @@
 import abc
 import enum
 import json
-import textwrap
 import typing
 import uuid
 
@@ -143,7 +142,7 @@ class ModelConfig(Serializable):
     """ChatGPT model configuration and parameters."""
 
     def __init__(self, **kwargs: typing.Any) -> None:
-        self.model = CHATGPT
+        self.model = GPT4
         """The the model used for chat completions."""
         self.allowed_tool: str | None = None
         """The name of the tool the model must call. Set to an empty string to
@@ -156,6 +155,8 @@ class ModelConfig(Serializable):
         not be limited by the number of tokens."""
         self.streaming: bool = True
         """Whether the model streams completions as they are generated."""
+        self.stop_sequences: list[str] | str | None = None
+        """A list of sequences at which to stop reply generation. """
 
         self.temperature: float | None = None
         """Tokens confidence threshold, in range [0.0, 2.0]."""
@@ -172,6 +173,7 @@ class ModelConfig(Serializable):
             model=self.model.name,
             function_call=func_call,
             max_tokens=self.max_tokens,
+            stop=self.stop_sequences,
             temperature=self.temperature,
             presence_penalty=self.presence_penalty,
             frequency_penalty=self.frequency_penalty,
@@ -210,7 +212,7 @@ class Message(Serializable, abc.ABC):
         metadata["id"] = self.id
         message_content = (
             f"{self.content}\n" f"[metadata: {json.dumps(metadata)}]"
-        )
+        )  # FIXME: have start sequence to act as model's end sequence
 
         return dict(
             role=type(self).ROLE(),
@@ -233,31 +235,12 @@ class UserMessage(Message):
 class SystemMessage(Message):
     """A system message sent to the model."""
 
-    CORE_MESSAGE = textwrap.dedent(
-        """
-        You may only use the following markdown in your replies:
-        *bold* _italic_ ~strikethrough~ __underline__ ||spoiler|| \
-        [inline URL](http://www.example.com/) `monospaced` @mentions #hashtags
-        ```code blocks (without language)```
-        NEVER INCLUDE THE MESSAGE METADATA IN YOUR REPLIES
-        """
-    ).strip()
-    """The core message included at the end of all system messages."""
-
     @staticmethod
     def ROLE():
         return "system"
 
     def __init__(self, content: str, **kwargs: typing.Any):
         super().__init__(content, **kwargs)
-
-    def to_message_dict(self):
-        # append the core message to the end of the message content
-        message_dict = super().to_message_dict()
-        message_dict["content"] = (
-            message_dict["content"] or ""
-        ) + self.CORE_MESSAGE
-        return message_dict
 
 
 class ToolResult(Message):
