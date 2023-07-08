@@ -68,12 +68,16 @@ class DatabaseModel(orm.DeclarativeBase, async_sql.AsyncAttrs):
     async def delete(self):
         """Delete the model from the database if it exists."""
         try:
+            await self.load()  # load model ensure it exists
+            if not self.id:  # check if model exists
+                raise DatabaseError("Model does not exist")
+
+            # delete the model from the database
             engine = self.engine or await db_engine()
             async with async_sql.AsyncSession(engine) as session:
                 async with session.begin():
-                    if db_model := await session.get(type(self), self.id):
-                        await session.delete(db_model)
-                        await session.commit()
+                    await session.delete(self)
+                    await session.commit()
         except sql_exc.SQLAlchemyError as e:
             raise DatabaseError("Could not delete model") from e
         return self

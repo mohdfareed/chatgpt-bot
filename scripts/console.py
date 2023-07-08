@@ -23,7 +23,6 @@ import chatgpt.core
 import chatgpt.events
 import chatgpt.memory
 import chatgpt.model
-import chatgpt.openai.supported_models
 import chatgpt.tools
 
 # TODO: rework as a console REPL app

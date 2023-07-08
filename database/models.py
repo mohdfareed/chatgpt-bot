@@ -94,5 +94,16 @@ class Message(database.core.DatabaseModel):
         # save the message
         await super().save()
 
+    @property
+    @override
+    def _loading_statement(self):
+        return sql.select(type(self)).where(
+            (type(self).id == self.id)
+            | (
+                (type(self).message_id == self.message_id)
+                & (type(self).chat_id == self.chat_id)
+            )
+        )
+
     # message id and chat id are a unique combination
     __table_args__ = (sql.UniqueConstraint("message_id", "chat_id"),)

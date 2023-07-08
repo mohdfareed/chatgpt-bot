@@ -9,17 +9,23 @@ from dotenv import load_dotenv
 from rich import print
 from rich.logging import RichHandler
 
-# add package directory to the path
-os.chdir(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
-sys.path.append(os.getcwd())
-# load environment variables and import the bot
-load_dotenv(override=True)
+EXCLUDED_MODULES = [
+    "httpx",
+    "numexpr.utils",
+    "openai",
+    "telegram.ext.Application",
+]  # modules excluded from logging
 
 
 def setup_bot() -> None:
     """Instantiates and sets up the bot's profile."""
 
     print("[bold green]Setting up bot...[/]")
+    # add package directory to the path
+    os.chdir(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+    sys.path.append(os.getcwd())
+    # load environment variables and import the bot
+    load_dotenv(override=True)
 
     # setup logging of errors only
     _setup_app(to_file=False, level=logging.ERROR)
@@ -83,14 +89,8 @@ def _configure_logging(level):
     # don't exclude modules if debugging
     if level == logging.DEBUG:
         return
-
     # exclude modules from logging
-    excluded_modules = [
-        "httpx",
-        "numexpr.utils",
-        "openai",
-    ]
-    for module in excluded_modules:
+    for module in EXCLUDED_MODULES:
         logging.getLogger(module).setLevel(logging.WARNING)
 
 

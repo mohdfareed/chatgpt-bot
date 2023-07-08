@@ -222,8 +222,8 @@ class ChatHistory:
         db_message.data = message.serialize()
         await db_message.save()
 
-    async def remove_message(self, id: str):
-        """Remove a message from the chat history."""
+    async def delete_message(self, id: str):
+        """Delete a message from the chat history."""
         await db.models.Message(
             message_id=id, chat_id=self.chat_id, engine=self.engine
         ).delete()
