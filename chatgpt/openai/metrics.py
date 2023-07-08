@@ -1,5 +1,7 @@
 """OpenAI metrics handler."""
 
+from typing_extensions import override
+
 import chatgpt
 import chatgpt.events
 import chatgpt.openai.tokenization
@@ -19,6 +21,7 @@ class MetricsHandler(chatgpt.events.ModelStart, chatgpt.events.ModelEnd):
         self.cost: float
         """The total cost of all generations."""
 
+    @override
     async def on_model_start(self, config, context, tools):
         self._model = config.model
         self._prompts = context
@@ -31,6 +34,7 @@ class MetricsHandler(chatgpt.events.ModelStart, chatgpt.events.ModelEnd):
         self.cost = 0.0
         self.has_tools = len(tools) > 0
 
+    @override
     async def on_model_end(self, message):
         if not self._model:
             return

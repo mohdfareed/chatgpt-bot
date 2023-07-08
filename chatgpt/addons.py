@@ -3,6 +3,7 @@
 import rich
 import rich.console
 from langchain import LLMMathChain, OpenAI
+from typing_extensions import override
 
 import chatgpt.core
 import chatgpt.events
@@ -27,9 +28,11 @@ class ConsoleHandler(
         self.console = rich.console.Console()
         self.streaming = False
 
+    @override
     async def on_model_run(self, _):
         rich.print(f"[bold blue]STARTING...[/]")
 
+    @override
     async def on_model_start(self, config, context, tools):
         self.streaming = config.streaming
         rich.print(f"[magenta]Model:[/] {config.model}")
@@ -37,6 +40,7 @@ class ConsoleHandler(
         for message in context:
             rich.print(message.serialize())
 
+    @override
     async def on_model_generation(self, packet, aggregator):
         if not self.streaming:
             return
@@ -45,26 +49,32 @@ class ConsoleHandler(
             rich.print(packet.tool_name, end="", flush=True)
             rich.print(packet.args_str, end="", flush=True)
 
+    @override
     async def on_model_end(self, message):
         pass
 
+    @override
     async def on_tool_use(self, usage):
         if self.streaming:
             return
         rich.print(usage.serialize())
 
+    @override
     async def on_tool_result(self, results):
         rich.print(results.serialize())
 
+    @override
     async def on_model_reply(self, reply):
         if self.streaming:
             return
         rich.print(reply.serialize())
 
+    @override
     async def on_model_error(self, _):
         rich.print("\n[bold red]Model error:[/]")
         self.console.print_exception(show_locals=True)
 
+    @override
     async def on_model_interrupt(self):
         rich.print("\n[bold red]Model interrupted...[/]")
 
@@ -86,6 +96,7 @@ class Calculator(chatgpt.tools.Tool):
             ),
         ]
 
+    @override
     async def _run(self, expression: str) -> str:
         model = OpenAI(openai_api_key=OPENAI_API_KEY)  # type: ignore
         return await LLMMathChain.from_llm(model).arun(expression)

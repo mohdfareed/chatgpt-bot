@@ -6,6 +6,7 @@ import sys
 
 import wikipedia
 from langchain.utilities import GoogleSerperAPIWrapper, WikipediaAPIWrapper
+from typing_extensions import override
 
 import chatgpt.core
 import chatgpt.events
@@ -31,6 +32,7 @@ class InternetSearch(chatgpt.tools.Tool):
             ),
         ]
 
+    @override
     async def _run(self, query: str) -> str:
         return await GoogleSerperAPIWrapper(
             serper_api_key=SERPER_API_KEY
@@ -80,6 +82,7 @@ class Python(chatgpt.tools.Tool):
             ),
         ]
 
+    @override
     def _run(self, code: str) -> str:
         local_vars = {}
         buffer = io.StringIO()

@@ -1,5 +1,7 @@
 """OpenAI chat model implementation."""
 
+from typing_extensions import override
+
 import chatgpt.core
 import chatgpt.events
 import chatgpt.memory
@@ -19,6 +21,7 @@ class ChatModel(chatgpt.openai.chat_model.OpenAIChatModel):
         self.memory = memory
         """The memory of the model."""
 
+    @override
     async def run(self, new_message: chatgpt.core.UserMessage):
         """Run the model."""
         # start running the model

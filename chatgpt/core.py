@@ -6,6 +6,8 @@ import json
 import typing
 import uuid
 
+from typing_extensions import override
+
 if typing.TYPE_CHECKING:
     import chatgpt.tools
 
@@ -231,6 +233,7 @@ class Message(Serializable, abc.ABC):
 class UserMessage(Message):
     """A message sent to the model."""
 
+    @override
     @staticmethod
     def ROLE():
         return "user"
@@ -242,6 +245,7 @@ class UserMessage(Message):
 class SystemMessage(Message):
     """A system message sent to the model."""
 
+    @override
     @staticmethod
     def ROLE():
         return "system"
@@ -253,6 +257,7 @@ class SystemMessage(Message):
 class ToolResult(Message):
     """The result of a tool usage."""
 
+    @override
     @staticmethod
     def ROLE():
         return "function"
@@ -264,6 +269,7 @@ class ToolResult(Message):
 class ModelMessage(Message):
     """A model generated message."""
 
+    @override
     @staticmethod
     def ROLE():
         return "assistant"
@@ -297,6 +303,7 @@ class ToolUsage(ModelMessage):
         """The arguments to the tool usage."""
         return json.loads(self.args_str)
 
+    @override
     def to_message_dict(self):
         return dict(
             super().to_message_dict(),

@@ -45,7 +45,7 @@ class DatabaseModel(orm.DeclarativeBase, async_sql.AsyncAttrs):
             engine = self.engine or await db_engine()
             statement = self._loading_statement
             async with async_sql.AsyncSession(engine) as session:
-                # async with session.begin(): # REVIEW: check if this is needed
+                # async with session.begin(): # REVIEW: check if needed
                 db_model = await session.scalar(statement)
             self._overwrite(db_model) if db_model else None
         except sql_exc.SQLAlchemyError as e:

@@ -7,6 +7,7 @@ import textwrap
 
 import telegram
 import telegram.ext as telegram_extensions
+from typing_extensions import override
 
 import bot.models
 from bot import formatter, handlers, utils
@@ -64,6 +65,7 @@ class HelpCommand(Command):
         """
     ).strip()
 
+    @override
     @staticmethod
     async def callback(update: telegram.Update, context: _default_context):
         dummy_message = formatter.md_html(HelpCommand.help_message)
@@ -77,6 +79,7 @@ class UsageCommand(Command):
     names = ("usage",)
     description = "Show the user and chat usage"
 
+    @override
     @staticmethod
     async def callback(update: telegram.Update, _: _default_context):
         if not (update_message := update.effective_message):
@@ -103,6 +106,7 @@ class DeleteHistoryCommand(Command):
     names = ("delete_history", "delete")
     description = "Delete the chat history"
 
+    @override
     @staticmethod
     async def callback(update: telegram.Update, _: _default_context):
         if not (update_message := update.effective_message):
@@ -118,6 +122,7 @@ class PromptCommand(Command):
     names = ("edit_sys", "edit")
     description = "Edit the system prompt"
 
+    @override
     @staticmethod
     async def callback(update: telegram.Update, context: _default_context):
         if not (update_message := update.effective_message):
@@ -151,6 +156,7 @@ class GetSystemPrompt(Command):
     names: tuple = ("get_sys", "sys")
     description = "Get the system prompt"
 
+    @override
     @staticmethod
     async def callback(update: telegram.Update, context: _default_context):
         if not (update_message := update.effective_message):

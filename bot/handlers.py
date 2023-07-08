@@ -7,6 +7,7 @@ import inspect
 import telegram
 import telegram.constants
 import telegram.ext as telegram_extensions
+from typing_extensions import override
 
 import chatgpt.memory
 import chatgpt.model
@@ -55,6 +56,7 @@ class ConversationHandler(MessageHandler):
         )
     )
 
+    @override
     @staticmethod
     async def callback(update: telegram.Update, _: _default_context):
         if not (update_message := update.message or update.channel_post):
@@ -75,6 +77,7 @@ class PrivateMessageHandler(MessageHandler):
         )
     )
 
+    @override
     @staticmethod
     async def callback(update: telegram.Update, context: _default_context):
         if not (update_message := update.message or update.channel_post):

@@ -1,6 +1,7 @@
 """The memory of models."""
 
 import sqlalchemy.ext.asyncio as async_sql
+from typing_extensions import override
 
 import chatgpt.core
 import chatgpt.events
@@ -265,6 +266,7 @@ class SummarizationModel(chatgpt.openai.chat_model.OpenAIChatModel):
         self.summary_size = summary_size
         """The max number of tokens a generated summary will contain."""
 
+    @override
     async def run(
         self,
         prev_summary: SummaryMessage | None,

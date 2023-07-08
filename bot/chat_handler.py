@@ -1,6 +1,7 @@
 """Chat messages handler. Handles model generated replies and streams."""
 
 import telegram.constants
+from typing_extensions import override
 
 import bot.formatter as formatter
 import bot.models
@@ -44,9 +45,11 @@ class ModelMessageHandler(
         """The user message to which the model is replying."""
         self.is_replying = reply
 
+    @override
     async def on_model_run(self, _):
         pass
 
+    @override
     async def on_model_start(self, config, context, tools):
         # set typing status
         await self.user_message.telegram_message.chat.send_action("typing")
@@ -55,6 +58,7 @@ class ModelMessageHandler(
         self.last_message = ""  # the last message sent
         self.reply = None  # the model's reply message
 
+    @override
     async def on_model_generation(self, packet, aggregator):
         if not aggregator or not aggregator.reply:
             return  # don't send packets if none are available
@@ -67,6 +71,7 @@ class ModelMessageHandler(
         await self._send_packet(aggregator.reply)
         self.counter = 0  # reset counter
 
+    @override
     async def on_model_end(self, message):
         # send remaining packets
         await self._send_packet(message)
@@ -76,19 +81,24 @@ class ModelMessageHandler(
         message.id = str(self.reply.message_id)
         message.metadata = bot.models.TelegramMessage(self.reply).metadata
 
+    @override
     async def on_tool_use(self, usage):
         await utils.count_usage(self.user_message, usage)
 
+    @override
     async def on_tool_result(self, results):
         # send results as a reply to the model's reply
         await self.reply.reply_html(f"<code>{results.content}</code>")
 
+    @override
     async def on_model_reply(self, reply):
         await utils.count_usage(self.user_message, reply)
 
+    @override
     async def on_model_error(self, _):
         pass
 
+    @override
     async def on_model_interrupt(self):
         pass
 
