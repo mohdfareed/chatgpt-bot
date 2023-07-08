@@ -17,7 +17,7 @@ the previous summary and returning a new summary."""
 """The prompt for summarizing a conversation."""
 
 INSTRUCTIONS = """\
-You may only use the following markdown in your replies:
+You may in a Telegram chat. ONLY use the following markdown in your replies:
 *bold* _italic_ ~strikethrough~ __underline__ ||spoiler|| \
 [inline URL](http://www.example.com/) `monospaced` @mentions #hashtags
 ```code blocks (without language)```"""

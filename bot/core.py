@@ -13,12 +13,6 @@ from bot import commands, formatter, handlers, models, utils
 
 def run():
     """Setup and run the bot."""
-    asyncio.run(run_async())
-    # run_async()
-
-
-async def run_async():
-    """Setup and run the bot asynchronously."""
 
     # configure the bot
     defaults = telegram_extensions.Defaults(
@@ -40,10 +34,8 @@ async def run_async():
     )
 
     # setup the bot
-    _setup_handlers(application)
-    commands = _setup_commands(application)
-    await _setup_profile(application, commands)
-    # FIXME: resolve threading issues
+    setup_handlers(application)
+    setup_commands(application)
 
     # start the bot
     bot.logger.info("[green]Starting telegram bot...[/green]")
@@ -63,15 +55,18 @@ async def run_async():
     bot.logger.info("Telegram bot has stopped")
 
 
-async def _setup_profile(app, commands: list[telegram.BotCommand]):
-    bot: telegram_extensions.ExtBot = app.bot
-    await bot.set_my_name("ChatGPT_Dev_Bot")
-    await bot.set_my_description("ChatGPT based Telegram bot.")
-    await bot.set_my_short_description("ChatGPT bot.")
-    await bot.set_my_commands(commands)
+def setup():
+    """Setup the bot's profile."""
+    application = (  # setup the application
+        telegram_extensions.Application.builder().token(bot.token).build()
+    )
+
+    # update the bot's profile
+    commands = setup_commands(application)
+    asyncio.run(_setup_profile(application, commands))
 
 
-def _setup_commands(app: telegram_extensions.Application):
+def setup_commands(app: telegram_extensions.Application):
     bot_commands = []
     for command in commands.all_commands():
         app.add_handler(command.handler, command.group)
@@ -79,7 +74,7 @@ def _setup_commands(app: telegram_extensions.Application):
     return bot_commands
 
 
-def _setup_handlers(app: telegram_extensions.Application):
+def setup_handlers(app: telegram_extensions.Application):
     app.add_error_handler(_error_handler)
     for handler in handlers.all_handlers():
         app.add_handler(handler.handler, handler.group)
@@ -93,3 +88,11 @@ async def _error_handler(update, context: telegram_extensions.CallbackContext):
         await utils.reply_code(message, error)
     # re-raise the error to be logged
     raise context.error or Exception("Unknown error encountered...")
+
+
+async def _setup_profile(app, commands: list[telegram.BotCommand]):
+    bot: telegram_extensions.ExtBot = app.bot
+    await bot.set_my_name("ChatGPT_Dev_Bot")
+    await bot.set_my_description("ChatGPT based Telegram bot.")
+    await bot.set_my_short_description("ChatGPT bot.")
+    await bot.set_my_commands(commands)

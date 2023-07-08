@@ -9,10 +9,9 @@ import telegram
 import telegram.ext as telegram_extensions
 from typing_extensions import override
 
-import bot.models
-from bot import formatter, handlers, utils
-from chatgpt import memory
-from chatgpt.openai import supported_models
+import chatgpt.core
+from bot import formatter, handlers, models, utils
+from chatgpt.openai import supported_models as openai_models
 
 _default_context = telegram_extensions.ContextTypes.DEFAULT_TYPE
 
@@ -86,7 +85,7 @@ class Usage(Command):
         if not (update_message := update.effective_message):
             return
 
-        message = bot.models.TextMessage(update_message)
+        message = models.TextMessage(update_message)
         usage = await utils.get_usage(message)
         await utils.reply_code(message, usage)
 
@@ -101,9 +100,8 @@ class DeleteHistory(Command):
         if not (update_message := update.effective_message):
             return
 
-        message = bot.models.TextMessage(update_message)
-        chat_history = await memory.ChatHistory.initialize(message.chat_id)
-        await chat_history.clear()
+        message = models.TextMessage(update_message)
+        await utils.delete_history(message)
         await utils.reply_code(message, "Chat history deleted")
 
 
@@ -116,9 +114,8 @@ class DeleteMessage(Command):
     async def callback(update: telegram.Update, _: _default_context):
         if not (update_message := update.effective_message):
             return
-        message = bot.models.TextMessage(update_message)
-        chat_history = await memory.ChatHistory.initialize(message.chat_id)
-        await chat_history.remove_message(str(message.reply.id))
+        message = models.TextMessage(update_message)
+        await utils.delete_message(message)
         await utils.reply_code(message, "Message deleted")
 
 
@@ -132,7 +129,7 @@ class Model(Command):
         if not (update_message := update.effective_message):
             return
 
-        message = bot.models.TextMessage(update_message)
+        message = models.TextMessage(update_message)
         config_text = await utils.load_config(message)
         await utils.reply_code(message, config_text)
 
@@ -147,10 +144,12 @@ class SetModel(Command):
         if not (update_message := update.effective_message):
             return
 
-        message = bot.models.TextMessage(update_message)
+        message = models.TextMessage(update_message)
         try:  # parse the model name from the message
             model_name = message.text.split(" ", 1)[1].strip()
-            model = supported_models.chat_model(model_name)
+            # use default model if no model name was found
+            model_name = model_name or chatgpt.core.ModelConfig().model.name
+            model = openai_models.chat_model(model_name)
         except (IndexError, ValueError):
             await utils.reply_code(message, "Invalid model name")
             return
@@ -168,7 +167,7 @@ class SetSystemPrompt(Command):
     async def callback(update: telegram.Update, context: _default_context):
         if not (update_message := update.effective_message):
             return
-        message = bot.models.TextMessage(update_message)
+        message = models.TextMessage(update_message)
 
         sys_message = None
         try:  # parse the message in the format `/command content`
@@ -177,16 +176,11 @@ class SetSystemPrompt(Command):
             pass
 
         # parse text from reply if no text was found in message
-        if isinstance(message.reply, bot.models.TextMessage):
+        if isinstance(message.reply, models.TextMessage):
             sys_message = sys_message or message.reply.text
 
-        if not sys_message:  # no text found
-            await utils.reply_code(
-                message, f"No text found in message or reply"
-            )
-            return
-
-        # create new system message
+        # use default prompt if no text was found
+        sys_message = sys_message or chatgpt.core.ModelConfig().prompt.content
         await utils.set_prompt(message, sys_message)
         await utils.reply_code(message, f"System prompt updated successfully")
 
@@ -201,9 +195,11 @@ class SetTemperature(Command):
         if not (update_message := update.effective_message):
             return
 
-        message = bot.models.TextMessage(update_message)
+        message = models.TextMessage(update_message)
         try:  # parse the temperature from the message
             temp_str = message.text.split(" ", 1)[1].strip()
+            # use default temp if no text was found
+            temp_str = temp_str or chatgpt.core.ModelConfig().temperature
             temp = float(temp_str)
             if not 0.0 <= temp <= 2.0:
                 raise ValueError
@@ -227,7 +223,7 @@ class ToggleStreaming(Command):
         if not (update_message := update.effective_message):
             return
 
-        message = bot.models.TextMessage(update_message)
+        message = models.TextMessage(update_message)
         if await utils.toggle_streaming(message):
             await utils.reply_code(message, "Streaming enabled")
         else:
@@ -244,7 +240,7 @@ class Stop(Command):
         if not (update_message := update.effective_message):
             return
 
-        message = bot.models.TextMessage(update_message)
+        message = models.TextMessage(update_message)
         if message.reply:
             await utils.stop_model(message)
             await utils.reply_code(message.reply, "Model stopped")

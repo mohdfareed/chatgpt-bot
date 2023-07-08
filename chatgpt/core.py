@@ -149,11 +149,11 @@ class ModelConfig(Serializable):
         self.stop_sequences: list[str] | str = Message.METADATA_DELIMITER
         """A list of sequences at which to stop reply generation. """
 
-        self.temperature: float | None = None
+        self.temperature: float = 1.0
         """Tokens confidence threshold, in range [0.0, 2.0]."""
-        self.presence_penalty: float | None = None
+        self.presence_penalty: float = 0.0
         """Penalty for repeated tokens, in range [-2.0, 2.0]."""
-        self.frequency_penalty: float | None = None
+        self.frequency_penalty: float = 0.0
         """Tokens penalty based on usage frequency, in range [-2.0, 2.0]."""
         super().__init__(**kwargs)
 
@@ -170,6 +170,19 @@ class ModelConfig(Serializable):
             frequency_penalty=self.frequency_penalty,
             stream=self.streaming,
         )
+
+    @staticmethod
+    def chat_models():
+        """Return a list of all supported chat models."""
+        return [CHATGPT, CHATGPT_16K, GPT4, GPT4_32K]
+
+    @staticmethod
+    def chat_model(name: str):
+        """Return a supported chat model by name."""
+        for model in ModelConfig.chat_models():
+            if model.name == name:
+                return model
+        raise ValueError(f"Unsupported chat model: {name}")
 
 
 class Message(Serializable, abc.ABC):
@@ -340,8 +353,8 @@ GPT4 = SupportedChatModel(
 )
 """The supported GPT-4 model."""
 
-GPT4_16K = SupportedChatModel(
-    "gpt-4-16k",
+GPT4_32K = SupportedChatModel(
+    "gpt-4-32k",
     size=32000,
     input_cost=0.06,
     output_cost=0.12,

@@ -57,9 +57,14 @@ async def add_message(message: bot.models.TextMessage):
     await chat_history.add_message(message.to_chat_message())
 
 
-async def delete_message(message: bot.models.TextMessage):
+async def delete_message(message: bot.models.TelegramMessage):
     chat_history = await chatgpt.memory.ChatHistory.initialize(message.chat_id)
     await chat_history.remove_message(str(message.id))
+
+
+async def delete_history(message: bot.models.TelegramMessage):
+    chat_history = await chatgpt.memory.ChatHistory.initialize(message.chat_id)
+    await chat_history.clear()
 
 
 async def count_usage(
@@ -143,12 +148,11 @@ async def set_max_tokens(message: bot.models.TelegramMessage, max: int):
 
 def _format_model(config: chatgpt.core.ModelConfig):
     return (
-        f"Name: <code>{config.model.name}<code>\n"
-        f"Size: <code>{config.model.size}k tokens<code>\n"
-        f"Temperature: <code>{config.temperature}<code>\n"
-        f"Input cost: <code>${config.model.input_cost}/1k tokens<code>\n"
-        f"Output cost: <code>${config.model.output_cost}/1k tokens<code>\n"
-        f"Streams messages: <code>{config.streaming}<code>\n"
-        f"Max tokens: <code>{config.max_tokens}<code>\n"
-        f"System prompt:\n<code>{config.prompt}<code>"
+        f"Name: <code>{config.model.name}</code>\n"
+        f"Size: <code>{config.model.size} tokens</code>\n"
+        f"Temperature: <code>{config.temperature}</code>\n"
+        f"Input cost: <code>${config.model.input_cost}/1k tokens</code>\n"
+        f"Output cost: <code>${config.model.output_cost}/1k tokens</code>\n"
+        f"Streams messages: <code>{config.streaming}</code>\n"
+        f"System prompt: <code>{config.prompt or ''}</code>"
     )

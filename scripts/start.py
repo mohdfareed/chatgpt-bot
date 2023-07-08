@@ -16,7 +16,30 @@ sys.path.append(os.getcwd())
 load_dotenv(override=True)
 
 
-def main(debug: bool = False, log: bool = False) -> None:
+def setup_bot() -> None:
+    """Instantiates and sets up the bot's profile."""
+
+    print("[bold green]Setting up bot...[/]")
+
+    # setup logging of errors only
+    _setup_app(to_file=False, level=logging.ERROR)
+    # add package directory to the path
+    os.chdir(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+    sys.path.append(os.getcwd())
+    # load environment variables
+    load_dotenv(override=True)
+    # load the bot
+    import bot.core as chatgpt_bot
+
+    try:  # run the bot setup
+        chatgpt_bot.setup()
+    except Exception as e:
+        logging.exception(e)
+        exit(1)
+    exit(0)  # exit when done
+
+
+def run_app(debug: bool = False, log: bool = False) -> None:
     """Instantiates and runs the app. This function sets up logging and
     checks the validity of the configured Telegram bot token.
 
@@ -29,7 +52,7 @@ def main(debug: bool = False, log: bool = False) -> None:
 
     # setup logging
     level = logging.DEBUG if debug else logging.INFO
-    _setup(to_file=log, level=level)
+    _setup_app(to_file=log, level=level)
     # add package directory to the path
     os.chdir(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
     sys.path.append(os.getcwd())
@@ -45,7 +68,7 @@ def main(debug: bool = False, log: bool = False) -> None:
         exit(1)
 
 
-def _setup(to_file, level):
+def _setup_app(to_file, level):
     _configure_logging(level)
     root_logger = logging.getLogger()
     _configure_console_logging(root_logger)
@@ -122,6 +145,10 @@ if __name__ == "__main__":
     parser.add_argument(
         "-l", "--log", action="store_true", help="log to a file"
     )
+    parser.add_argument(
+        "--setup", action="store_true", help="setup the bot's profile"
+    )
 
     args = parser.parse_args()
-    main(args.debug, args.log)
+    setup_bot() if args.setup else None
+    run_app(args.debug, args.log)
