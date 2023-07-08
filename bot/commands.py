@@ -11,7 +11,6 @@ from typing_extensions import override
 
 import chatgpt.core
 from bot import formatter, handlers, models, utils
-from chatgpt.openai import supported_models as openai_models
 
 _default_context = telegram_extensions.ContextTypes.DEFAULT_TYPE
 
@@ -50,18 +49,7 @@ class Help(Command):
 
     help_message = textwrap.dedent(
         """
-        The bot takes into context all messages sent in the chat, responding \
-        only to messages that mention it.
-        Set the system prompt by replying to a message with the command:
-        ```
-        /edit_sys@{bot}
-        ```
-
-        The text of the message to which you reply will be used as the prompt.
-        You can also pass the text of the prompt directly to the command:
-        ```
-        /edit_sys@{bot} The text of the prompt.
-        ```
+        WIP
         """
     ).strip()
 
@@ -73,6 +61,23 @@ class Help(Command):
         await update.effective_chat.send_message(
             dummy_message, parse_mode=telegram.constants.ParseMode.HTML
         )
+
+
+class Models(Command):
+    names = ("models", "available_models")
+    description = "Show the available models"
+
+    @override
+    @staticmethod
+    async def callback(update: telegram.Update, context: _default_context):
+        if not (update_message := update.effective_message):
+            return
+        message = models.TextMessage(update_message)
+
+        available_models = []
+        for model in chatgpt.core.ModelConfig.chat_models():
+            available_models.append(f"<code>{model.name}</code>")
+        await utils.reply_code(message, "\n".join(available_models))
 
 
 class Usage(Command):
@@ -149,7 +154,7 @@ class SetModel(Command):
             model_name = message.text.split(" ", 1)[1].strip()
             # use default model if no model name was found
             model_name = model_name or chatgpt.core.ModelConfig().model.name
-            model = openai_models.chat_model(model_name)
+            model = chatgpt.core.ModelConfig.chat_model(model_name)
         except (IndexError, ValueError):
             await utils.reply_code(message, "Invalid model name")
             return
