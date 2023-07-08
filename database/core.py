@@ -39,14 +39,17 @@ class DatabaseModel(orm.DeclarativeBase, async_sql.AsyncAttrs):
         for key, value in kwargs.items():
             setattr(self, key, value)
 
-    async def load(self):
-        """Load the model instance from the database if it exists."""
+    async def load(self, safe=False):
+        """Load the model instance from the database. Overwrites the current
+        instance if it exists. Raises an error if the model does not exist and
+        safe is set."""
         try:
             engine = self.engine or await db_engine()
             statement = self._loading_statement
             async with async_sql.AsyncSession(engine) as session:
-                # async with session.begin(): # REVIEW: check if needed
                 db_model = await session.scalar(statement)
+                if not db_model and safe:  # check if model exists
+                    raise ModelNotFound("Model does not exist")
             self._overwrite(db_model) if db_model else None
         except sql_exc.SQLAlchemyError as e:
             raise DatabaseError("Could not load model") from e
@@ -61,7 +64,8 @@ class DatabaseModel(orm.DeclarativeBase, async_sql.AsyncAttrs):
                 async with session.begin():
                     await session.merge(self)
                     await session.commit()
-        except sql_exc.SQLAlchemyError as e:
+            await self.load(safe=True)  # load generated attributes
+        except (sql_exc.SQLAlchemyError, ModelNotFound) as e:
             raise DatabaseError("Could not save model") from e
         return
 
@@ -70,14 +74,18 @@ class DatabaseModel(orm.DeclarativeBase, async_sql.AsyncAttrs):
         try:
             await self.load()  # load model ensure it exists
             if not self.id:  # check if model exists
-                raise DatabaseError("Model does not exist")
+                raise ModelNotFound("Model does not exist")
 
             # delete the model from the database
             engine = self.engine or await db_engine()
             async with async_sql.AsyncSession(engine) as session:
                 async with session.begin():
-                    await session.delete(self)
-                    await session.commit()
+                    # delete the db instance of the model
+                    if db_model := await session.get(type(self), self.id):
+                        await session.delete(db_model)
+                        await session.commit()
+                    else:  # raise if model could not be found
+                        raise ModelNotFound("Database instance not found")
         except sql_exc.SQLAlchemyError as e:
             raise DatabaseError("Could not delete model") from e
         return self
@@ -91,6 +99,12 @@ class DatabaseModel(orm.DeclarativeBase, async_sql.AsyncAttrs):
 
 class DatabaseError(Exception):
     """Exception raised for database errors."""
+
+    pass
+
+
+class ModelNotFound(DatabaseError):
+    """Exception raised when a model was not found in database."""
 
     pass
 

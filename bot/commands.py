@@ -120,8 +120,11 @@ class DeleteMessage(Command):
         if not (update_message := update.effective_message):
             return
         message = models.TextMessage(update_message)
-        await utils.delete_message(message)
-        await utils.reply_code(message, "Message deleted")
+        try:
+            await utils.delete_message(message.reply or message)
+            await utils.reply_code(message, "Message deleted")
+        except database.core.ModelNotFound:
+            await utils.reply_code(message, "Message not found")
 
 
 class Model(Command):
