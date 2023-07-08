@@ -7,12 +7,14 @@ import typing
 import chatgpt.core
 import chatgpt.tools
 
-if typing.TYPE_CHECKING:
-    from chatgpt.openai.aggregator import MessageAggregator
+# if typing.TYPE_CHECKING:
+#     from chatgpt.openai.aggregator import MessageAggregator
 
 
 class EventsManager:
     """Manager of callback handlers for a model's events."""
+
+    from chatgpt.openai.aggregator import MessageAggregator
 
     def __init__(self, handlers: list["ModelEvent"] = []):
         self.handlers = handlers
@@ -42,7 +44,7 @@ class EventsManager:
     async def trigger_model_generation(
         self,
         packet: chatgpt.core.ModelMessage,
-        aggregator: "MessageAggregator" | None,
+        aggregator: MessageAggregator | None,
     ):
         """Trigger the on_model_generation event for all handlers."""
         await self._trigger(ModelGeneration, packet, aggregator)
@@ -135,11 +137,13 @@ class ModelStart(ModelEvent, abc.ABC):
 class ModelGeneration(ModelEvent, abc.ABC):
     """Event triggered on model generating a token."""
 
+    from chatgpt.openai.aggregator import MessageAggregator
+
     @abc.abstractmethod
     def on_model_generation(
         self,
         packet: chatgpt.core.ModelMessage,
-        aggregator: "MessageAggregator" | None,
+        aggregator: MessageAggregator | None,
     ):
         """Called when a model generates a token."""
 

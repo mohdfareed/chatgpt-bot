@@ -83,11 +83,14 @@ class ChatMemory:
             )
 
         # summarize the history
-        new_summary = await self.summarizer.run(summary, history_messages)
+        new_summary = None
+        if history_messages:
+            new_summary = await self.summarizer.run(summary, history_messages)
         if not new_summary:  # no new summary
             return _create_prompt(
                 (await self.history.model).prompt, summary, short_memory
             )
+
         # add the new summary to the history
         new_summary.last_message_id = await self.history.get_id(
             history_messages[-1].id
@@ -167,7 +170,7 @@ class ChatHistory:
         return cls(chat_id, engine)
 
     @property
-    async def model(self) -> chatgpt.core.ModelConfig:
+    async def model(self) -> chatgpt.core.ModelConfig | None:
         """The model of the chat."""
         chat = await db.models.Chat(chat_id=self.chat_id).load()
         if chat.data is not None:  # otherwise, model does not exist
@@ -187,7 +190,7 @@ class ChatHistory:
     async def set_model(self, model: chatgpt.core.ModelConfig | None):
         """Set the model of the chat."""
         chat = await db.models.Chat(chat_id=self.chat_id).load()
-        chat.data = model.serialize() if model else "{}"
+        chat.data = model.serialize() if model else None
         await chat.save()
 
     async def get_message(self, id: str) -> Message | None:

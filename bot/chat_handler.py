@@ -49,7 +49,7 @@ class ModelMessageHandler(
 
     async def on_model_start(self, config, context, tools):
         # set typing status
-        await self.user_message.telegram_message.chat.send_action("typing")
+        # await self.user_message.telegram_message.chat.send_action("typing")
         # set handler states
         self.counter = 0  # the accumulated packets counter
         self.last_message = ""  # the last message sent

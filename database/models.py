@@ -25,7 +25,7 @@ class Chat(database.core.DatabaseModel):
     """The chat's unique ID."""
     messages: orm.Mapped[list["Message"]] = orm.relationship()
     """The chat's messages."""
-    data: orm.Mapped[str] = orm.mapped_column(_encrypted, default="{}")
+    data: orm.Mapped[str | None] = orm.mapped_column(_encrypted)
     """The chat's data."""
 
     def __init__(
