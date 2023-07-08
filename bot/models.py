@@ -113,8 +113,8 @@ class TelegramMetrics(database.DatabaseModel):
 
     __tablename__ = "telegram_metrics"
 
-    model_id: orm.Mapped[str] = orm.mapped_column(unique=True)
-    """The entity's model ID (user, chat, or forum)."""
+    entity_id: orm.Mapped[str] = orm.mapped_column(unique=True)
+    """The entity's ID (i.e. chat ID or user ID)."""
     usage: orm.Mapped[int] = orm.mapped_column(default=0)
     """The entity's token usage count."""
     usage_cost: orm.Mapped[float] = orm.mapped_column(default=0.0)
@@ -123,7 +123,7 @@ class TelegramMetrics(database.DatabaseModel):
     def __init__(
         self,
         id: int | None = None,
-        model_id: str | None = None,
+        entity_id: str | None = None,
         usage: int = 0,
         usage_cost: float = 0.0,
         engine: async_sql.AsyncEngine | None = None,
@@ -131,7 +131,7 @@ class TelegramMetrics(database.DatabaseModel):
     ):
         super().__init__(
             id=id,
-            model_id=model_id,
+            entity_id=entity_id,
             usage=usage,
             usage_cost=usage_cost,
             engine=engine,
@@ -142,7 +142,8 @@ class TelegramMetrics(database.DatabaseModel):
     @override
     def _loading_statement(self):
         return sql.select(type(self)).where(
-            (type(self).id == self.id) | (type(self).model_id == self.model_id)
+            (type(self).id == self.id)
+            | (type(self).entity_id == self.entity_id)
         )
 
 

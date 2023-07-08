@@ -87,10 +87,10 @@ class UsageCommand(Command):
 
         message = bot.models.TextMessage(update_message)
         db_user = await bot.models.TelegramMetrics(
-            model_id=str(message.user.id)
+            entity_id=str(message.user.id)
         ).load()
         db_chat = await bot.models.TelegramMetrics(
-            model_id=message.chat_id
+            entity_id=message.chat_id
         ).load()
 
         usage = (

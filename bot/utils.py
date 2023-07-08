@@ -34,14 +34,14 @@ async def count_usage(
     usage_cost = results.cost
 
     user_metrics = await bot.models.TelegramMetrics(
-        model_id=str(message.user.id)
+        entity_id=str(message.user.id)
     ).load()
     user_metrics.usage += token_usage
     user_metrics.usage_cost += usage_cost
     await user_metrics.save()
 
     chat_metrics = await bot.models.TelegramMetrics(
-        model_id=str(message.chat.id)
+        entity_id=str(message.chat.id)
     ).load()
     chat_metrics.usage += token_usage
     chat_metrics.usage_cost += usage_cost
