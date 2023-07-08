@@ -16,14 +16,20 @@ from bot import SERPER_API_KEY
 class InternetSearch(chatgpt.tools.Tool):
     """A tool for searching the internet."""
 
-    def __init__(self):
-        self.name = "internet_search"
-        self.description = (
+    @property
+    def name(self):
+        return "internet_search"
+
+    @property
+    def description(self):
+        return (
             "Search the internet. Useful for finding up-to-date information "
             "about current events."
         )
 
-        self.parameters = [
+    @property
+    def parameters(self):
+        return [
             chatgpt.tools.ToolParameter(
                 name="query",
                 type="string",
@@ -41,14 +47,20 @@ class InternetSearch(chatgpt.tools.Tool):
 class WikiSearch(chatgpt.tools.Tool):
     """A tool for searching Wikipedia."""
 
-    def __init__(self):
-        self.name = "wiki_search"
-        self.description = (
+    @property
+    def name(self):
+        return "wiki_search"
+
+    @property
+    def description(self):
+        return (
             "Search Wikipedia. Useful for finding information about new or "
             "or unknown subjects and topics."
         )
 
-        self.parameters = [
+    @property
+    def parameters(self):
+        return [
             chatgpt.tools.ToolParameter(
                 name="query",
                 type="string",
@@ -64,16 +76,22 @@ class WikiSearch(chatgpt.tools.Tool):
 class Python(chatgpt.tools.Tool):
     """A tool for executing Python code."""
 
-    def __init__(self):
-        self.name = "python"
-        self.description = (
+    @property
+    def name(self):
+        return "python"
+
+    @property
+    def description(self):
+        return (
             "Execute Python code. Useful for performing complex calculations"
             "and tasks. Equivalent to running in a Python shell. Only use it "
             "to run safe code. Can't include async code. Everything returned "
             "must be printed."
         )
 
-        self.parameters = [
+    @property
+    def parameters(self):
+        return [
             chatgpt.tools.ToolParameter(
                 type="string",
                 name="code",

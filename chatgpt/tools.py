@@ -2,7 +2,9 @@
 
 import abc
 import asyncio
+import importlib
 import inspect
+import pkgutil
 import typing
 
 import chatgpt.core
@@ -34,20 +36,25 @@ class ToolsManager:
 class Tool(chatgpt.core.Serializable, abc.ABC):
     """A tool that can be used by a model to generate replies."""
 
-    def __init__(
-        self,
-        name: str,
-        description: str | None = None,
-        parameters: list["ToolParameter"] = [],
-        **kwargs: typing.Any,
-    ):
-        self.name = name
+    @abc.abstractproperty
+    def name(self) -> str:  # type: ignore
         """The name of the tool."""
-        self.description = description
+        pass
+
+    @abc.abstractproperty
+    def description(self) -> str:  # type: ignore
         """A description of the tool."""
-        self.parameters = parameters
+        pass
+
+    @abc.abstractproperty
+    def parameters(self) -> list["ToolParameter"]:  # type: ignore
         """A list of parameters for the tool."""
-        super().__init__(**kwargs)
+        pass
+
+    @abc.abstractmethod
+    async def _run(self, **kwargs: typing.Any) -> str:
+        """The method's arguments must match the tool's parameters."""
+        pass
 
     async def use(self, **kwargs: typing.Any):
         """Use the tool."""
@@ -55,19 +62,18 @@ class Tool(chatgpt.core.Serializable, abc.ABC):
         self._validate_params(params)
         return await self._run(**kwargs)
 
-    @abc.abstractmethod
-    async def _run(self, **kwargs: typing.Any) -> str:
-        """The method's arguments must match the tool's parameters' types and
-        names."""
-        pass
-
     @classmethod
     def available_tools(cls):
         """Returns all the available tools."""
         if not inspect.isabstract(cls):
             yield cls()  # type: ignore
-        for sub_tool in cls.__subclasses__():
-            yield from sub_tool.available_tools()
+        # for sub_tool in cls.__subclasses__():
+        #     yield from sub_tool.available_tools()
+        for _, name, _ in pkgutil.walk_packages():
+            module = importlib.import_module(name)
+            for _, sub_tool in inspect.getmembers(module, inspect.isclass):
+                if issubclass(sub_tool, cls):
+                    yield sub_tool()
 
     @classmethod
     def from_tool_name(cls, tool_name: str):

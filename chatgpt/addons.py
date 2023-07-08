@@ -82,13 +82,17 @@ class ConsoleHandler(
 class Calculator(chatgpt.tools.Tool):
     """A tool for solving math problems."""
 
-    def __init__(self):
-        self.name = "calculator"
-        self.description = (
-            "Answer math questions. Useful for solving math problems."
-        )
+    @override
+    def name(self) -> str:
+        return "calculator"
 
-        self.parameters = [
+    @override
+    def description(self) -> str:
+        return "Answer math questions. Useful for solving math problems."
+
+    @override
+    def parameters(self) -> list[chatgpt.tools.ToolParameter]:
+        return [
             chatgpt.tools.ToolParameter(
                 name="expression",
                 type="string",

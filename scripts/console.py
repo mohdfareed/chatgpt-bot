@@ -6,6 +6,7 @@ import os
 import sys
 
 from dotenv import load_dotenv
+from typing_extensions import override
 
 # add package directory to the path
 os.chdir(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
@@ -29,11 +30,17 @@ import chatgpt.tools
 
 
 class TestTool(chatgpt.tools.Tool):
-    def __init__(self):
-        self.name = "hello134"  # name + 1
-        self.description = "Says hello world to the user."  # text + 2
+    @override
+    def name(self):
+        return "hello134"  # name + 1
 
-        self.parameters = [
+    @override
+    def description(self):
+        return "Says hello world to the user."  # text + 2
+
+    @override
+    def parameters(self):
+        return [
             chatgpt.tools.ToolParameter(
                 type="null",  # 2
                 name="test_test_test",  # name + 1
