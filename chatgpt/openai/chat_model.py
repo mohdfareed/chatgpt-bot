@@ -25,7 +25,6 @@ class OpenAIChatModel:
     def __init__(
         self,
         config: chatgpt.core.ModelConfig = chatgpt.core.ModelConfig(),
-        tools: list[chatgpt.tools.Tool] = [],
         handlers: list[chatgpt.events.ModelEvent] = [],
     ) -> None:
         self._running = False
@@ -35,7 +34,7 @@ class OpenAIChatModel:
 
         self.config = config
         """The model's configuration."""
-        self.tools_manager = chatgpt.tools.ToolsManager(tools)
+        self.tools_manager = chatgpt.tools.ToolsManager(config.tools)
         """The manager of tools available to the model."""
         self.events_manager = chatgpt.events.EventsManager(handlers)
         """The events manager of callback handlers."""

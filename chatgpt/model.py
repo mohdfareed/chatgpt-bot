@@ -13,10 +13,9 @@ class ChatModel(chatgpt.openai.chat_model.OpenAIChatModel):
     def __init__(
         self,
         memory: chatgpt.memory.ChatMemory,
-        tools: list[chatgpt.tools.Tool] = [],
         handlers: list[chatgpt.events.ModelEvent] = [],
     ) -> None:
-        super().__init__(tools=tools, handlers=handlers)
+        super().__init__(handlers=handlers)
         self.memory = memory
         """The memory of the model."""
 
@@ -32,9 +31,11 @@ class ChatModel(chatgpt.openai.chat_model.OpenAIChatModel):
 
     async def _core(self, new_message: chatgpt.core.UserMessage):
         await self.memory.history.add_message(new_message)
-        self.config = await self.memory.history.model  # update model config
-        reply = None
+        # update model config and tools
+        self.config = await self.memory.history.model
+        self.tools_manager = chatgpt.tools.ToolsManager(self.config.tools)
 
+        reply = None
         while True:  # run until model has replied or is stopped
             # generate reply and add to memory
             reply = await self._generate_reply(await self.memory.messages)

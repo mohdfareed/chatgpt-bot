@@ -6,6 +6,9 @@ import json
 import typing
 import uuid
 
+if typing.TYPE_CHECKING:
+    import chatgpt.tools
+
 T = typing.TypeVar("T", bound="Serializable")
 
 
@@ -144,6 +147,8 @@ class ModelConfig(Serializable):
     def __init__(self, **kwargs: typing.Any) -> None:
         self.model = CHATGPT
         """The the model used for chat completions."""
+        self.tools: list[chatgpt.tools.Tool] = []
+        """The tools available to the model."""
         self.allowed_tool: str | None = None
         """The name of the tool the model must call. Set to an empty string to
         disable tool usage. Defaults to using any tool."""

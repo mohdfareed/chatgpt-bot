@@ -97,7 +97,7 @@ def all_handlers(handler=MessageHandler):
 
 async def _reply_to_user(message: models.TextMessage, reply=False):
     # create handler
-    message_handler = chat_handler.ModelMessageHandler(message, reply=False)
+    message_handler = chat_handler.ModelMessageHandler(message, reply=reply)
     # initialize model's memory
     memory = await chatgpt.memory.ChatMemory.initialize(
         message.chat_id, 3500, 2500

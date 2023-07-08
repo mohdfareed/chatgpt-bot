@@ -37,7 +37,7 @@ class ToolsManager:
         raise ValueError("Invalid tool name")
 
 
-class Tool(abc.ABC):
+class Tool(chatgpt.core.Serializable, abc.ABC):
     """A tool that can be used by a model to generate replies."""
 
     def __init__(
@@ -45,6 +45,7 @@ class Tool(abc.ABC):
         name: str,
         description: str | None = None,
         parameters: list["ToolParameter"] = [],
+        **kwargs: typing.Any,
     ):
         self.name = name
         """The name of the tool."""
@@ -52,6 +53,7 @@ class Tool(abc.ABC):
         """A description of the tool."""
         self.parameters = parameters
         """A list of parameters for the tool."""
+        super().__init__(**kwargs)
 
     async def use(self, **kwargs: typing.Any):
         """Use the tool."""
@@ -95,7 +97,7 @@ class Tool(abc.ABC):
                 raise TypeError(f"Missing required argument: {req_param}")
 
 
-class ToolParameter:
+class ToolParameter(chatgpt.core.Serializable):
     """A parameter of a tool."""
 
     @property
@@ -111,10 +113,11 @@ class ToolParameter:
     def __init__(
         self,
         type: str,
-        name: str,
+        name: str = "",
         description: str | None = None,
         enum: list[str] | None = None,
         optional: bool = False,
+        **kwargs: typing.Any,
     ):
         self.type = type
         """The json type of the parameter."""
@@ -126,6 +129,7 @@ class ToolParameter:
         """A list of possible values for the parameter."""
         self.optional = optional
         """Whether the parameter is optional."""
+        super().__init__(**kwargs)
 
     def to_dict(self):
         """Convert the parameter to an OpenAPI dictionary."""
