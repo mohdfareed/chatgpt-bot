@@ -91,8 +91,8 @@ async def _error_handler(update, context: telegram_extensions.CallbackContext):
 
 
 async def _setup_profile(app, commands: list[telegram.BotCommand]):
-    bot: telegram_extensions.ExtBot = app.bot
-    await bot.set_my_name("ChatGPT_Dev_Bot")
-    await bot.set_my_description("ChatGPT based Telegram bot.")
-    await bot.set_my_short_description("ChatGPT bot.")
-    await bot.set_my_commands(commands)
+    chat_bot: telegram_extensions.ExtBot = app.bot
+    await chat_bot.set_my_name("ChatGPT_Dev" if bot.dev_mode else "ChatGPT")
+    await chat_bot.set_my_description("ChatGPT based Telegram bot.")
+    await chat_bot.set_my_short_description("ChatGPT bot.")
+    await chat_bot.set_my_commands(commands)
