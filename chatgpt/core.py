@@ -142,7 +142,7 @@ class ModelConfig(Serializable):
     """ChatGPT model configuration and parameters."""
 
     def __init__(self, **kwargs: typing.Any) -> None:
-        self.model = GPT4
+        self.model = CHATGPT
         """The the model used for chat completions."""
         self.allowed_tool: str | None = None
         """The name of the tool the model must call. Set to an empty string to
@@ -155,7 +155,7 @@ class ModelConfig(Serializable):
         not be limited by the number of tokens."""
         self.streaming: bool = True
         """Whether the model streams completions as they are generated."""
-        self.stop_sequences: list[str] | str | None = None
+        self.stop_sequences: list[str] | str = Message.METADATA_DELIMITER
         """A list of sequences at which to stop reply generation. """
 
         self.temperature: float | None = None
@@ -184,6 +184,8 @@ class ModelConfig(Serializable):
 class Message(Serializable, abc.ABC):
     """The base of all messages sent to a model."""
 
+    METADATA_DELIMITER = "<|METADATA|>"
+
     @abc.abstractstaticmethod
     def ROLE() -> str:
         """The role of the message sender."""
@@ -211,8 +213,8 @@ class Message(Serializable, abc.ABC):
         metadata = self.metadata.copy()
         metadata["id"] = self.id
         message_content = (
-            f"{self.content}\n" f"[metadata: {json.dumps(metadata)}]"
-        )  # FIXME: have start sequence to act as model's end sequence
+            self.content + Message.METADATA_DELIMITER + json.dumps(metadata)
+        )
 
         return dict(
             role=type(self).ROLE(),

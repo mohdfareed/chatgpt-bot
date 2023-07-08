@@ -8,12 +8,19 @@ import chatgpt.openai.chat_model
 import chatgpt.openai.supported_models
 import chatgpt.openai.tokenization
 import database as db
-from chatgpt.core import Message, SummaryMessage
+from chatgpt.core import Message, SummaryMessage, SystemMessage
 
 SUMMARIZATION_PROMPT = """\
 Progressively summarize the lines of the conversation provided, adding onto \
 the previous summary and returning a new summary."""
 """The prompt for summarizing a conversation."""
+
+INSTRUCTIONS = """\
+You may only use the following markdown in your replies:
+*bold* _italic_ ~strikethrough~ __underline__ ||spoiler|| \
+[inline URL](http://www.example.com/) `monospaced` @mentions #hashtags
+```code blocks (without language)```"""
+"""The core message included at the end of all system messages."""
 
 
 class ChatMemory:
@@ -88,7 +95,10 @@ class ChatMemory:
             new_summary = await self.summarizer.run(summary, history_messages)
         if not new_summary:  # no new summary
             return _create_prompt(
-                (await self.history.model).prompt, summary, short_memory
+                (await self.history.model).prompt,
+                SystemMessage(INSTRUCTIONS),
+                summary,
+                short_memory,
             )
 
         # add the new summary to the history
