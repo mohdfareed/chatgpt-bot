@@ -153,7 +153,7 @@ class ModelConfig(Serializable):
         self.max_tokens: int | None = None
         """The maximum number of tokens to generate. If None, the model will
         not be limited by the number of tokens."""
-        self.streaming: bool = False
+        self.streaming: bool = True
         """Whether the model streams completions as they are generated."""
 
         self.temperature: float | None = None
@@ -232,12 +232,23 @@ class UserMessage(Message):
 class SystemMessage(Message):
     """A system message sent to the model."""
 
+    CORE_MESSAGE = "\nNEVER INCLUDE METADATA IN YOUR REPLIES"
+    """The core message included at the end of all system messages."""
+
     @staticmethod
     def ROLE():
         return "system"
 
     def __init__(self, content: str, **kwargs: typing.Any):
         super().__init__(content, **kwargs)
+
+    def to_message_dict(self):
+        # append the core message to the end of the message content
+        message_dict = super().to_message_dict()
+        message_dict["content"] = (
+            message_dict["content"] or ""
+        ) + self.CORE_MESSAGE
+        return message_dict
 
 
 class ToolResult(Message):

@@ -18,6 +18,8 @@ class DatabaseModel(orm.DeclarativeBase, async_sql.AsyncAttrs):
 
     id: orm.Mapped[int] = orm.mapped_column(primary_key=True)
     """The model's unique ID."""
+    engine: async_sql.AsyncEngine | None = None
+    """The database of the model. Defaults to the global database."""
 
     @property
     def _loading_statement(self):
@@ -31,9 +33,8 @@ class DatabaseModel(orm.DeclarativeBase, async_sql.AsyncAttrs):
     def __init__(
         self, engine: async_sql.AsyncEngine | None = None, **kwargs: typing.Any
     ):
-        self.engine = engine
-        """The database of the model. Defaults to the global database."""
         super().__init__()
+        self.engine = engine
         # set attributes
         for key, value in kwargs.items():
             setattr(self, key, value)

@@ -7,9 +7,6 @@ import typing
 import chatgpt.core
 import chatgpt.tools
 
-# if typing.TYPE_CHECKING:
-#     from chatgpt.openai.aggregator import MessageAggregator
-
 
 class EventsManager:
     """Manager of callback handlers for a model's events."""

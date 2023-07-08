@@ -230,7 +230,9 @@ class ChatHistory:
     async def clear(self) -> None:
         """Clear the chat history."""
         chat = await db.models.Chat(chat_id=self.chat_id).load()
-        (await message.delete() for message in chat.messages)
+        for message in chat.messages:
+            await message.delete()
+        # (await message.delete() for message in chat.messages)
 
 
 class SummarizationModel(chatgpt.openai.chat_model.OpenAIChatModel):
@@ -247,6 +249,7 @@ class SummarizationModel(chatgpt.openai.chat_model.OpenAIChatModel):
             temperature=temperature,
             prompt=summarization_prompt,
             max_tokens=summary_size,
+            streaming=False,
         )
         super().__init__(config, handlers=handlers)
         self.summary_size = summary_size

@@ -17,7 +17,7 @@ async def reply_code(message: telegram.Message | None, reply):
 async def load_prompt(message: bot.models.TextMessage):
     chat_history = await chatgpt.memory.ChatHistory.initialize(message.chat_id)
     chat_model = await chat_history.model
-    return chat_model.prompt
+    return chat_model.prompt or chatgpt.core.SystemMessage("")
 
 
 async def save_prompt(message: bot.models.TextMessage, prompt: str):

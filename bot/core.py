@@ -88,27 +88,8 @@ def _setup_commands(app: telegram_extensions.Application):
 
 def _setup_handlers(app: telegram_extensions.Application):
     app.add_error_handler(_error_handler)
-
-    app.add_handler(
-        telegram_extensions.MessageHandler(
-            filters=telegram_extensions.filters.ChatType.PRIVATE,
-            callback=handlers.private_callback,
-        )
-    )
-    app.add_handler(
-        telegram_extensions.MessageHandler(
-            filters=telegram_extensions.filters.Entity(
-                telegram.constants.MessageEntityType.MENTION
-            ),
-            callback=handlers.mention_callback,
-        )
-    )
-    app.add_handler(
-        telegram_extensions.MessageHandler(
-            filters=telegram_extensions.filters.ALL,
-            callback=handlers.store_update,
-        )
-    )
+    for handler in handlers.all_handlers():
+        app.add_handler(handler.handler, handler.group)
 
 
 async def _error_handler(update, context: telegram_extensions.CallbackContext):

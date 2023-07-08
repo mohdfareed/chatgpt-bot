@@ -8,7 +8,8 @@ import chatgpt.core
 import chatgpt.events
 import chatgpt.memory
 import chatgpt.model
-import chatgpt.openai.supported_models
+
+PARSE_MODE = telegram.constants.ParseMode.HTML
 
 TOOL_USAGE_MESSAGE = """
 ```
@@ -19,8 +20,6 @@ With options:
 {args_str}
 ```
 """.strip()
-
-PARSE_MODE = telegram.constants.ParseMode.HTML
 
 
 class ModelMessageHandler(
@@ -39,17 +38,17 @@ class ModelMessageHandler(
     CHUNK_SIZE = 10
     """The number of packets to send at once."""
 
-    def __init__(self, message: bot.models.TextMessage):
+    def __init__(self, message: bot.models.TextMessage, reply=False):
         self.user_message = message
         """The user message to which the model is replying."""
+        self.is_replying = reply
 
     async def on_model_run(self, _):
-        # set typing status
-        await self.user_message.telegram_message.chat.send_action("typing")
+        pass
 
     async def on_model_start(self, config, context, tools):
         # set typing status
-        # await self.user_message.telegram_message.chat.send_action("typing")
+        await self.user_message.telegram_message.chat.send_action("typing")
         # set handler states
         self.counter = 0  # the accumulated packets counter
         self.last_message = ""  # the last message sent
@@ -75,20 +74,38 @@ class ModelMessageHandler(
         message.id = str(self.reply.message_id)
 
     async def on_tool_use(self, usage):
-        pass
+        await self._handle_metrics(usage)
 
     async def on_tool_result(self, results):
         # send results as a reply to the model's reply
         await self.reply.reply_html(f"<code>{results.content}</code>")
 
     async def on_model_reply(self, reply):
-        pass
+        await self._handle_metrics(reply)
 
     async def on_model_error(self, _):
         pass
 
     async def on_model_interrupt(self):
         pass
+
+    async def _handle_metrics(self, message: chatgpt.core.ModelMessage):
+        token_usage = message.prompt_tokens + message.reply_tokens
+        usage_cost = message.cost
+
+        user_metrics = await bot.models.TelegramMetrics(
+            model_id=str(self.user_message.user.id)
+        ).load()
+        user_metrics.usage += token_usage
+        user_metrics.usage_cost += usage_cost
+        await user_metrics.save()
+
+        chat_metrics = await bot.models.TelegramMetrics(
+            model_id=str(self.user_message.chat.id)
+        ).load()
+        chat_metrics.usage += token_usage
+        chat_metrics.usage_cost += usage_cost
+        await chat_metrics.save()
 
     async def _send_packet(self, new_message: chatgpt.core.ModelMessage):
         message = _create_message(new_message)  # parse message
@@ -97,17 +114,17 @@ class ModelMessageHandler(
 
         # send new message if no reply has been sent yet
         if not self.reply:
-            await self._create_reply(
+            await self._reply(
                 message, isinstance(new_message, chatgpt.core.ToolUsage)
             )
         else:  # edit the existing reply otherwise
-            await self.reply.reply_html(message)
+            await self.reply.edit_text(message)
         # update last message
         self.last_message = message
 
-    async def _create_reply(self, new_message: str, tool_usage=False):
-        # send message without replying if using a tool
-        if tool_usage:
+    async def _reply(self, new_message: str, tool_usage=False):
+        # send message without replying if using a tool or not replying
+        if not self.is_replying or tool_usage:
             self.reply = (
                 await self.user_message.chat.telegram_chat.send_message(
                     new_message, PARSE_MODE
@@ -117,30 +134,6 @@ class ModelMessageHandler(
             self.reply = await self.user_message.telegram_message.reply_html(
                 new_message
             )
-
-
-# TODO: add metrics handler (extend existing handler to count usage)
-
-
-async def generate_reply(
-    message: bot.models.TextMessage,
-):
-    """Generates a reply for the given message."""
-    # the chat model model
-    model = chatgpt.openai.supported_models.CHATGPT
-    # create handler
-    message_handler = ModelMessageHandler(message)
-    # initialize model's memory
-    memory = await chatgpt.memory.ChatMemory.initialize(
-        message.chat_id, 3500, 2500
-    )
-    # setup the model
-    model = chatgpt.model.ChatModel(
-        memory=memory,
-        handlers=[message_handler],
-    )
-    # generate a reply
-    return await model.run(message.to_chat_message())
 
 
 def _create_message(message: chatgpt.core.ModelMessage) -> str:

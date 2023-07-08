@@ -9,34 +9,29 @@ import telegram
 import telegram.ext as telegram_extensions
 
 import bot.models
-from bot import formatter, utils
+from bot import formatter, handlers, utils
 from chatgpt import memory
 
 _default_context = telegram_extensions.ContextTypes.DEFAULT_TYPE
 
 
-class Command(abc.ABC):
+class Command(handlers.MessageHandler, abc.ABC):
     """Base class for bot commands. All commands inherit from this class."""
 
     names: tuple[str, ...]
     """The names that trigger the command. The first is the primary name."""
     description: str
     """The command's description."""
-    filters: telegram_extensions.filters.BaseFilter | None = None
-    """The command update filters."""
-    block: bool | None = None
-    """Whether the command should block other handlers."""
-    group: int = 0
-    """The command group. Commands in the same group are mutually exclusive.
-    Lower group numbers have higher priority."""
+    filters = telegram_extensions.filters.Command(False)
+    """The command update filters. Defaults to all commands."""
 
     @property
     def handler(self) -> telegram_extensions.CommandHandler:
         """The command handler."""
         handler = telegram_extensions.CommandHandler(
             command=self.names,
-            callback=self.callback,
-            filters=self.filters,  # type: ignore
+            callback=type(self).callback,
+            filters=type(self).filters,
         )
         # set blocking if specified, use default otherwise
         if self.block is not None:
@@ -46,12 +41,6 @@ class Command(abc.ABC):
     @property
     def bot_command(self) -> telegram.BotCommand:
         return telegram.BotCommand(self.names[0], self.description)
-
-    @staticmethod
-    @abc.abstractmethod
-    async def callback(update: telegram.Update, context: _default_context):
-        """The callback function for the command."""
-        pass
 
 
 class HelpCommand(Command):
@@ -66,10 +55,11 @@ class HelpCommand(Command):
         ```
         /edit_sys@{bot}
         ```
+
         The text of the message to which you reply will be used as the prompt.
         You can also pass the text of the prompt directly to the command:
         ```
-        /edit_sys@{bot} <prompt>
+        /edit_sys@{bot} The text of the prompt.
         ```
         """
     ).strip()
@@ -143,8 +133,12 @@ class PromptCommand(Command):
         # parse text from reply if no text was found in message
         if isinstance(message.reply, bot.models.TextMessage):
             sys_message = sys_message or message.reply.text
-        if not sys_message:
-            raise ValueError("No text found in message or reply")
+
+        if not sys_message:  # no text found
+            await utils.reply_code(
+                update_message, f"No text found in message or reply"
+            )
+            return
 
         # create new system message
         await utils.save_prompt(message, sys_message)

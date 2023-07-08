@@ -115,20 +115,17 @@ class TelegramMetrics(database.DatabaseModel):
 
     model_id: orm.Mapped[str] = orm.mapped_column(unique=True)
     """The entity's model ID (user, chat, or forum)."""
-    usage: orm.Mapped[int] = orm.mapped_column()
+    usage: orm.Mapped[int] = orm.mapped_column(default=0)
     """The entity's token usage count."""
-    usage_cost: orm.Mapped[float] = orm.mapped_column()
+    usage_cost: orm.Mapped[float] = orm.mapped_column(default=0.0)
     """The entity's token usage cost."""
-    data: orm.Mapped[str] = orm.mapped_column()
-    """Entity related data."""
 
     def __init__(
         self,
         id: int | None = None,
         model_id: str | None = None,
-        usage: int | None = None,
-        usage_cost: float | None = None,
-        data: str | None = None,
+        usage: int = 0,
+        usage_cost: float = 0.0,
         engine: async_sql.AsyncEngine | None = None,
         **kw: typing.Any,
     ):
@@ -137,7 +134,6 @@ class TelegramMetrics(database.DatabaseModel):
             model_id=model_id,
             usage=usage,
             usage_cost=usage_cost,
-            data=data,
             engine=engine,
             **kw,
         )
