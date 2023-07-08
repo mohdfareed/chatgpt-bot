@@ -91,8 +91,8 @@ def all_handlers(handler=MessageHandler):
     Recursively yields all concrete subclasses of the base class."""
     if not inspect.isabstract(handler):
         yield handler()  # type: ignore
-    for subcommand in handler.__subclasses__():
-        yield from all_handlers(subcommand)
+    for sub_handler in handler.__subclasses__():
+        yield from all_handlers(sub_handler)
 
 
 async def _reply_to_user(message: models.TextMessage, reply=False):

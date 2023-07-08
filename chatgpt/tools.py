@@ -56,7 +56,8 @@ class Tool(chatgpt.core.Serializable, abc.ABC):
         super().__init__(**kwargs)
 
     async def use(self, **kwargs: typing.Any):
-        """Use the tool."""
+        """Use the tool. The keyword arguments must match the tools's
+        parameters' types and names."""
         params = list(kwargs.keys())
         self._validate_params(params)
         return await self._run(**kwargs)
