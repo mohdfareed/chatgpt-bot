@@ -12,7 +12,7 @@ from typing_extensions import override
 import chatgpt.core
 import chatgpt.tools
 import database.core
-from bot import formatter, handlers, models, utils
+from bot import formatter, handlers, models, tools, utils
 
 _default_context = telegram_extensions.ContextTypes.DEFAULT_TYPE
 
@@ -104,7 +104,7 @@ class Tools(Command):
         message = models.TextMessage(update_message)
 
         available_tools = []
-        for tool in chatgpt.tools.Tool.available_tools():
+        for tool in tools.available_tools():
             available_tools.append(f"<code>{tool.name}</code>")
         await message.telegram_message.reply_html(
             "\n".join(available_tools).strip() or "No tools available"
@@ -210,13 +210,12 @@ class SetTools(Command):
 
         # use default tools if no tools are found
         selected_tools = chatgpt.core.ModelConfig().tools
-        message_text = message.text.split(" ", 1)[-1].strip()
         try:  # parse the tool names from the message
-            message_tools = message_text.split(" ", 1)[1].strip()
-            for tool in message_tools.split():
+            requested_tools = message.text.split(" ", 1)[1].strip()
+            for tool in requested_tools.split():
                 try:  # check if the tool is valid
-                    selected_tool = chatgpt.tools.Tool.from_tool_name(tool)
-                except:  # stop if the tool is invalid
+                    selected_tool = tools.from_tool_name(tool)
+                except ValueError:  # stop if the tool is invalid
                     await utils.reply_code(message, f"Invalid tool: {tool}")
                     return
                 selected_tools.append(selected_tool)

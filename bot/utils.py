@@ -6,7 +6,6 @@ import chatgpt.core
 import chatgpt.memory
 import chatgpt.model
 import chatgpt.tools
-import database
 
 running_models: list[chatgpt.model.ChatModel] = []
 """A dictionary of running models."""
@@ -157,6 +156,7 @@ async def set_max_tokens(message: bot.models.TelegramMessage, max: int):
 
 
 def _format_model(config: chatgpt.core.ModelConfig):
+    tools = [f"<code>{tool.name}</code>" for tool in config.tools]
     return (
         f"Name: <code>{config.model.name}</code>\n"
         f"Size: <code>{config.model.size} tokens</code>\n"
@@ -164,5 +164,6 @@ def _format_model(config: chatgpt.core.ModelConfig):
         f"Input cost: <code>${config.model.input_cost}/1k tokens</code>\n"
         f"Output cost: <code>${config.model.output_cost}/1k tokens</code>\n"
         f"Streams messages: <code>{config.streaming}</code>\n"
+        f"Tools: {', '.join(tools)}\n"
         f"System prompt: <code>{config.prompt or ''}</code>"
     )
