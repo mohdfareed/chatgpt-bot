@@ -319,7 +319,7 @@ class ToolUsage(ModelMessage):
     @property
     def arguments(self):
         """The arguments to the tool usage."""
-        return json.loads(self.args_str)
+        return json.loads(self.args_str or "{}")
 
     @override
     def to_message_dict(self):

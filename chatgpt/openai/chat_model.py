@@ -204,7 +204,7 @@ def _parse_completion(
     if function_call := message.get("function_call"):
         reply_dict: dict = json.loads(str(function_call))
         name = reply_dict.get("name") or ""  # default to empty name
-        args = reply_dict.get("arguments") or "{}"  # default to empty dict
+        args = reply_dict.get("arguments") or ""  # default to no arguments
 
         reply = chatgpt.core.ToolUsage(name, args)
         reply.content = content
