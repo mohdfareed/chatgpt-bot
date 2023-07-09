@@ -21,8 +21,10 @@ def main(clean: bool = False) -> None:
     # set os specific path to python executable
     if sys.platform == "win32":
         python = os.path.join(venv, "Scripts", "python.exe")
+        null = "NUL"
     else:
         python = os.path.join(venv, "bin", "python")
+        null = "/dev/null"
 
     # remove virtual environment if it exists and it is a clean setup
     if os.path.exists(venv) and clean:
@@ -37,12 +39,14 @@ def main(clean: bool = False) -> None:
     os.system(f"python3 -m venv {venv}")
     # update package manager
     print("Updating pip...")
-    os.system(f"{python} -m pip install --upgrade pip")
+    os.system(f"{python} -m pip install --upgrade pip > {null} 2>&1")
     # install dependencies, upgrade if already installed
     print("Installing dependencies...")
-    os.system(f"{python} -m pip install -r {REQUIREMENTS} --upgrade")
+    os.system(
+        f"{python} -m pip install -r {REQUIREMENTS} --upgrade > {null} 2>&1"
+    )
 
-    print("\nSetup complete")
+    print("\u001b[32;1mEnvironment setup complete\u001b[0m")
 
 
 if __name__ == "__main__":
