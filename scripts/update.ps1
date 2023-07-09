@@ -12,7 +12,6 @@ $script_dir = Split-Path $MyInvocation.MyCommand.Path -Parent
 Set-Location "$script_dir/.."
 
 # stash any changes if there are any
-Write-Host "`e[1mStashing changes...`e[0m"
 git stash save "Auto stash before update $current_branch"
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Failed to stash changes, aborting update"
@@ -21,7 +20,6 @@ if ($LASTEXITCODE -ne 0) {
 Write-Host
 
 # update the current branch
-Write-Host "`e[1mUpdating $current_branch...`e[0m"
 git fetch origin
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Fetch failed, try again"
@@ -33,10 +31,8 @@ if ($LASTEXITCODE -ne 0) {
         exit 1
     }
 }
-Write-Host
 
 # if changes were stashed, pop the stash
-Write-Host "`e[1mRestoring stashed changes`e[0m"
 git stash pop
 # TODO: check if stash pop failed
 Write-Host "`e[32;1mUpdate completed successfully`e[0m`n"

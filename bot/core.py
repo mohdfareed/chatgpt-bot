@@ -2,6 +2,7 @@
 manages the bot's lifecycle and tunneling updates to handlers."""
 
 import asyncio
+import logging
 import secrets
 
 import telegram
@@ -54,10 +55,16 @@ def run():
 
 
 def setup_profile(app: telegram_extensions.Application, commands):
-    try:
+    # disable logging for the profile setup
+    error_module = "telegram.ext.AIORateLimiter"
+    prev_level = logging.getLogger(error_module).level
+
+    try:  # profile setup has a very long cool-down
+        logging.getLogger(error_module).setLevel(logging.FATAL)
         new_loop = asyncio.new_event_loop()
         asyncio.set_event_loop(new_loop)
         _ = new_loop.run_until_complete(_setup_profile(app, commands))
+        logging.getLogger(error_module).setLevel(prev_level)
     except Exception:
         bot.logger.warning("Bot profile could not be set up")
 
