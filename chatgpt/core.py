@@ -152,8 +152,8 @@ class ModelConfig(Serializable):
     """ChatGPT model configuration and parameters."""
 
     def __init__(self, **kwargs: typing.Any) -> None:
-        self.model = CHATGPT
-        """The the model used for chat completions."""
+        self.chat_model = CHATGPT
+        """The the chat model used for chat completions."""
         self.tools: list[chatgpt.tools.Tool] = []
         """The tools available to the model."""
         self.allowed_tool: str | None = None
@@ -182,7 +182,7 @@ class ModelConfig(Serializable):
         """Convert the model configuration to an OpenAI dictionary."""
         func_call = "none" if self.allowed_tool == "" else self.allowed_tool
         return dict(
-            model=self.model.name,
+            model=self.chat_model.name,
             function_call=func_call,
             max_tokens=self.max_tokens,
             stop=self.stop_sequences,
@@ -193,14 +193,14 @@ class ModelConfig(Serializable):
         )
 
     @staticmethod
-    def chat_models():
+    def supported_models():
         """Return a list of all supported chat models."""
         return [CHATGPT, CHATGPT_16K, GPT4, GPT4_32K]
 
     @staticmethod
-    def chat_model(name: str):
+    def model(name: str):
         """Return a supported chat model by name."""
-        for model in ModelConfig.chat_models():
+        for model in ModelConfig.supported_models():
             if model.name == name:
                 return model
         raise ValueError(f"Unsupported chat model: {name}")
