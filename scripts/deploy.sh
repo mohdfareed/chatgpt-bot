@@ -72,6 +72,7 @@ else
         error "Push failed, publish the deployment branch manually"
     fi
 fi
+echo
 
 # switch back to the old branch
 git checkout $current_branch
