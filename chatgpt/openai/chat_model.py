@@ -76,6 +76,8 @@ class OpenAIChatModel:
         try:  # generate reply
             self._running = True
             reply = await core_logic
+        except chatgpt.core.ModelError:
+            raise  #  propagate model errors
         except Exception as e:  # handle errors
             await self.events_manager.trigger_model_error(e)
             raise chatgpt.core.ModelError("Failed to generate a reply") from e
