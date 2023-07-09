@@ -80,17 +80,15 @@ if [ $? -ne 0 ]; then
     error "Failed to switch back to the original branch"
     exit 1
 fi
-echo
 
 # if changes were stashed, pop the stash
 if [ $changes_stashed ]; then
-    echo "\033[1mRestoring stashed changes\033[0m"
+    echo "\n\033[1mRestoring stashed changes\033[0m"
     git stash pop
     if [ $? -ne 0 ]; then
         error "Failed to apply stashed changes"
         exit 1
     fi
-    echo
 fi
 
 cd "$current_dir"
