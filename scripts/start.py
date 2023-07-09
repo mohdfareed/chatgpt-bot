@@ -13,6 +13,7 @@ EXCLUDED_MODULES = [
     "httpx",
     "numexpr.utils",
     "openai",
+    "telegram.ext.AIORateLimiter",
     "telegram.ext.Application",
 ]  # modules excluded from logging
 
@@ -27,10 +28,8 @@ def run_app(debug: bool = False, log: bool = False) -> None:
     """
 
     print("[bold]Starting chatgpt_bot...[/]")
+    _setup_app(to_file=log, debug=debug)  # setup app logging
 
-    # setup logging
-    level = logging.DEBUG if debug else logging.INFO
-    _setup_app(to_file=log, level=level)
     # add package directory to the path
     os.chdir(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
     sys.path.append(os.getcwd())
@@ -50,27 +49,26 @@ def run_app(debug: bool = False, log: bool = False) -> None:
     print("[bold green]chatgpt_bot stopped[/]")
 
 
-def _setup_app(to_file, level):
-    _configure_logging(level)
-    root_logger = logging.getLogger()
-    _configure_console_logging(root_logger)
+def _setup_app(to_file, debug):
+    level = logging.DEBUG if debug else logging.INFO
+    logger = _configure_logger(level)
+    _configure_console_logging(logger, debug)
     if to_file:  # set up logging to file
-        _configure_file_logging(root_logger)
+        _configure_file_logging(logger)
 
 
-def _configure_logging(level):
+def _configure_logger(level: int):
     # configure logging
     logging.captureWarnings(True)
-    logging.getLogger().level = level
-    # don't exclude modules if debugging
-    if level == logging.DEBUG:
-        return
-    # exclude modules from logging
+    root_logger = logging.getLogger()
+    root_logger.level = level
+    # exclude modules from logging unless warning or higher
     for module in EXCLUDED_MODULES:
         logging.getLogger(module).setLevel(logging.WARNING)
+    return root_logger
 
 
-def _configure_console_logging(logger: logging.Logger):
+def _configure_console_logging(logger: logging.Logger, debug: bool):
     format = (
         r"%(message)s [bright_black]- [italic]%(name)s[/italic] "
         r"\[[underline]%(filename)s:%(lineno)d[/underline]]"
@@ -79,10 +77,11 @@ def _configure_console_logging(logger: logging.Logger):
     # create console handler
     console_handler = RichHandler(
         markup=True,
-        rich_tracebacks=True,
-        tracebacks_show_locals=True,
+        show_path=False,  # use custom path
         log_time_format="[%Y-%m-%d %H:%M:%S]",
-        show_path=False,
+        rich_tracebacks=True,
+        # show locals only in debug mode
+        tracebacks_show_locals=debug,
     )
     formatter = logging.Formatter(format)
 

@@ -55,11 +55,11 @@ def run():
 
 def setup_profile(app: telegram_extensions.Application, commands):
     try:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        _ = loop.run_until_complete(_setup_profile(app, commands))
-    except Exception as e:
-        bot.logger.error(f"Failed to setup bot profile: {e}")
+        new_loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(new_loop)
+        _ = new_loop.run_until_complete(_setup_profile(app, commands))
+    except Exception:
+        bot.logger.warning("Bot profile could not be set up")
 
 
 def setup_commands(app: telegram_extensions.Application):
