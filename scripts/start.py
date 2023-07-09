@@ -20,7 +20,7 @@ EXCLUDED_MODULES = [
 def setup_bot() -> None:
     """Instantiates and sets up the bot's profile."""
 
-    print("[bold green]Setting up bot...[/]")
+    print("[bold]Setting up bot...[/]")
     # add package directory to the path
     os.chdir(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
     sys.path.append(os.getcwd())
@@ -54,7 +54,7 @@ def run_app(debug: bool = False, log: bool = False) -> None:
         log (bool, optional): Whether to log to a file. Defaults to console.
     """
 
-    print("[bold green]Starting chatgpt_bot...[/]")
+    print("[bold]Starting chatgpt_bot...[/]")
 
     # setup logging
     level = logging.DEBUG if debug else logging.INFO
