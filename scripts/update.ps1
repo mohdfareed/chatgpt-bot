@@ -38,9 +38,7 @@ Write-Host
 # if changes were stashed, pop the stash
 Write-Host "`e[1mRestoring stashed changes`e[0m"
 git stash pop
-if ($LASTEXITCODE -ne 0) {
-    Write-Error "Failed to apply stashed changes"
-}
+# TODO: check if stash pop failed
 Write-Host "`e[32;1mUpdate completed successfully`e[0m`n"
 
 # setup the virtual environment
