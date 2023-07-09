@@ -17,35 +17,6 @@ EXCLUDED_MODULES = [
 ]  # modules excluded from logging
 
 
-def setup_bot() -> None:
-    """Instantiates and sets up the bot's profile."""
-
-    print("[bold]Setting up bot...[/]")
-    # add package directory to the path
-    os.chdir(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
-    sys.path.append(os.getcwd())
-    # load environment variables and import the bot
-    load_dotenv(override=True)
-
-    # setup logging of errors only
-    _setup_app(to_file=False, level=logging.ERROR)
-    # add package directory to the path
-    os.chdir(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
-    sys.path.append(os.getcwd())
-    # load environment variables
-    load_dotenv(override=True)
-    # load the bot
-    import bot.core as chatgpt_bot
-
-    try:  # run the bot setup
-        chatgpt_bot.setup()
-    except Exception as e:
-        logging.exception(e)
-        exit(1)
-
-    print("[bold green]Bot setup completed successfully[/]")
-
-
 def run_app(debug: bool = False, log: bool = False) -> None:
     """Instantiates and runs the app. This function sets up logging and
     checks the validity of the configured Telegram bot token.
@@ -69,7 +40,7 @@ def run_app(debug: bool = False, log: bool = False) -> None:
     import bot.core as chatgpt_bot
     import database.core as chatgpt_db
 
-    try:  # run the bot
+    try:  # run the bot and db
         chatgpt_db.initialize()
         chatgpt_bot.run()
     except Exception as e:
@@ -150,12 +121,6 @@ if __name__ == "__main__":
     parser.add_argument(
         "-l", "--log", action="store_true", help="log to a file"
     )
-    parser.add_argument(
-        "--setup", action="store_true", help="setup the bot's profile"
-    )
 
     args = parser.parse_args()
-    if not args.setup:
-        run_app(args.debug, args.log)
-    else:  # setup the bot's profile
-        setup_bot()
+    run_app(args.debug, args.log)
