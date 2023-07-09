@@ -160,6 +160,7 @@ async def set_max_tokens(message: bot.models.TelegramMessage, max: int):
 
 def _format_model(config: chatgpt.core.ModelConfig):
     tools = [f"<code>{tool.name}</code>" for tool in config.tools]
+    prompt = config.prompt or chatgpt.core.SystemMessage("")
     return bot.formatter.md_html(
         f"Name: <code>{config.chat_model.name}</code>\n"
         f"Size: <code>{config.chat_model.size} tokens</code>\n"
@@ -168,5 +169,5 @@ def _format_model(config: chatgpt.core.ModelConfig):
         f"Output cost: <code>${config.chat_model.output_cost}/1k tokens</code>\n"
         f"Streams messages: <code>{config.streaming}</code>\n"
         f"Tools: {', '.join(tools)}\n"
-        f"System prompt: <code>{config.prompt.content or ''}</code>"
+        f"System prompt: <code>{prompt.content}</code>"
     )
