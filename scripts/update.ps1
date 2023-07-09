@@ -41,11 +41,12 @@ git stash pop
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Failed to apply stashed changes"
 }
-Write-Host "`n`e[32;1mUpdate completed successfully`e[0m"
+Write-Host "`e[32;1mUpdate completed successfully`e[0m`n"
 
 # setup the virtual environment
 python .\scripts\setup.py --clean
 & .\.venv\Scripts\Activate.ps1
+Write-Host
 # start the bot
 python .\scripts\start.py --setup
 python .\scripts\start.py --log

@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/env sh
 # update the current branch then setup and start the bot
 
 error() {
@@ -38,23 +38,22 @@ else  # pull changes after fetch
         exit 1
     fi
 fi
-echo
-
 
 # if changes were stashed, pop the stash
 if [ $changes_stashed ]; then
-    echo "\033[1mRestoring stashed changes\033[0m"
+    echo "\n\033[1mRestoring stashed changes\033[0m"
     git stash pop
     if [ $? -ne 0 ]; then
         error "Failed to apply stashed changes"
     fi
-    echo
 fi
 echo "\033[32;1mUpdate completed successfully\033[0m"
+echo
 
 # setup the virtual environment
 ./scripts/setup.py --clean
 source .venv/bin/activate
+echo
 # start the bot
 ./scripts/start.py --setup
 ./scripts/start.py --log
