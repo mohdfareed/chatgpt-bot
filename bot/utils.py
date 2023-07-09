@@ -19,8 +19,6 @@ async def reply_to_user(message: bot.models.TextMessage, reply=False):
     # initialize model's memory
     memory = await chatgpt.memory.ChatMemory.initialize(
         message.chat_id,
-        short_memory_size=2000,
-        long_memory_size=1000,
         summarization_handlers=[metrics_handler],
     )
     # setup the chat model

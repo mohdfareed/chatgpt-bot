@@ -69,7 +69,7 @@ search_tools = [
 async def main():
     try:
         memory = await chatgpt.memory.ChatMemory.initialize(
-            "00000", -1, -1, False
+            "00000", in_memory=True
         )
         model = chatgpt.model.ChatModel(
             memory=memory,
