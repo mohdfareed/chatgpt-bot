@@ -17,15 +17,16 @@ class ToolsManager:
     async def use(self, tool_usage: chatgpt.core.ToolUsage):
         """Execute a tool."""
         result = None
-        tool = self._tool_from_name(tool_usage.tool_name)
+        tool = None
         try:  # get the tool's result
+            tool = self._tool_from_name(tool_usage.tool_name)
             result = await tool.use(**tool_usage.arguments)
         except (asyncio.CancelledError, KeyboardInterrupt):
             pass  # canceled
         except Exception as e:
             result = str(e)  # return error message
 
-        if result is not None:
+        if tool is not None and result is not None:
             result = chatgpt.core.ToolResult(result, tool.name)
         return result
 
@@ -34,7 +35,7 @@ class ToolsManager:
         for tool in self.tools:
             if tool.name == name:
                 return tool
-        raise ValueError(f"Tool not found: {name}")
+        raise ToolError(f"Tool not found: {name}")
 
 
 class Tool(chatgpt.core.Serializable, abc.ABC):
@@ -92,10 +93,10 @@ class Tool(chatgpt.core.Serializable, abc.ABC):
 
         for param in params:
             if param not in possible_params:
-                raise TypeError(f"Invalid argument: {param}")
+                raise ToolError(f"Invalid argument: {param}")
         for req_param in required_params:
             if req_param not in params:
-                raise TypeError(f"Missing required argument: {req_param}")
+                raise ToolError(f"Missing required argument: {req_param}")
 
 
 class ToolParameter(chatgpt.core.Serializable):
@@ -129,3 +130,9 @@ class ToolParameter(chatgpt.core.Serializable):
             enum=self.enum,
             description=self.description,
         )
+
+
+class ToolError(chatgpt.core.ModelError):
+    """An error raised by a tool."""
+
+    pass
