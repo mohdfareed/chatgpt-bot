@@ -1,6 +1,7 @@
 """Utilities and helper functions."""
 
 import bot.chat_handler
+import bot.formatter
 import bot.models
 import chatgpt.core
 import chatgpt.memory
@@ -159,7 +160,7 @@ async def set_max_tokens(message: bot.models.TelegramMessage, max: int):
 
 def _format_model(config: chatgpt.core.ModelConfig):
     tools = [f"<code>{tool.name}</code>" for tool in config.tools]
-    return (
+    return bot.formatter.md_html(
         f"Name: <code>{config.chat_model.name}</code>\n"
         f"Size: <code>{config.chat_model.size} tokens</code>\n"
         f"Temperature: <code>{config.temperature}</code>\n"
