@@ -72,10 +72,8 @@ else
         error "Push failed, publish the deployment branch manually"
     fi
 fi
-echo
 
 # switch back to the old branch
-echo "\033[1mRestoring workspace...\033[0m"
 git checkout $current_branch
 if [ $? -ne 0 ]; then
     error "Failed to switch back to the original branch"
@@ -85,10 +83,10 @@ echo
 
 # if changes were stashed, pop the stash
 if [ $changes_stashed ]; then
-    echo "Restoring stashed changes"
+    echo "\033[1mRestoring stashed changes\033[0m"
     git stash pop
     if [ $? -ne 0 ]; then
-        error "Failed to apply the stash"
+        error "Failed to apply stashed changes"
         exit 1
     fi
     echo
