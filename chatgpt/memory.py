@@ -16,7 +16,7 @@ the previous summary and returning a new summary."""
 """The prompt for summarizing a conversation."""
 
 INSTRUCTIONS = """\
-You may in a Telegram chat. ONLY use the following markdown in your replies:
+You are in a Telegram chat. ONLY use the following markdown in your replies:
 *bold* _italic_ ~strikethrough~ __underline__ ||spoiler|| \
 [inline URL](http://www.example.com/) `monospaced` @mentions #hashtags
 ```code blocks (without language)```"""
@@ -107,7 +107,10 @@ class ChatMemory:
         )
         await self.history.add_message(new_summary)
         return _create_prompt(
-            (await self.history.model).prompt, summary, short_memory
+            (await self.history.model).prompt,
+            SystemMessage(INSTRUCTIONS),
+            new_summary,
+            short_memory,
         )
 
     async def _retrieve_messages(
@@ -257,7 +260,7 @@ class SummarizationModel(chatgpt.openai.chat_model.OpenAIChatModel):
     ):
         config = chatgpt.core.ModelConfig(
             temperature=temperature,
-            prompt=summarization_prompt,
+            prompt=SystemMessage(summarization_prompt),
             max_tokens=summary_size,
             streaming=False,
         )
@@ -289,10 +292,8 @@ class SummarizationModel(chatgpt.openai.chat_model.OpenAIChatModel):
     ) -> chatgpt.core.ModelMessage | None:
         # start with the previous summary or an empty summary
         summary = previous_summary or SummaryMessage("")
-        # the summarization prompt of the model
-        prompt = _create_prompt(self.config.prompt, summary)
-
-        buffer: list[Message] = []  # the buffer of messages to summarize
+        # the buffer of messages to summarize
+        buffer: list[Message] = _create_prompt(self.config.prompt, summary)
         remaining_messages = new_messages[:]  # the messages to summarize
         usage = chatgpt.core.ModelMessage("")  # track usage through a reply
 
@@ -300,9 +301,7 @@ class SummarizationModel(chatgpt.openai.chat_model.OpenAIChatModel):
         while remaining_messages:
             # take the first remaining message
             message = remaining_messages[0]
-            total_size = self._calculate_size(
-                _create_prompt(prompt, buffer, message)
-            )
+            total_size = self._calculate_size(_create_prompt(buffer, message))
 
             # if the message can fit in the buffer
             if total_size <= self.config.model.size:
@@ -311,25 +310,38 @@ class SummarizationModel(chatgpt.openai.chat_model.OpenAIChatModel):
                 remaining_messages.pop(0)
                 continue
 
-            else:  # summarize the current buffer otherwise
-                new_reply = await self._generate_reply(
-                    _create_prompt(prompt, buffer)
-                )
-                if not isinstance(new_reply, chatgpt.core.ModelMessage):
-                    return None  # model failed to generate a summary
+            # summarize the current buffer otherwise
+            new_buffer = await self._generate_summary(buffer, summary, usage)
+            if not new_buffer:  # model failed to generate a summary
+                return None
+            buffer = new_buffer
 
-                # track the summary generation usage
-                usage.prompt_tokens += new_reply.prompt_tokens
-                usage.reply_tokens += new_reply.reply_tokens
-                usage.cost += new_reply.cost
-
-                # update the summary and model prompt
-                summary.content = new_reply.content
-                prompt = _create_prompt(prompt, summary)
+        # summarize the remaining messages
+        if len(buffer) > 2:  # at least has prompt and summary
+            new_buffer = await self._generate_summary(buffer, summary, usage)
+            if not new_buffer:  # model failed to generate a summary
+                return None
 
         # return the summary as a model message
         usage.content = summary.content
         return usage
+
+    async def _generate_summary(
+        self,
+        buffer: list[Message],
+        summary: SummaryMessage,
+        usage: chatgpt.core.ModelMessage,
+    ):
+        new_reply = await self._generate_reply(buffer)
+        if not isinstance(new_reply, chatgpt.core.ModelMessage):
+            return None  # model failed to generate a summary
+        # track the summary generation usage
+        usage.prompt_tokens += new_reply.prompt_tokens
+        usage.reply_tokens += new_reply.reply_tokens
+        usage.cost += new_reply.cost
+        # update the summary and return new buffer
+        summary.content = new_reply.content
+        return _create_prompt(self.config.prompt, summary)
 
     def _calculate_size(self, messages: list[Message]) -> int:
         return chatgpt.openai.tokenization.messages_tokens(

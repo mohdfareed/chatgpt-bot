@@ -13,16 +13,20 @@ running_models: list[chatgpt.model.ChatModel] = []
 
 async def reply_to_user(message: bot.models.TextMessage, reply=False):
     """Reply to a user with a generated model reply."""
-    # create handler
-    handler = bot.chat_handler.ModelMessageHandler(message, reply=reply)
+    # create handlers
+    chat_handler = bot.chat_handler.ModelMessageHandler(message, reply=reply)
+    metrics_handler = bot.chat_handler.ModelMetricsHandler(message)
     # initialize model's memory
     memory = await chatgpt.memory.ChatMemory.initialize(
-        message.chat_id, 3500, 2500
+        message.chat_id,
+        short_memory_size=2000,
+        long_memory_size=1000,
+        summarization_handlers=[metrics_handler],
     )
-    # setup the model
+    # setup the chat model
     model = chatgpt.model.ChatModel(
         memory=memory,
-        handlers=[handler],
+        handlers=[chat_handler, metrics_handler],
     )
     # generate a reply
     return await model.run(message.to_chat_message())
