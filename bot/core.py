@@ -31,7 +31,7 @@ def run():
         .build()
     )
 
-    # setup the bot
+    # setup the bot's application
     setup_handlers(application)
     setup_commands(application)
 
