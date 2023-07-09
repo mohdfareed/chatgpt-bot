@@ -55,5 +55,4 @@ echo
 source .venv/bin/activate
 echo
 # start the bot
-./scripts/start.py --setup
 ./scripts/start.py --log

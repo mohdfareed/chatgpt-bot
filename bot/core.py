@@ -33,10 +33,10 @@ def run():
 
     # setup the bot's application
     setup_handlers(application)
-    setup_commands(application)
+    commands = setup_commands(application)
+    setup_profile(application, commands)
 
     # start the bot
-    bot.logger.info("[green]Starting telegram bot...[/green]")
     if not bot.dev_mode:  # run in webhook mode for production
         webhook_str = f"{bot.webhook} [{bot.webhook_addr}:{bot.webhook_port}]"
         bot.logger.info(f"Using webhook: {webhook_str}")
@@ -53,15 +53,10 @@ def run():
     bot.logger.info("Telegram bot has stopped")
 
 
-def setup():
-    """Setup the bot's profile."""
-    application = (  # setup the application
-        telegram_extensions.Application.builder().token(bot.token).build()
-    )
-
-    # update the bot's profile
-    commands = setup_commands(application)
-    asyncio.run(_setup_profile(application, commands))
+def setup_profile(app: telegram_extensions.Application, commands):
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    _ = loop.run_until_complete(_setup_profile(app, commands))
 
 
 def setup_commands(app: telegram_extensions.Application):
