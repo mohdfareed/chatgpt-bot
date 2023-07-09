@@ -8,7 +8,6 @@ import chatgpt.events
 import chatgpt.openai.chat_model
 import chatgpt.openai.tokenization
 import database as db
-from chatgpt import model
 from chatgpt.core import Message, SummaryMessage, SystemMessage
 
 SUMMARIZATION_PROMPT = """\
