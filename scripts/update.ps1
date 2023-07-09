@@ -18,7 +18,6 @@ if ($LASTEXITCODE -ne 0) {
     Write-Error "Failed to stash changes, aborting update"
     exit 1
 }
-$changes_stashed = $true  # set a flag to pop the stash later
 Write-Host
 
 # update the current branch
@@ -37,15 +36,12 @@ if ($LASTEXITCODE -ne 0) {
 Write-Host
 
 # if changes were stashed, pop the stash
-if ($changes_stashed) {
-    Write-Host "`e[1mRestoring stashed changes`e[0m"
-    git stash pop
-    if ($LASTEXITCODE -ne 0) {
-        Write-Error "Failed to apply stashed changes"
-    }
-    Write-Host
+Write-Host "`e[1mRestoring stashed changes`e[0m"
+git stash pop
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "Failed to apply stashed changes"
 }
-Write-Host "`e[32;1mUpdate completed successfully`e[0m"
+Write-Host "`n`e[32;1mUpdate completed successfully`e[0m"
 
 # setup the virtual environment
 python .\scripts\setup.py --clean
