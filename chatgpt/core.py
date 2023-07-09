@@ -349,6 +349,10 @@ class SummaryMessage(SystemMessage):
         """Summary message name."""
         return "summary_of_previous_messages"
 
+    @name.setter
+    def name(self, value: str):
+        pass  # implement to adhere to interface
+
 
 CHATGPT = SupportedChatModel(
     "gpt-3.5-turbo-0613",
