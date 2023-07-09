@@ -1,4 +1,4 @@
-# update the current branch and setup then start the bot
+# update the current branch then setup and start the bot
 
 function Write-Error {
     param([String]$Message)
@@ -12,22 +12,21 @@ $script_dir = Split-Path $MyInvocation.MyCommand.Path -Parent
 Set-Location "$script_dir/.."
 
 # stash any changes
-if (!(git diff --quiet)) {
-    Write-Host "`e[1mStashing changes...`e[0m"
-    git stash save "Auto stash before update $current_branch"
-    if ($LASTEXITCODE -ne 0) {
-        Write-Error "Failed to stash changes, aborting update"
-        exit 1
-    }
-    $changes_stashed = $true  # set a flag to pop the stash later
-    Write-Host
+Write-Host "`e[1mStashing changes...`e[0m"
+git stash save "Auto stash before update $current_branch"
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "Failed to stash changes, aborting update"
+    exit 1
 }
+$changes_stashed = $true  # set a flag to pop the stash later
+Write-Host
 
-# merge the current branch into deployment
+# update the current branch
 Write-Host "`e[1mUpdating $current_branch...`e[0m"
 git fetch origin
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Fetch failed, try again"
+    exit 1
 } else  { # pull changes after fetch
     git pull origin $current_branch
     if ($LASTEXITCODE -ne 0) {
@@ -43,7 +42,6 @@ if ($changes_stashed) {
     git stash pop
     if ($LASTEXITCODE -ne 0) {
         Write-Error "Failed to apply stashed changes"
-        exit 1
     }
     Write-Host
 }
