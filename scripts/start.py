@@ -9,19 +9,8 @@ from dotenv import load_dotenv
 from rich import print
 from rich.logging import RichHandler
 
-EXCLUDED_MODULES = [
-    "aiosqlite",
-    "asyncio",
-    "httpcore",
-    "httpx",
-    "numexpr.utils",
-    "openai",
-    "telegram.ext.AIORateLimiter",
-    "telegram.ext.Application",
-    "telegram.ext.ExtBot",
-    "telegram.ext.Updater",
-    "urllib3",
-]  # modules excluded from logging
+LOGGING_MODULES = ["bot", "chatgpt", "database"]
+"""The main logging modules."""
 
 
 def run_app(debug: bool = False, log: bool = False) -> None:
@@ -34,7 +23,7 @@ def run_app(debug: bool = False, log: bool = False) -> None:
     """
 
     print("[bold]Starting chatgpt_bot...[/]")
-    _setup_app(to_file=log, debug=debug)  # setup app logging
+    _setup_logging(to_file=log, debug=debug)
 
     # add package directory to the path
     os.chdir(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
@@ -55,23 +44,24 @@ def run_app(debug: bool = False, log: bool = False) -> None:
     print("[bold green]chatgpt_bot stopped[/]")
 
 
-def _setup_app(to_file, debug):
-    level = logging.DEBUG if debug else logging.INFO
-    logger = _configure_logger(level)
-    _configure_console_logging(logger, debug)
-    if to_file:  # set up logging to file
-        _configure_file_logging(logger)
-
-
-def _configure_logger(level: int):
+def _setup_logging(to_file, debug):
     # configure logging
     logging.captureWarnings(True)
     root_logger = logging.getLogger()
-    root_logger.level = level
-    # exclude modules from logging unless warning or higher
-    for module in EXCLUDED_MODULES:
-        logging.getLogger(module).setLevel(logging.WARNING)
-    return root_logger
+    root_logger.level = logging.WARNING  # default level
+
+    # set up logging level for all modules
+    level = logging.DEBUG if debug else logging.INFO
+    for module in LOGGING_MODULES:
+        logging.getLogger(module).setLevel(level)
+    # set up logging level for this module
+    (local_logger := logging.getLogger(__name__)).setLevel(level)
+
+    # setup console and file loggers
+    _configure_console_logging(root_logger, debug)
+    if to_file:  # set up logging to file
+        _configure_file_logging(root_logger)
+    local_logger.debug("Debug mode enabled")
 
 
 def _configure_console_logging(logger: logging.Logger, debug: bool):
