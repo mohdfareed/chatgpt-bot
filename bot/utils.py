@@ -168,5 +168,5 @@ def _format_model(config: chatgpt.core.ModelConfig):
         f"Output cost: <code>${config.chat_model.output_cost}/1k tokens</code>\n"
         f"Streams messages: <code>{config.streaming}</code>\n"
         f"Tools: {', '.join(tools)}\n"
-        f"System prompt: <code>{config.prompt or ''}</code>"
+        f"System prompt: <code>{config.prompt.content or ''}</code>"
     )
