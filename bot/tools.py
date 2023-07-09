@@ -112,7 +112,7 @@ class Python(chatgpt.tools.Tool):
         ]
 
     @override
-    def _run(self, code: str) -> str:
+    async def _run(self, code: str) -> str:
         local_vars = {}
         buffer = io.StringIO()
         stdout = sys.stdout
