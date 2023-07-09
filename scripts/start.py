@@ -9,28 +9,20 @@ from dotenv import load_dotenv
 from rich import print
 from rich.logging import RichHandler
 
-EXCLUDED_MODULES = [
-    "httpx",
-    "numexpr.utils",
-    "openai",
-    "telegram.ext.Application",
-]  # modules excluded from logging
+LOGGING_MODULES = ["bot", "chatgpt", "database"]
+"""The main logging modules."""
 
 
 def run_app(debug: bool = False, log: bool = False) -> None:
-    """Instantiates and runs the app. This function sets up logging and
-    checks the validity of the configured Telegram bot token.
-
+    """Instantiates and runs the app.
     Args:
-        debug (bool, optional): Whether to log debug messages.
-        log (bool, optional): Whether to log to a file. Defaults to console.
+        debug (bool): Whether to log debug messages.
+        log (bool): Whether to log to a file in addition to the console.
     """
 
     print("[bold]Starting chatgpt_bot...[/]")
+    _setup_logging(to_file=log, debug=debug)
 
-    # setup logging
-    level = logging.DEBUG if debug else logging.INFO
-    _setup_app(to_file=log, level=level)
     # add package directory to the path
     os.chdir(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
     sys.path.append(os.getcwd())
@@ -50,27 +42,27 @@ def run_app(debug: bool = False, log: bool = False) -> None:
     print("[bold green]chatgpt_bot stopped[/]")
 
 
-def _setup_app(to_file, level):
-    _configure_logging(level)
-    root_logger = logging.getLogger()
-    _configure_console_logging(root_logger)
-    if to_file:  # set up logging to file
-        _configure_file_logging(root_logger)
-
-
-def _configure_logging(level):
+def _setup_logging(to_file, debug):
     # configure logging
     logging.captureWarnings(True)
-    logging.getLogger().level = level
-    # don't exclude modules if debugging
-    if level == logging.DEBUG:
-        return
-    # exclude modules from logging
-    for module in EXCLUDED_MODULES:
-        logging.getLogger(module).setLevel(logging.WARNING)
+    root_logger = logging.getLogger()
+    root_logger.level = logging.WARNING  # default level
+
+    # set up logging level for all modules
+    level = logging.DEBUG if debug else logging.INFO
+    for module in LOGGING_MODULES:
+        logging.getLogger(module).setLevel(level)
+    # set up logging level for this module
+    (local_logger := logging.getLogger(__name__)).setLevel(level)
+
+    # setup console and file loggers
+    _configure_console_logging(root_logger, debug)
+    if to_file:  # set up logging to file
+        _configure_file_logging(root_logger)
+    local_logger.debug("Debug mode enabled")
 
 
-def _configure_console_logging(logger: logging.Logger):
+def _configure_console_logging(logger: logging.Logger, debug: bool):
     format = (
         r"%(message)s [bright_black]- [italic]%(name)s[/italic] "
         r"\[[underline]%(filename)s:%(lineno)d[/underline]]"
@@ -79,10 +71,11 @@ def _configure_console_logging(logger: logging.Logger):
     # create console handler
     console_handler = RichHandler(
         markup=True,
-        rich_tracebacks=True,
-        tracebacks_show_locals=True,
+        show_path=False,  # use custom path
         log_time_format="[%Y-%m-%d %H:%M:%S]",
-        show_path=False,
+        rich_tracebacks=True,
+        # show locals only in debug mode
+        tracebacks_show_locals=debug,
     )
     formatter = logging.Formatter(format)
 
@@ -116,7 +109,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Start the ChatGPT bot.")
     parser.add_argument(
-        "-d", "--debug", action="store_true", help="log debug messages"
+        "-d", "--debug", action="store_true", help="start in debug mode"
     )
     parser.add_argument(
         "-l", "--log", action="store_true", help="log to a file"
