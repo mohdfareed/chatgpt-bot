@@ -99,10 +99,10 @@ async def get_usage(message: bot.models.TelegramMessage):
     ).load()
 
     return (
-        f"User tokens usage: ${round(user_metrics.usage, 4)}\n"
-        f"       usage cost: {round(chat_metrics.usage_cost, 2)}\n"
-        f"Chat tokens usage: ${round(chat_metrics.usage, 4)}\n"
-        f"       usage cost: {round(chat_metrics.usage_cost, 2)}"
+        f"User tokens usage: {round(user_metrics.usage, 4)}\n"
+        f"       usage cost: ${round(chat_metrics.usage_cost, 2)}\n"
+        f"Chat tokens usage: {round(chat_metrics.usage, 4)}\n"
+        f"       usage cost: ${round(chat_metrics.usage_cost, 2)}"
     )
 
 
