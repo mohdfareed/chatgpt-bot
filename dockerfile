@@ -5,11 +5,7 @@ WORKDIR /usr/src/app
 COPY bot ./bot
 COPY chatgpt ./chatgpt
 COPY database ./database
-
-# install dependencies
-COPY requirements.txt ./
-RUN pip install -r requirements.txt
+COPY scripts ./scripts
 
 # start the bot
-COPY scripts ./scripts
-CMD [ "python", "scripts/start.py" ]
+CMD [ "scripts/update.sh" ]
