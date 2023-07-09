@@ -11,7 +11,7 @@ $current_branch = git rev-parse --abbrev-ref HEAD
 $script_dir = Split-Path $MyInvocation.MyCommand.Path -Parent
 Set-Location "$script_dir/.."
 
-# stash any changes
+# stash any changes if there are any
 Write-Host "`e[1mStashing changes...`e[0m"
 git stash save "Auto stash before update $current_branch"
 if ($LASTEXITCODE -ne 0) {
@@ -46,5 +46,4 @@ python .\scripts\setup.py --clean
 & .\.venv\Scripts\Activate.ps1
 Write-Host
 # start the bot
-python .\scripts\start.py --setup
 python .\scripts\start.py --log
