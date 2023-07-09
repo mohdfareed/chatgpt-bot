@@ -113,7 +113,7 @@ class OpenAIChatModel:
             return await self._cancelable(self._stream_completion(completion))  # type: ignore
 
         # return processed response if not streaming
-        reply = _parse_completion(completion, self.config.chat_model)  # type: ignore
+        reply = utils.parse_completion(completion, self.config.chat_model)
         await self.events_manager.trigger_model_generation(reply, None)
         return reply
 
