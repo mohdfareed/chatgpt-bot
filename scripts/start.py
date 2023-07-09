@@ -10,11 +10,17 @@ from rich import print
 from rich.logging import RichHandler
 
 EXCLUDED_MODULES = [
+    "aiosqlite",
+    "asyncio",
+    "httpcore",
     "httpx",
     "numexpr.utils",
     "openai",
     "telegram.ext.AIORateLimiter",
     "telegram.ext.Application",
+    "telegram.ext.ExtBot",
+    "telegram.ext.Updater",
+    "urllib3",
 ]  # modules excluded from logging
 
 
