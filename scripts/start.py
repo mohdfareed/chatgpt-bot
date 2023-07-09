@@ -14,12 +14,10 @@ LOGGING_MODULES = ["bot", "chatgpt", "database"]
 
 
 def run_app(debug: bool = False, log: bool = False) -> None:
-    """Instantiates and runs the app. This function sets up logging and
-    checks the validity of the configured Telegram bot token.
-
+    """Instantiates and runs the app.
     Args:
-        debug (bool, optional): Whether to log debug messages.
-        log (bool, optional): Whether to log to a file. Defaults to console.
+        debug (bool): Whether to log debug messages.
+        log (bool): Whether to log to a file in addition to the console.
     """
 
     print("[bold]Starting chatgpt_bot...[/]")
@@ -111,7 +109,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Start the ChatGPT bot.")
     parser.add_argument(
-        "-d", "--debug", action="store_true", help="log debug messages"
+        "-d", "--debug", action="store_true", help="start in debug mode"
     )
     parser.add_argument(
         "-l", "--log", action="store_true", help="log to a file"

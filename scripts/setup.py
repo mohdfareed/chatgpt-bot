@@ -3,15 +3,14 @@
 import os
 import sys
 
-REQUIREMENTS = os.path.join(os.getcwd(), "requirements.txt")
+REQ_PATH = os.path.join(os.getcwd(), "requirements.txt")
 """Path to the requirements file."""
 
 
 def main(clean: bool = False) -> None:
-    """Setup an environment for the ChatGPT Telegram bot project.
-
+    """Set up the bot's environment.
     Args:
-        clean (bool, optional): Clean the environment.
+        clean (bool): Clean the environment.
     """
 
     print("\u001b[01mSetting up environment...\u001b[0m")
@@ -19,34 +18,28 @@ def main(clean: bool = False) -> None:
     os.chdir(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
     venv = os.path.join(os.getcwd(), ".venv")
 
-    # set os specific path to python executable
+    # set os specific commands
     if sys.platform == "win32":
         python = os.path.join(venv, "Scripts", "python.exe")
-        null = "NUL"
+        force_remove = "rmdir /s /q"
+        null = "NUL 2>&1"
     else:
         python = os.path.join(venv, "bin", "python")
-        null = "/dev/null"
+        force_remove = "rm -rf"
+        null = "/dev/null 2>&1"
 
-    # remove virtual environment if it exists and it is a clean setup
+    # remove existing virtual environment if requested
     if os.path.exists(venv) and clean:
-        print("Cleaning environment...")
-        if sys.platform == "win32":
-            os.system(f"rmdir /s /q {venv}")
-        else:
-            os.system(f"rm -rf {venv}")
+        print("Cleaning existing environment...")
+        os.system(f"{force_remove} {venv}")
 
     # create virtual environment
-    print("Setting up environment...")
+    print("Creating environment...")
     os.system(f"python3 -m venv {venv}")
-    # update package manager
-    print("Updating pip...")
-    os.system(f"{python} -m pip install --upgrade pip > {null} 2>&1")
-    # install dependencies, upgrade if already installed
+    # install and upgrade dependencies and package manager
     print("Installing dependencies...")
-    os.system(
-        f"{python} -m pip install -r {REQUIREMENTS} --upgrade > {null} 2>&1"
-    )
-
+    os.system(f"{python} -m pip install --upgrade pip > {null}")
+    os.system(f"{python} -m pip install -r {REQ_PATH} --upgrade > {null}")
     print("\u001b[32;1mEnvironment setup complete\u001b[0m")
 
 
