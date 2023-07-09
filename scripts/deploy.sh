@@ -28,12 +28,13 @@ fi
 if [ ! $merge_in_progress ]; then
 
 # stash any changes
-echo "Stashing changes..."
-git stash save "Auto stash before deploying $current_branch" > /dev/null
-stash_result=$?
-# if stash was successful, set a flag
-if [ $stash_result -eq 0 ]; then
-    changes_stashed=1
+if ! git diff --quiet; then
+    echo "Stashing changes..."
+    git stash save "Auto stash before deploying $current_branch" > /dev/null
+    # if stash was successful, set a flag
+    if [ $stash_result -eq 0 ]; then
+        changes_stashed=1
+    fi
 fi
 
 # switch to the deployment branch
