@@ -88,4 +88,4 @@ if [ $changes_stashed ]; then
     fi
 fi
 
-echo "\033[0;32mDeployment was successfully done\033[0m"
+echo "\033[0;32mDeployment successfully done\033[0m"
