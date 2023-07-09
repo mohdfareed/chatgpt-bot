@@ -49,7 +49,7 @@ fi
 echo "Merging $current_branch into $deployment_branch..."
 git merge $current_branch --no-commit --no-ff > /dev/null
 if [ $? -ne 0 ]; then
-    error "Merge failed. Resolve conflicts and continue the merge manually"
+    error "Merge failed. Resolve conflicts and continue deployment manually"
     exit 1
 fi
 
