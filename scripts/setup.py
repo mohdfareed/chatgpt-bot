@@ -14,6 +14,7 @@ def main(clean: bool = False) -> None:
         clean (bool, optional): Clean the environment.
     """
 
+    print("\u001b[01mSetting up environment...\u001b[0m")
     # set working directory and virtual environment path
     os.chdir(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
     venv = os.path.join(os.getcwd(), ".venv")

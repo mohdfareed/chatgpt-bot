@@ -42,7 +42,8 @@ def setup_bot() -> None:
     except Exception as e:
         logging.exception(e)
         exit(1)
-    exit(0)  # exit when done
+
+    print("[bold green]Bot setup completed successfully[/]")
 
 
 def run_app(debug: bool = False, log: bool = False) -> None:
@@ -72,6 +73,8 @@ def run_app(debug: bool = False, log: bool = False) -> None:
     except Exception as e:
         logging.exception(e)
         exit(1)
+
+    print("[bold green]chatgpt_bot stopped[/]")
 
 
 def _setup_app(to_file, level):
@@ -150,5 +153,7 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
-    setup_bot() if args.setup else None
-    run_app(args.debug, args.log)
+    if not args.setup:
+        run_app(args.debug, args.log)
+    else:  # setup the bot's profile
+        setup_bot()
