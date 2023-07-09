@@ -1,5 +1,6 @@
 """Database core functionality."""
 
+import asyncio
 import typing
 
 import sqlalchemy as sql
@@ -137,6 +138,13 @@ async def start_engine(url):
         await connection.run_sync(DatabaseModel.metadata.create_all)
     database.logger.info(f"Connected to database: {url}")
     return engine
+
+
+def initialize():
+    """Initialize the database engine."""
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    _ = loop.run_until_complete(db_engine())
 
 
 @tenacity.retry(

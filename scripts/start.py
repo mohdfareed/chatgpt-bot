@@ -65,10 +65,12 @@ def run_app(debug: bool = False, log: bool = False) -> None:
     sys.path.append(os.getcwd())
     # load environment variables
     load_dotenv(override=True)
-    # load the bot
+    # load the bot and the database
     import bot.core as chatgpt_bot
+    import database.core as chatgpt_db
 
     try:  # run the bot
+        chatgpt_db.initialize()
         chatgpt_bot.run()
     except Exception as e:
         logging.exception(e)
