@@ -35,7 +35,7 @@ class ConsoleHandler(
     @override
     async def on_model_start(self, config, context, tools):
         self.streaming = config.streaming
-        rich.print(f"[magenta]Model:[/] {config.model}")
+        rich.print(f"[magenta]Model:[/] {config.chat_model}")
         rich.print(f"[magenta]Tools:[/] {', '.join(t.name for t in tools)}")
         for message in context:
             rich.print(message.serialize())

@@ -23,7 +23,7 @@ class MetricsHandler(chatgpt.events.ModelStart, chatgpt.events.ModelEnd):
 
     @override
     async def on_model_start(self, config, context, tools):
-        self._model = config.model
+        self._model = config.chat_model
         self._prompts = context
         self._tools = tools
 

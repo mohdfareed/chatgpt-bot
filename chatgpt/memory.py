@@ -47,13 +47,18 @@ class ChatMemory:
     async def initialize(
         cls,
         chat_id: str,
-        short_memory_size: int,
-        long_memory_size: int,
+        memory_size: int | None = None,  # default to adaptive memory size
         in_memory: bool = False,
         summarization_handlers: list[chatgpt.events.ModelEvent] = [],
     ):
         """Initialize a chat model memory instance."""
         chat_history = await ChatHistory.initialize(chat_id, in_memory)
+        if memory_size is None:  # adaptive memory size
+            model_size = (await chat_history.model).chat_model.size
+            memory_size = model_size * 3 // 4  # use 75% of model size
+
+        # get the memory sizes and create the memory
+        (short_memory_size, long_memory_size) = _get_memory_size(memory_size)
         return cls(
             chat_history,
             short_memory_size,
@@ -158,7 +163,7 @@ class ChatMemory:
     async def _calculate_size(self, messages: list[Message]) -> int:
         return chatgpt.openai.tokenization.messages_tokens(
             _create_prompt((await self.history.model).prompt, messages),
-            (await self.history.model).model,
+            (await self.history.model).chat_model,
         )
 
 
@@ -304,7 +309,7 @@ class SummarizationModel(chatgpt.openai.chat_model.OpenAIChatModel):
             total_size = self._calculate_size(_create_prompt(buffer, message))
 
             # if the message can fit in the buffer
-            if total_size <= self.config.model.size:
+            if total_size <= self.config.chat_model.size:
                 # transfer the message to the buffer and continue
                 buffer.append(message)
                 remaining_messages.pop(0)
@@ -346,7 +351,7 @@ class SummarizationModel(chatgpt.openai.chat_model.OpenAIChatModel):
     def _calculate_size(self, messages: list[Message]) -> int:
         return chatgpt.openai.tokenization.messages_tokens(
             _create_prompt(self.config.prompt, messages),
-            (self.config).model,
+            (self.config).chat_model,
         )
 
 
@@ -364,3 +369,9 @@ def _create_prompt(*messages: list | Message | None) -> list[Message]:
                 if sub_list := _create_prompt(sub_item):
                     history.extend(sub_list)
     return history
+
+
+def _get_memory_size(memory_size: int):
+    short_term = memory_size * 2 // 3  # 2/3 of memory for short term
+    long_term = memory_size - short_term  # 1/3 of memory for long term
+    return short_term, long_term

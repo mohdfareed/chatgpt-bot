@@ -19,8 +19,6 @@ async def reply_to_user(message: bot.models.TextMessage, reply=False):
     # initialize model's memory
     memory = await chatgpt.memory.ChatMemory.initialize(
         message.chat_id,
-        short_memory_size=2000,
-        long_memory_size=1000,
         summarization_handlers=[metrics_handler],
     )
     # setup the chat model
@@ -101,10 +99,10 @@ async def get_usage(message: bot.models.TelegramMessage):
     ).load()
 
     return (
-        f"User tokens usage: ${round(user_metrics.usage, 4)}\n"
-        f"       usage cost: {round(chat_metrics.usage_cost, 2)}\n"
-        f"Chat tokens usage: ${round(chat_metrics.usage, 4)}\n"
-        f"       usage cost: {round(chat_metrics.usage_cost, 2)}"
+        f"User tokens usage: {round(user_metrics.usage, 4)}\n"
+        f"       usage cost: ${round(chat_metrics.usage_cost, 2)}\n"
+        f"Chat tokens usage: {round(chat_metrics.usage, 4)}\n"
+        f"       usage cost: ${round(chat_metrics.usage_cost, 2)}"
     )
 
 
@@ -117,7 +115,7 @@ async def load_config(message: bot.models.TelegramMessage):
 async def set_model(message: bot.models.TelegramMessage, model_name: str):
     chat_history = await chatgpt.memory.ChatHistory.initialize(message.chat_id)
     chat_model = await chat_history.model
-    chat_model.model = chatgpt.core.ModelConfig.chat_model(model_name)
+    chat_model.chat_model = chatgpt.core.ModelConfig.model(model_name)
     await chat_history.set_model(chat_model)
 
 
@@ -162,11 +160,11 @@ async def set_max_tokens(message: bot.models.TelegramMessage, max: int):
 def _format_model(config: chatgpt.core.ModelConfig):
     tools = [f"<code>{tool.name}</code>" for tool in config.tools]
     return (
-        f"Name: <code>{config.model.name}</code>\n"
-        f"Size: <code>{config.model.size} tokens</code>\n"
+        f"Name: <code>{config.chat_model.name}</code>\n"
+        f"Size: <code>{config.chat_model.size} tokens</code>\n"
         f"Temperature: <code>{config.temperature}</code>\n"
-        f"Input cost: <code>${config.model.input_cost}/1k tokens</code>\n"
-        f"Output cost: <code>${config.model.output_cost}/1k tokens</code>\n"
+        f"Input cost: <code>${config.chat_model.input_cost}/1k tokens</code>\n"
+        f"Output cost: <code>${config.chat_model.output_cost}/1k tokens</code>\n"
         f"Streams messages: <code>{config.streaming}</code>\n"
         f"Tools: {', '.join(tools)}\n"
         f"System prompt: <code>{config.prompt or ''}</code>"

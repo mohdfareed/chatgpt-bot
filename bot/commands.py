@@ -86,7 +86,7 @@ class Models(Command):
             return
 
         available_models = []
-        for model in chatgpt.core.ModelConfig.chat_models():
+        for model in chatgpt.core.ModelConfig.supported_models():
             available_models.append(f"<code>{model.name}</code>")
         await message.telegram_message.reply_html(
             "\n".join(available_models).strip() or "No models available"
@@ -194,8 +194,10 @@ class SetModel(Command):
         try:  # parse the model name from the message
             model_name = message.text.split(" ", 1)[1].strip()
             # use default model if no model name was found
-            model_name = model_name or chatgpt.core.ModelConfig().model.name
-            model = chatgpt.core.ModelConfig.chat_model(model_name)
+            model_name = (
+                model_name or chatgpt.core.ModelConfig().chat_model.name
+            )
+            model = chatgpt.core.ModelConfig.model(model_name)
         except (IndexError, ValueError):
             await utils.reply_code(message, "Invalid model name")
             return
