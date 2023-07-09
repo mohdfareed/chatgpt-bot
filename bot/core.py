@@ -26,9 +26,7 @@ def run():
     application = (
         telegram_extensions.Application.builder()
         .token(bot.token)
-        .rate_limiter(
-            telegram_extensions.AIORateLimiter()
-        )  # TODO: implement custom rate limiter
+        .rate_limiter(telegram_extensions.AIORateLimiter())
         .defaults(defaults)
         .build()
     )
