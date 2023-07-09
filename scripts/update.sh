@@ -1,5 +1,5 @@
-#!/usr/bin/env sh
-# update the current branch and setup then start the bot
+#!/usr/bin/env bash
+# update the current branch then setup and start the bot
 
 error() {
     BOLDRED='\033[31;1m'
@@ -25,11 +25,12 @@ if ! git diff --quiet; then
     echo
 fi
 
-# merge the current branch into deployment
+# update the current branch
 echo "\033[1mUpdating $current_branch...\033[0m"
 git fetch origin
 if [ $? -ne 0 ]; then
     error "Fetch failed, try again"
+    exit 1
 else  # pull changes after fetch
     git pull origin $current_branch
     if [ $? -ne 0 ]; then
@@ -46,12 +47,14 @@ if [ $changes_stashed ]; then
     git stash pop
     if [ $? -ne 0 ]; then
         error "Failed to apply stashed changes"
-        exit 1
     fi
     echo
 fi
-
 echo "\033[32;1mUpdate completed successfully\033[0m"
+
+# setup the virtual environment
 ./scripts/setup.py --clean
+source .venv/bin/activate
+# start the bot
 ./scripts/start.py --setup
 ./scripts/start.py --log
