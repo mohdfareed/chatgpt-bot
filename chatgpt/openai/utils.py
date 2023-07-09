@@ -66,7 +66,7 @@ def create_completion_params(
 
 
 def parse_completion(
-    completion: dict,
+    completion,
     model: chatgpt.core.SupportedChatModel,
 ) -> chatgpt.core.ModelMessage:
     choice: dict = completion["choices"][0]
