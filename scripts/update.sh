@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# publish the current branch to the deployment branch
+# update the current branch and setup then start the bot
 
 error() {
     BOLDRED='\033[31;1m'
