@@ -2,12 +2,13 @@
 # publish the current branch to the deployment branch
 
 error() {
-    RED='\033[0;31m'
+    BOLDRED='\033[31;1m'
     CLEAR='\033[0m'
-    echo "${RED}Error:${CLEAR} $1"
+    echo "${BOLDRED}Error:${CLEAR} $1"
 }
 
 # set the working directory to the root of the repo
+current_dir=$(pwd)
 script_dir=$(dirname "$0")
 cd "$script_dir/.."
 # save the branch names
@@ -29,63 +30,69 @@ if [ ! $merge_in_progress ]; then
 
 # stash any changes
 if ! git diff --quiet; then
-    echo "Stashing changes..."
-    git stash save "Auto stash before deploying $current_branch" > /dev/null
-    # if stash was successful, set a flag
-    if [ $stash_result -eq 0 ]; then
-        changes_stashed=1
+    echo "\033[1mStashing changes...\033[0m"
+    git stash save "Auto stash before deploying $current_branch"
+    if [ $? -ne 0 ]; then
+        error "Failed to stash changes, aborting deployment"
+        exit 1
     fi
+    changes_stashed=1  # set a flag to pop the stash later
+    echo
 fi
 
 # switch to the deployment branch
-echo "Switching to the $deployment_branch branch..."
-git checkout $deployment_branch > /dev/null
+git checkout $deployment_branch
 if [ $? -ne 0 ]; then
     error "Failed to switch to the deployment branch"
     exit 1
 fi
+echo
 
 # merge the current branch into deployment
-echo "Merging $current_branch into $deployment_branch..."
-git merge $current_branch --no-commit --no-ff > /dev/null
+echo "\033[1mMerging $current_branch into $deployment_branch...\033[0m"
+git merge $current_branch --no-commit --no-ff
 if [ $? -ne 0 ]; then
-    error "Merge failed. Resolve conflicts and continue deployment manually"
+    error "Merge failed, resolve conflicts and continue deployment manually"
     exit 1
 fi
+echo
 
 fi # merge is done
 
 # commit the changes to deployment
-echo "Committing changes..."
-git commit -m "Merge branch '$current_branch' into deployment" > /dev/null
+echo "\033[1mCommitting changes...\033[0m"
+git commit -m "Merge branch '$current_branch' into deployment"
 if [ $? -ne 0 ]; then
-    error "Commit failed, try again"
-
+    error "Committing failed"
 # push the changes to the deployment branch
 else
-    echo "Pushing changes..."
-    git push origin deployment > /dev/null
+    echo "\n\033[1mPushing changes...\033[0m"
+    git push origin deployment
     if [ $? -ne 0 ]; then
         error "Push failed, publish the deployment branch manually"
     fi
 fi
+echo
 
 # switch back to the old branch
-echo "Switching back to the $current_branch branch..."
-git checkout $current_branch > /dev/null
+echo "\033[1mRestoring workspace...\033[0m"
+git checkout $current_branch
 if [ $? -ne 0 ]; then
     error "Failed to switch back to the original branch"
     exit 1
 fi
+echo
 
 # if changes were stashed, pop the stash
 if [ $changes_stashed ]; then
     echo "Restoring stashed changes"
-    git stash pop  > /dev/null
+    git stash pop
     if [ $? -ne 0 ]; then
         error "Failed to apply the stash"
         exit 1
     fi
+    echo
 fi
 
-echo "\033[0;32mDeployment successfully done\033[0m"
+cd "$current_dir"
+echo "\033[32;1mDeployment successfully done\033[0m"
