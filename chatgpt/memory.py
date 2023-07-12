@@ -268,7 +268,7 @@ class SummarizationModel(chatgpt.openai.chat_model.OpenAIChatModel):
             streaming=False,
         )
         super().__init__(config, handlers=handlers)
-        self.summary_size = summary_size
+        self.summary_size = summary_size + 100  # add some buffer
         """The max number of tokens a generated summary will contain."""
 
         # # use larger model
