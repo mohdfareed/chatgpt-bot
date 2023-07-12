@@ -19,7 +19,7 @@ _markdown_patterns = dict(
     strikethrough=_inline.format(r"~"),
     spoiler=_inline.format(r"\|\|"),
     mono=_inline.format(r"`(?!`)"),
-    code=r"(?<![@#\\\w])```(.*)\n([\s\S]+?)\n```(?!\w)",
+    code=r"(?<![@#\\\w])```(.*)\n([\s\S]+?)\n\s*```(?!\w)",
     link=r"(?<![@#\w])\[(.+?)\]\((.+?)\)(?!\w)",
 )
 

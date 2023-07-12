@@ -1,10 +1,21 @@
 #!/usr/bin/env bash
 # update the current branch then setup and start the bot
 
-# parse clean flag
-if [ "$1" == "--clean" ]; then
-    clean=1
-fi
+clean=0
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --clean)
+            clean=1; shift;;
+        -h|--help)
+            echo "Usage: $0 [--clean]"
+            echo "  --clean  Run the bot in a clean environment"
+            exit 0;;
+        *)
+            echo "Error: Invalid argument: $1"
+            echo "Usage: $0 [--clean] [-h|--help]"
+            exit 1;;
+    esac
+done
 
 error() {
     BOLDRED='\033[31;1m'
