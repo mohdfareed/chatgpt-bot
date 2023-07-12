@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 # update the current branch then setup and start the bot
 
+# parse clean flag
+if [ "$1" == "--clean" ]; then
+    clean=1
+fi
+
 error() {
     BOLDRED='\033[31;1m'
     CLEAR='\033[0m'
@@ -46,8 +51,12 @@ fi
 echo "$(tput setaf 2)Update completed successfully$(tput sgr0)"
 echo
 
-# setup the virtual environment
-./scripts/setup.py --clean
+# setup the virtual environment (clean if specified)
+if [ $clean ]; then
+    ./scripts/setup.py --clean
+else
+    ./scripts/setup.py
+fi
 source .venv/bin/activate
 echo
 # start the bot
