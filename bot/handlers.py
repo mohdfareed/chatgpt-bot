@@ -29,8 +29,8 @@ class MessageHandler(abc.ABC):
     def handler(self) -> telegram_extensions.MessageHandler:
         """The message handler."""
         handler = telegram_extensions.MessageHandler(
-            callback=type(self).callback,
-            filters=type(self).filters,
+            callback=self.callback,
+            filters=self.filters,
         )
         # set blocking if specified, use default otherwise
         if self.block is not None:
@@ -38,7 +38,7 @@ class MessageHandler(abc.ABC):
         return handler
 
     @staticmethod
-    @abc.abstractmethod
+    @abc.abstractstaticmethod
     async def callback(update: telegram.Update, context: _default_context):
         """The callback function for the command."""
         pass

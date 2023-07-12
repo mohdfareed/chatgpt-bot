@@ -39,7 +39,7 @@ Write-Host "`e[32;1mUpdate completed successfully`e[0m`n"
 
 # setup the virtual environment
 python .\scripts\setup.py --clean
-& .\.venv\Scripts\Activate.ps1
+& .venv\Scripts\Activate.ps1
 Write-Host
 # start the bot
 python .\scripts\start.py --log

@@ -12,7 +12,8 @@ from chatgpt.core import Message, SummaryMessage, SystemMessage
 
 SUMMARIZATION_PROMPT = """\
 Progressively summarize the lines of the conversation provided, adding onto \
-the previous summary and returning a new summary."""
+the previous summary and returning a new summary. Reduce the summary length \
+if no new messages are provided."""
 """The prompt for summarizing a conversation."""
 
 INSTRUCTIONS = """\
@@ -273,6 +274,9 @@ class SummarizationModel(chatgpt.openai.chat_model.OpenAIChatModel):
         self.summary_size = summary_size
         """The max number of tokens a generated summary will contain."""
 
+        # # use larger model
+        # self.config.chat_model = chatgpt.core.CHATGPT_16K
+
     @override
     async def run(
         self,
@@ -308,14 +312,14 @@ class SummarizationModel(chatgpt.openai.chat_model.OpenAIChatModel):
             message = remaining_messages[0]
             total_size = self._calculate_size(_create_prompt(buffer, message))
 
-            # if the message can fit in the buffer
-            if total_size <= self.config.chat_model.size:
+            # if the message can fit in the buffer (including reply)
+            if total_size + self.summary_size <= self.config.chat_model.size:
                 # transfer the message to the buffer and continue
                 buffer.append(message)
                 remaining_messages.pop(0)
                 continue
 
-            # summarize the current buffer otherwise
+            # summarize the current buffer otherwise, resetting the buffer
             new_buffer = await self._generate_summary(buffer, summary, usage)
             if not new_buffer:  # model failed to generate a summary
                 return None
@@ -323,9 +327,8 @@ class SummarizationModel(chatgpt.openai.chat_model.OpenAIChatModel):
 
         # summarize the remaining messages
         if len(buffer) > 2:  # at least has prompt and summary
-            new_buffer = await self._generate_summary(buffer, summary, usage)
-            if not new_buffer:  # model failed to generate a summary
-                return None
+            if not await self._generate_summary(buffer, summary, usage):
+                return None  # model failed to generate a summary
 
         # return the summary as a model message
         usage.content = summary.content

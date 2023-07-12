@@ -32,8 +32,8 @@ class Command(handlers.MessageHandler, abc.ABC):
         """The command handler."""
         handler = telegram_extensions.CommandHandler(
             command=self.names,
-            callback=type(self).callback,
-            filters=type(self).filters,
+            callback=self.callback,
+            filters=self.filters,
         )
         # set blocking if specified, use default otherwise
         if self.block is not None:
