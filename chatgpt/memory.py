@@ -40,7 +40,7 @@ class ChatMemory:
         self.history = chat_history
         """The chat history in the memory."""
         self.summarizer = SummarizationModel(
-            long_memory_size - 100, handlers=summarization_handlers
+            long_memory_size - 150, handlers=summarization_handlers
         )  # reserve 100 tokens as a buffer
         """The summarization model."""
 
@@ -268,7 +268,7 @@ class SummarizationModel(chatgpt.openai.chat_model.OpenAIChatModel):
             streaming=False,
         )
         super().__init__(config, handlers=handlers)
-        self.summary_size = summary_size + 100  # add some buffer
+        self.summary_size = summary_size + 150  # add some buffer
         """The max number of tokens a generated summary will contain."""
 
         # # use larger model
