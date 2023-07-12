@@ -1,5 +1,10 @@
 # update the current branch then setup and start the bot
 
+param(
+    [switch]$clean # clean the virtual environment before setup
+)
+
+# write a formatted error message
 function Write-Error {
     param([String]$Message)
     Write-Host "`e[31;1mError:`e[0m $Message"
@@ -38,7 +43,7 @@ git stash pop
 Write-Host "`e[32;1mUpdate completed successfully`e[0m`n"
 
 # setup the virtual environment
-python .\scripts\setup.py --clean
+python .\scripts\setup.py --clean:$clean
 & .venv\Scripts\Activate.ps1
 Write-Host
 # start the bot
