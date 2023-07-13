@@ -8,13 +8,12 @@ import typing
 import openai.error
 import tenacity
 
-import chatgpt.core
-import chatgpt.events
-import chatgpt.openai.tokenization
-import chatgpt.tools
+import chatgpt
+from chatgpt import core, messages, tools
+from chatgpt.openai import tokenization
 
 
-def _retry(min_wait=1, max_wait=60, max_attempts=6):
+def _retry(min_wait=1, max_wait=5, max_attempts=6):
     log = tenacity.before_sleep_log(chatgpt.logger, logging.WARNING)
     retry_exceptions = (
         openai.error.Timeout,
@@ -38,15 +37,21 @@ async def generate_completion(
     **kwargs: typing.Any,
 ) -> typing.AsyncIterator[dict] | dict | None:
     try:
-        return await openai.ChatCompletion.acreate(**kwargs)  # type: ignore
+        completion = await openai.ChatCompletion.acreate(**kwargs)
+        if type(completion) == typing.AsyncGenerator:
+            return aiter(completion)
+        elif type(completion) == dict:
+            return completion
+        else:
+            return None
     except (asyncio.CancelledError, KeyboardInterrupt):
         return None
 
 
 def create_completion_params(
-    config: chatgpt.core.ModelConfig,
-    messages: list[chatgpt.core.Message],
-    tools: list[chatgpt.tools.Tool],
+    config: core.ModelConfig,
+    messages: list[messages.Message],
+    tools: list[tools.Tool],
 ) -> dict:
     messages_dict = [m.to_message_dict() for m in messages]
     tools_dict = [t.to_dict() for t in tools]
@@ -67,8 +72,8 @@ def create_completion_params(
 
 def parse_completion(
     completion,
-    model: chatgpt.core.SupportedChatModel,
-) -> chatgpt.core.ModelMessage:
+    model: core.SupportedChatModel,
+) -> messages.ModelMessage:
     choice: dict = completion["choices"][0]
     message: dict = choice.get("message") or choice.get("delta") or {}
 
@@ -79,10 +84,10 @@ def parse_completion(
         name = reply_dict.get("name") or ""  # default to empty name
         args = reply_dict.get("arguments") or ""  # default to no arguments
 
-        reply = chatgpt.core.ToolUsage(name, args)
+        reply = messages.ToolUsage(name, args)
         reply.content = content
     else:  # default to a model message
-        reply = chatgpt.core.ModelMessage(content)
+        reply = messages.ModelMessage(content)
 
     # load metadata
     reply = _parse_usage(completion, reply, model)
@@ -90,19 +95,19 @@ def parse_completion(
     return reply
 
 
-def _parse_finish_reason(completion, reply: chatgpt.core.ModelMessage):
+def _parse_finish_reason(completion, reply: messages.ModelMessage):
     finish_reason = completion["choices"][0]["finish_reason"]
     if not finish_reason:
-        reply.finish_reason = chatgpt.core.FinishReason.UNDEFINED
+        reply.finish_reason = core.FinishReason.UNDEFINED
         return reply
-    reply.finish_reason = chatgpt.core.FinishReason(finish_reason)
+    reply.finish_reason = core.FinishReason(finish_reason)
     return reply
 
 
 def _parse_usage(
     completion,
-    reply: chatgpt.core.ModelMessage,
-    model: chatgpt.core.SupportedChatModel,
+    reply: messages.ModelMessage,
+    model: core.SupportedChatModel,
 ):
     try:  # default to 0 if not present
         prompt_tokens = completion["usage"]["prompt_tokens"]
@@ -111,10 +116,10 @@ def _parse_usage(
         prompt_tokens = 0
         reply_tokens = 0
 
-    prompt_cost = chatgpt.openai.tokenization.tokens_cost(
+    prompt_cost = tokenization.tokens_cost(
         prompt_tokens, model, is_reply=False
     )
-    completion_cost = chatgpt.openai.tokenization.tokens_cost(
+    completion_cost = tokenization.tokens_cost(
         reply_tokens, model, is_reply=True
     )
     reply.prompt_tokens = prompt_tokens

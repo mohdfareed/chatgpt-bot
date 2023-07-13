@@ -5,7 +5,11 @@ import inspect
 import typing
 
 import chatgpt.core
+import chatgpt.messages
 import chatgpt.tools
+
+if typing.TYPE_CHECKING:
+    from chatgpt.openai.chat_model import OpenAIChatModel
 
 
 class EventsManager:
@@ -25,14 +29,14 @@ class EventsManager:
         """Remove a callback handler."""
         self.handlers.remove(handler)
 
-    async def trigger_model_run(self, input: typing.Any):
+    async def trigger_model_run(self, model: OpenAIChatModel):
         """Trigger the on_model_run event for all handlers."""
-        await self._trigger(ModelRun, input)
+        await self._trigger(ModelRun, model)
 
     async def trigger_model_start(
         self,
         config: chatgpt.core.ModelConfig,
-        context: list[chatgpt.core.Message],
+        context: list[chatgpt.messages.Message],
         tools: list[chatgpt.tools.Tool],
     ):
         """Trigger the on_model_start event for all handlers."""
@@ -40,35 +44,31 @@ class EventsManager:
 
     async def trigger_model_generation(
         self,
-        packet: chatgpt.core.ModelMessage,
+        packet: chatgpt.messages.ModelMessage,
         aggregator: MessageAggregator | None,
     ):
         """Trigger the on_model_generation event for all handlers."""
         await self._trigger(ModelGeneration, packet, aggregator)
 
-    async def trigger_model_end(self, message: chatgpt.core.ModelMessage):
+    async def trigger_model_end(self, message: chatgpt.messages.ModelMessage):
         """Trigger the on_model_end event for all handlers."""
         await self._trigger(ModelEnd, message)
 
-    async def trigger_tool_use(self, usage: chatgpt.core.ToolUsage):
+    async def trigger_tool_use(self, usage: chatgpt.messages.ToolUsage):
         """Trigger the on_tool_use event for all handlers."""
         await self._trigger(ToolUse, usage)
 
-    async def trigger_tool_result(self, results: chatgpt.core.ToolResult):
+    async def trigger_tool_result(self, results: chatgpt.messages.ToolResult):
         """Trigger the on_tool_result event for all handlers."""
         await self._trigger(ToolResult, results)
 
-    async def trigger_model_reply(self, reply: chatgpt.core.ModelMessage):
+    async def trigger_model_reply(self, reply: chatgpt.messages.ModelMessage):
         """Trigger the on_model_reply event for all handlers."""
         await self._trigger(ModelReply, reply)
 
     async def trigger_model_error(self, error: Exception):
         """Trigger the on_model_error event for all handlers."""
         await self._trigger(ModelError, error)
-
-    async def trigger_model_interrupt(self):
-        """Trigger the on_model_interrupt event for all handlers."""
-        await self._trigger(ModelInterrupt)
 
     async def _trigger(
         self, event: typing.Type["ModelEvent"], *args, **kwargs
@@ -106,7 +106,7 @@ class ModelRun(ModelEvent, abc.ABC):
     """Event triggered when model starts running."""
 
     @abc.abstractmethod
-    def on_model_run(self, input: typing.Any):
+    def on_model_run(self, model: OpenAIChatModel):
         """Called when a model starts running."""
 
     @classmethod
@@ -121,7 +121,7 @@ class ModelStart(ModelEvent, abc.ABC):
     def on_model_start(
         self,
         config: chatgpt.core.ModelConfig,
-        context: list[chatgpt.core.Message],
+        context: list[chatgpt.messages.Message],
         tools: list[chatgpt.tools.Tool],
     ):
         """Called before a model starts generating tokens."""
@@ -139,7 +139,7 @@ class ModelGeneration(ModelEvent, abc.ABC):
     @abc.abstractmethod
     def on_model_generation(
         self,
-        packet: chatgpt.core.ModelMessage,
+        packet: chatgpt.messages.ModelMessage,
         aggregator: MessageAggregator | None,
     ):
         """Called when a model generates a token."""
@@ -153,7 +153,7 @@ class ModelEnd(ModelEvent, abc.ABC):
     """Event triggered on model ending generation."""
 
     @abc.abstractmethod
-    def on_model_end(self, message: chatgpt.core.ModelMessage):
+    def on_model_end(self, message: chatgpt.messages.ModelMessage):
         """Called when a model finishes generating tokens."""
 
     @classmethod
@@ -165,7 +165,7 @@ class ToolUse(ModelEvent, abc.ABC):
     """Event triggered on model using a tool."""
 
     @abc.abstractmethod
-    def on_tool_use(self, usage: chatgpt.core.ToolUsage):
+    def on_tool_use(self, usage: chatgpt.messages.ToolUsage):
         """Called when a model uses a tool."""
 
     @classmethod
@@ -177,7 +177,7 @@ class ToolResult(ModelEvent, abc.ABC):
     """Event triggered on tool returning a result to model."""
 
     @abc.abstractmethod
-    def on_tool_result(self, results: chatgpt.core.ToolResult):
+    def on_tool_result(self, results: chatgpt.messages.ToolResult):
         """Called when a tool returns a result to the model."""
 
     @classmethod
@@ -189,7 +189,7 @@ class ModelReply(ModelEvent, abc.ABC):
     """Event triggered on model replying to the user."""
 
     @abc.abstractmethod
-    def on_model_reply(self, reply: chatgpt.core.ModelMessage):
+    def on_model_reply(self, reply: chatgpt.messages.ModelMessage):
         """Called when a model replies and exists."""
 
     @classmethod
@@ -207,15 +207,3 @@ class ModelError(ModelEvent, abc.ABC):
     @classmethod
     def callback(cls):
         return cls.on_model_error
-
-
-class ModelInterrupt(ModelEvent, abc.ABC):
-    """Event triggered on model being interrupted by the user."""
-
-    @abc.abstractmethod
-    def on_model_interrupt(self):
-        """Called when a model is interrupted."""
-
-    @classmethod
-    def callback(cls):
-        return cls.on_model_interrupt

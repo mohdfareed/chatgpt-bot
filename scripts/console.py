@@ -79,11 +79,13 @@ async def main():
         # await memory.initialize()
         await memory.history.clear()
 
-        message = chatgpt.core.UserMessage("Hi")
+        message = chatgpt.messages.UserMessage("Hi")
         await model.run(message)
-        message = chatgpt.core.UserMessage("Do you know what my username is?")
+        message = chatgpt.messages.UserMessage(
+            "Do you know what my username is?"
+        )
         await model.run(message)
-        message = chatgpt.core.UserMessage(
+        message = chatgpt.messages.UserMessage(
             "What's the metadata of your last message?"
         )
         await model.run(message)

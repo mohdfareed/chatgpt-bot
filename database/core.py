@@ -101,13 +101,9 @@ class DatabaseModel(orm.DeclarativeBase, async_sql.AsyncAttrs):
 class DatabaseError(Exception):
     """Exception raised for database errors."""
 
-    pass
-
 
 class ModelNotFound(DatabaseError):
     """Exception raised when a model was not found in database."""
-
-    pass
 
 
 async def db_engine():

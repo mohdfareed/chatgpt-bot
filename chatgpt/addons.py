@@ -7,6 +7,7 @@ from typing_extensions import override
 
 import chatgpt.core
 import chatgpt.events
+import chatgpt.messages
 import chatgpt.tools
 from chatgpt import OPENAI_API_KEY
 
@@ -19,7 +20,6 @@ class ConsoleHandler(
     chatgpt.events.ToolUse,
     chatgpt.events.ToolResult,
     chatgpt.events.ModelReply,
-    chatgpt.events.ModelInterrupt,
     chatgpt.events.ModelError,
 ):
     """Prints model events to the console."""
@@ -45,7 +45,7 @@ class ConsoleHandler(
         if not self.streaming:
             return
         rich.print(packet.content, end="", flush=True)
-        if isinstance(packet, chatgpt.core.ToolUsage):
+        if isinstance(packet, chatgpt.messages.ToolUsage):
             rich.print(packet.tool_name, end="", flush=True)
             rich.print(packet.args_str, end="", flush=True)
 
@@ -73,10 +73,6 @@ class ConsoleHandler(
     async def on_model_error(self, _):
         rich.print("\n[bold red]Model error:[/]")
         self.console.print_exception(show_locals=True)
-
-    @override
-    async def on_model_interrupt(self):
-        rich.print("\n[bold red]Model interrupted...[/]")
 
 
 class Calculator(chatgpt.tools.Tool):

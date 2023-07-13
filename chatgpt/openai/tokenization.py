@@ -2,11 +2,10 @@
 
 import tiktoken
 
-import chatgpt.core
-import chatgpt.tools
+from chatgpt import core, messages, tools
 
 
-def tokens(string: str, model: chatgpt.core.SupportedChatModel):
+def tokens(string: str, model: core.SupportedChatModel):
     """Get the number of tokens in a string using the model's tokenizer.
     Defaults to 'cl100k_base' if the model does not have a tokenizer.
     """
@@ -19,8 +18,7 @@ def tokens(string: str, model: chatgpt.core.SupportedChatModel):
 
 
 def messages_tokens(
-    messages: list[chatgpt.core.Message],
-    model: chatgpt.core.SupportedChatModel,
+    messages: list[messages.Message], model: core.SupportedChatModel
 ):
     """Get the number of tokens in a list of messages."""
 
@@ -30,10 +28,7 @@ def messages_tokens(
     return num_tokens + 1  # replies are primed with 1 token
 
 
-def message_tokens(
-    message: chatgpt.core.Message,
-    model: chatgpt.core.SupportedChatModel,
-):
+def message_tokens(message: messages.Message, model: core.SupportedChatModel):
     """Get the number of tokens in a message."""
     count = 0
     if message.content:
@@ -42,16 +37,13 @@ def message_tokens(
         count += tokens(message.name, model) + 2
     else:  # role is omitted if name is present
         count += tokens(message.ROLE(), model)
-    if type(message) is chatgpt.core.ToolUsage:
+    if type(message) is messages.ToolUsage:
         count += tokens(message.tool_name, model) + 6
         count += tokens(message.args_str, model)
     return count
 
 
-def tools_tokens(
-    tools: list[chatgpt.tools.Tool],
-    model: chatgpt.core.SupportedChatModel,
-):
+def tools_tokens(tools: list[tools.Tool], model: core.SupportedChatModel):
     """Get the number of tokens in a list of tools."""
     # FIXME: this is a very rough estimate
 
@@ -70,8 +62,8 @@ def tools_tokens(
 
 
 def model_tokens(
-    generation: chatgpt.core.ModelMessage,
-    model: chatgpt.core.SupportedChatModel,
+    generation: messages.ModelMessage,
+    model: core.SupportedChatModel,
     has_tools=False,
 ):
     """Get the number of tokens in a model generation results."""
@@ -79,18 +71,14 @@ def model_tokens(
     if generation.content:
         count += tokens(generation.content, model)
         count += 1
-    if type(generation) == chatgpt.core.ToolUsage:
+    if type(generation) == messages.ToolUsage:
         count += tokens(generation.tool_name, model)
         count += tokens(generation.args_str, model)
         count += 4
     return count
 
 
-def tokens_cost(
-    tokens: int,
-    model: chatgpt.core.SupportedChatModel,
-    is_reply: bool,
-):
+def tokens_cost(tokens: int, model: core.SupportedChatModel, is_reply: bool):
     """Get the cost for a number of tokens in USD."""
     cost = model.output_cost if is_reply else model.input_cost
     return float(tokens) / 1000 * cost

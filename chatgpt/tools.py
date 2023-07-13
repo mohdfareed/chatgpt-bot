@@ -4,7 +4,8 @@ import abc
 import asyncio
 import typing
 
-import chatgpt.core
+import chatgpt.core as core
+import chatgpt.messages as messages
 
 
 class ToolsManager:
@@ -14,7 +15,7 @@ class ToolsManager:
         self.tools = tools
         """The tools available to the model."""
 
-    async def use(self, tool_usage: chatgpt.core.ToolUsage):
+    async def use(self, tool_usage: messages.ToolUsage):
         """Execute a tool."""
         result = None
         tool = None
@@ -27,7 +28,7 @@ class ToolsManager:
             result = str(e)  # return error message
 
         if tool is not None and result is not None:
-            result = chatgpt.core.ToolResult(result, tool.name)
+            result = messages.ToolResult(result, tool.name)
         return result
 
     def _tool_from_name(self, name: str) -> "Tool":
@@ -38,7 +39,7 @@ class ToolsManager:
         raise ToolError(f"Tool not found: {name}")
 
 
-class Tool(chatgpt.core.Serializable, abc.ABC):
+class Tool(core.Serializable, abc.ABC):
     """A tool that can be used by a model to generate replies."""
 
     @abc.abstractproperty
@@ -99,7 +100,7 @@ class Tool(chatgpt.core.Serializable, abc.ABC):
                 raise ToolError(f"Missing required argument: {req_param}")
 
 
-class ToolParameter(chatgpt.core.Serializable):
+class ToolParameter(core.Serializable):
     """A parameter of a tool."""
 
     def __init__(
@@ -132,7 +133,7 @@ class ToolParameter(chatgpt.core.Serializable):
         )
 
 
-class ToolError(chatgpt.core.ModelError):
+class ToolError(core.ModelError):
     """An error raised by a tool."""
 
     pass
