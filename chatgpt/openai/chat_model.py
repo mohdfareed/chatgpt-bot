@@ -3,6 +3,8 @@
 import asyncio
 import typing
 
+from typing_extensions import override
+
 from chatgpt import core, events, messages, tools
 from chatgpt.openai import utils
 from chatgpt.openai.aggregator import MessageAggregator
@@ -11,7 +13,7 @@ from chatgpt.openai.metrics import MetricsHandler
 T = typing.TypeVar("T")
 
 
-class OpenAIChatModel:
+class OpenAIChatModel(core.ChatModel):
     """Class responsible for interacting with the OpenAI API."""
 
     def __init__(
@@ -31,8 +33,8 @@ class OpenAIChatModel:
         self.events_manager = events.EventsManager(handlers)
         """The events manager of callback handlers."""
 
-    async def stop(self):
-        """Stop the model from running."""
+    @override
+    def stop(self):
         if self._model_task:
             self._model_task.cancel()
         if self._running:
@@ -101,7 +103,9 @@ class OpenAIChatModel:
             return reply
 
         # return streamed response if streaming
-        if self.config.streaming and type(completion) == typing.AsyncIterator:
+        if self.config.streaming and isinstance(
+            completion, typing.AsyncGenerator
+        ):
             stream = self._cancelable(self._stream_completion(completion))
             return await stream
 
@@ -110,7 +114,7 @@ class OpenAIChatModel:
         await self.events_manager.trigger_model_generation(reply, None)
         return reply
 
-    async def _stream_completion(self, completion: typing.AsyncIterator[dict]):
+    async def _stream_completion(self, completion: typing.AsyncGenerator):
         aggregator = MessageAggregator()
         try:  # stream response until canceled or finished
             async for packet in completion:

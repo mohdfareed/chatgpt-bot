@@ -35,13 +35,14 @@ def _retry(min_wait=1, max_wait=5, max_attempts=6):
 @_retry()
 async def generate_completion(
     **kwargs: typing.Any,
-) -> typing.AsyncIterator[dict] | dict | None:
+) -> typing.AsyncGenerator | dict | None:
     try:  # request completion
         completion = await openai.ChatCompletion.acreate(**kwargs)
-        if type(completion) == typing.AsyncGenerator:
-            return aiter(completion)  # streaming
-        elif type(completion) == dict:
+        if isinstance(completion, dict):
             return completion  # non-streaming
+        if isinstance(completion, typing.AsyncGenerator):
+            return completion  # streaming
+        raise TypeError(f"Unexpected completion type: {type(completion)}")
     except (asyncio.CancelledError, KeyboardInterrupt):
         return None
 

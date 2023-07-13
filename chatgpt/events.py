@@ -8,9 +8,6 @@ import chatgpt.core
 import chatgpt.messages
 import chatgpt.tools
 
-if typing.TYPE_CHECKING:
-    from chatgpt.openai.chat_model import OpenAIChatModel
-
 
 class EventsManager:
     """Manager of callback handlers for a model's events."""
@@ -29,7 +26,7 @@ class EventsManager:
         """Remove a callback handler."""
         self.handlers.remove(handler)
 
-    async def trigger_model_run(self, model: OpenAIChatModel):
+    async def trigger_model_run(self, model: chatgpt.core.ChatModel):
         """Trigger the on_model_run event for all handlers."""
         await self._trigger(ModelRun, model)
 
@@ -106,7 +103,7 @@ class ModelRun(ModelEvent, abc.ABC):
     """Event triggered when model starts running."""
 
     @abc.abstractmethod
-    def on_model_run(self, model: OpenAIChatModel):
+    def on_model_run(self, model: chatgpt.core.ChatModel):
         """Called when a model starts running."""
 
     @classmethod

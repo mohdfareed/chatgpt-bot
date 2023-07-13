@@ -5,10 +5,15 @@ import enum
 import json
 import typing
 
-if typing.TYPE_CHECKING:
-    import chatgpt
-
 T = typing.TypeVar("T", bound="Serializable")
+
+
+class ChatModel(abc.ABC):
+    """A chat model."""
+
+    @abc.abstractmethod
+    def stop():
+        """Stop the model."""
 
 
 class ModelError(Exception):
@@ -24,7 +29,7 @@ class FinishReason(enum.StrEnum):
     """The model is using a tool."""
     LIMIT_REACHED = "length"
     """The token limit or maximum completion tokens was reached."""
-    FILTERED = "content_filter"
+    CENSORED = "content_filter"
     """Completion content omitted due to content filter."""
     CANCELLED = "canceled"
     """The completion was canceled by the user."""
@@ -125,6 +130,9 @@ class ModelConfig(Serializable):
     """ChatGPT model configuration and parameters."""
 
     def __init__(self, **kwargs: typing.Any) -> None:
+        import chatgpt.messages
+        import chatgpt.tools
+
         self.chat_model = CHATGPT
         """The the chat model used for chat completions."""
         self.tools: list[chatgpt.tools.Tool] = []
@@ -170,7 +178,7 @@ class ModelConfig(Serializable):
     @staticmethod
     def supported_models():
         """Return a list of all supported chat models."""
-        return [CHATGPT, CHATGPT_16K, GPT4, GPT4_32K]
+        return [CHATGPT, CHATGPT_16K, GPT4]
 
     @staticmethod
     def model(name: str):
