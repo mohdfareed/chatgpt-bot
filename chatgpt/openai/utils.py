@@ -36,14 +36,12 @@ def _retry(min_wait=1, max_wait=5, max_attempts=6):
 async def generate_completion(
     **kwargs: typing.Any,
 ) -> typing.AsyncIterator[dict] | dict | None:
-    try:
+    try:  # request completion
         completion = await openai.ChatCompletion.acreate(**kwargs)
         if type(completion) == typing.AsyncGenerator:
-            return aiter(completion)
+            return aiter(completion)  # streaming
         elif type(completion) == dict:
-            return completion
-        else:
-            return None
+            return completion  # non-streaming
     except (asyncio.CancelledError, KeyboardInterrupt):
         return None
 
@@ -66,7 +64,8 @@ def create_completion_params(
         functions=tools_dict,
         **config.to_dict(),
     )
-    # remove None values
+
+    # returned params without None values
     return _clean_params(parameters)  # type: ignore
 
 
@@ -109,19 +108,24 @@ def _parse_usage(
     reply: messages.ModelMessage,
     model: core.SupportedChatModel,
 ):
-    try:  # default to 0 if not present
+    try:  # default to 0 prompt tokens if not present
         prompt_tokens = completion["usage"]["prompt_tokens"]
-        reply_tokens = completion["usage"]["completion_tokens"]
     except KeyError:
         prompt_tokens = 0
+    try:  # default to 0 reply tokens if not present
+        reply_tokens = completion["usage"]["completion_tokens"]
+    except KeyError:
         reply_tokens = 0
 
+    # calculate cost
     prompt_cost = tokenization.tokens_cost(
         prompt_tokens, model, is_reply=False
     )
     completion_cost = tokenization.tokens_cost(
         reply_tokens, model, is_reply=True
     )
+
+    # set reply usage
     reply.prompt_tokens = prompt_tokens
     reply.reply_tokens = reply_tokens
     reply.cost = prompt_cost + completion_cost

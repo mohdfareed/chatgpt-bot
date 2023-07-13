@@ -84,20 +84,21 @@ class OpenAIChatModel:
         await self.events_manager.trigger_model_start(*params)
         reply = await self._request_completion(*params)
 
-        # trigger model end event if model was not canceled
-        if not isinstance(reply, messages.ModelMessage):
-            return None  # canceled without partial reply
+        # trigger model end event
         await self.events_manager.trigger_model_end(reply)
         return reply
 
     async def _request_completion(self, *params):
-        # request response from openai
+        # request completion from openai
         request = utils.create_completion_params(*params)
         completion = await self._cancelable(
             utils.generate_completion(**request)
         )
-        if completion is None:  # canceled
-            return completion
+
+        if completion is None:  # request was canceled
+            reply = messages.ModelMessage("")
+            reply.finish_reason = core.FinishReason.CANCELLED
+            return reply
 
         # return streamed response if streaming
         if self.config.streaming and type(completion) == typing.AsyncIterator:
