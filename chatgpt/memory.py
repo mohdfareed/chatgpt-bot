@@ -8,7 +8,7 @@ import chatgpt.events
 import chatgpt.openai.chat_model
 import chatgpt.openai.tokenization
 import database as db
-from chatgpt.core import Message, SummaryMessage, SystemMessage
+from chatgpt.messages import *
 
 SUMMARIZATION_PROMPT = """\
 Progressively summarize the lines of the conversation provided, adding onto \
@@ -281,11 +281,14 @@ class SummarizationModel(chatgpt.openai.chat_model.OpenAIChatModel):
         messages: list[Message],
     ) -> SummaryMessage | None:
         """Run the model."""
+        # store input
+        self.prev_summary = prev_summary
+        self.messages = messages
         # start running the model
-        await self.events_manager.trigger_model_run((prev_summary, messages))
+        await self.events_manager.trigger_model_run(self)
         reply = await self._run_model(self._core_logic(prev_summary, messages))
         # check if the model successfully summarized the messages
-        if isinstance(reply, chatgpt.core.ModelMessage):
+        if isinstance(reply, ModelMessage):
             await self.events_manager.trigger_model_reply(reply)
             reply = SummaryMessage(reply.content)
         # return the reply
@@ -295,13 +298,13 @@ class SummarizationModel(chatgpt.openai.chat_model.OpenAIChatModel):
         self,
         previous_summary: SummaryMessage | None,
         new_messages: list[Message],
-    ) -> chatgpt.core.ModelMessage | None:
+    ) -> ModelMessage | None:
         # start with the previous summary or an empty summary
         summary = previous_summary or SummaryMessage("")
         # the buffer of messages to summarize
         buffer: list[Message] = _create_prompt(self.config.prompt, summary)
         remaining_messages = new_messages[:]  # the messages to summarize
-        usage = chatgpt.core.ModelMessage("")  # track usage through a reply
+        usage = ModelMessage("")  # track usage through a reply
 
         # summarize messages progressively
         while remaining_messages:
@@ -335,10 +338,10 @@ class SummarizationModel(chatgpt.openai.chat_model.OpenAIChatModel):
         self,
         buffer: list[Message],
         summary: SummaryMessage,
-        usage: chatgpt.core.ModelMessage,
+        usage: ModelMessage,
     ):
         new_reply = await self._generate_reply(buffer)
-        if not isinstance(new_reply, chatgpt.core.ModelMessage):
+        if not isinstance(new_reply, ModelMessage):
             return None  # model failed to generate a summary
         # track the summary generation usage
         usage.prompt_tokens += new_reply.prompt_tokens

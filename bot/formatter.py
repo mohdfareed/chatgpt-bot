@@ -63,7 +63,7 @@ _valid_attrs = {
 }  # can't verify emoji-id validity, therefore not supported
 
 
-def md_html(text: str) -> str:
+def format_message(text: str) -> str:
     """Format text by convert markdown to Telegram-supported HTML."""
     return _parse_html(_parse_markdown(text))
 

@@ -12,7 +12,7 @@ from typing_extensions import override
 import chatgpt.core
 import chatgpt.tools
 import database.core
-from bot import formatter, handlers, models, tools, utils
+from bot import core, formatter, handlers, telegram_utils, tools, utils
 
 _default_context = telegram_extensions.ContextTypes.DEFAULT_TYPE
 
@@ -47,6 +47,8 @@ class Command(handlers.MessageHandler, abc.ABC):
     @classmethod
     def all_commands(cls):
         """Returns all the commands."""
+        import bot.config_menus
+
         if not inspect.isabstract(cls):
             yield cls()  # type: ignore
         for subcommand in cls.__subclasses__():
@@ -66,30 +68,10 @@ class Help(Command):
     @override
     @staticmethod
     async def callback(update: telegram.Update, context: _default_context):
-        dummy_message = formatter.md_html(Help.help_message)
+        dummy_message = formatter.format_message(Help.help_message)
         dummy_message = dummy_message.format(bot=context.bot.username)
         await update.effective_chat.send_message(
             dummy_message, parse_mode=telegram.constants.ParseMode.HTML
-        )
-
-
-class Models(Command):
-    names = ("models", "available_models")
-    description = "Show the available models"
-
-    @override
-    @staticmethod
-    async def callback(update: telegram.Update, context: _default_context):
-        try:  # check if text message was sent
-            message = models.TextMessage.from_update(update)
-        except ValueError:
-            return
-
-        available_models = []
-        for model in chatgpt.core.ModelConfig.supported_models():
-            available_models.append(f"<code>{model.name}</code>")
-        await message.telegram_message.reply_html(
-            "\n".join(available_models).strip() or "No models available"
         )
 
 
@@ -101,7 +83,7 @@ class Tools(Command):
     @staticmethod
     async def callback(update: telegram.Update, context: _default_context):
         try:  # check if text message was sent
-            message = models.TextMessage.from_update(update)
+            message = core.TextMessage.from_update(update)
         except ValueError:
             return
 
@@ -121,12 +103,12 @@ class Usage(Command):
     @staticmethod
     async def callback(update: telegram.Update, _: _default_context):
         try:  # check if text message was sent
-            message = models.TextMessage.from_update(update)
+            message = core.TextMessage.from_update(update)
         except ValueError:
             return
 
         usage = await utils.get_usage(message)
-        await utils.reply_code(message, usage)
+        await telegram_utils.reply_code(message, usage)
 
 
 class DeleteHistory(Command):
@@ -137,12 +119,12 @@ class DeleteHistory(Command):
     @staticmethod
     async def callback(update: telegram.Update, _: _default_context):
         try:  # check if text message was sent
-            message = models.TextMessage.from_update(update)
+            message = core.TextMessage.from_update(update)
         except ValueError:
             return
 
         await utils.delete_history(message)
-        await utils.reply_code(message, "Chat history deleted")
+        await telegram_utils.reply_code(message, "Chat history deleted")
 
 
 class DeleteMessage(Command):
@@ -153,14 +135,14 @@ class DeleteMessage(Command):
     @staticmethod
     async def callback(update: telegram.Update, _: _default_context):
         try:  # check if text message was sent
-            message = models.TextMessage.from_update(update)
+            message = core.TextMessage.from_update(update)
         except ValueError:
             return
         try:
             await utils.delete_message(message.reply or message)
-            await utils.reply_code(message, "Message deleted")
+            await telegram_utils.reply_code(message, "Message deleted")
         except database.core.ModelNotFound:
-            await utils.reply_code(message, "Message not found")
+            await telegram_utils.reply_code(message, "Message not found")
 
 
 class Model(Command):
@@ -171,39 +153,12 @@ class Model(Command):
     @staticmethod
     async def callback(update: telegram.Update, _: _default_context):
         try:  # check if text message was sent
-            message = models.TextMessage.from_update(update)
+            message = core.TextMessage.from_update(update)
         except ValueError:
             return
 
         config_text = await utils.load_config(message)
         await message.telegram_message.reply_html(config_text)
-
-
-class SetModel(Command):
-    names: tuple = ("set_model",)
-    description = "Set the chat model"
-
-    @override
-    @staticmethod
-    async def callback(update: telegram.Update, _: _default_context):
-        try:  # check if text message was sent
-            message = models.TextMessage.from_update(update)
-        except ValueError:
-            return
-
-        try:  # parse the model name from the message
-            model_name = message.text.split(" ", 1)[1].strip()
-            # use default model if no model name was found
-            model_name = (
-                model_name or chatgpt.core.ModelConfig().chat_model.name
-            )
-            model = chatgpt.core.ModelConfig.model(model_name)
-        except (IndexError, ValueError):
-            await utils.reply_code(message, "Invalid model name")
-            return
-
-        await utils.set_model(message, model.name)
-        await utils.reply_code(message, "Model set successfully")
 
 
 class SetTools(Command):
@@ -214,7 +169,7 @@ class SetTools(Command):
     @staticmethod
     async def callback(update: telegram.Update, _: _default_context):
         try:  # check if text message was sent
-            message = models.TextMessage.from_update(update)
+            message = core.TextMessage.from_update(update)
         except ValueError:
             return
 
@@ -226,14 +181,16 @@ class SetTools(Command):
                 try:  # check if the tool is valid
                     selected_tool = tools.from_tool_name(tool)
                 except ValueError:  # stop if the tool is invalid
-                    await utils.reply_code(message, f"Invalid tool: {tool}")
+                    await telegram_utils.reply_code(
+                        message, f"Invalid tool: {tool}"
+                    )
                     return
                 selected_tools.append(selected_tool)
         except IndexError:
             pass  # use default tools if no tools were provided
 
         await utils.set_tools(message, selected_tools)
-        await utils.reply_code(message, "Tools set successfully")
+        await telegram_utils.reply_code(message, "Tools set successfully")
 
 
 class SetSystemPrompt(Command):
@@ -244,7 +201,7 @@ class SetSystemPrompt(Command):
     @staticmethod
     async def callback(update: telegram.Update, context: _default_context):
         try:  # check if text message was sent
-            message = models.TextMessage.from_update(update)
+            message = core.TextMessage.from_update(update)
         except ValueError:
             return
 
@@ -255,13 +212,15 @@ class SetSystemPrompt(Command):
             pass
 
         # parse text from reply if no text was found in message
-        if isinstance(message.reply, models.TextMessage):
+        if isinstance(message.reply, core.TextMessage):
             sys_message = sys_message or message.reply.text
 
         # use default prompt if no text was found
         sys_message = sys_message or chatgpt.core.ModelConfig().prompt.content
         await utils.set_prompt(message, sys_message)
-        await utils.reply_code(message, f"System prompt updated successfully")
+        await telegram_utils.reply_code(
+            message, f"System prompt updated successfully"
+        )
 
 
 class SetTemperature(Command):
@@ -272,7 +231,7 @@ class SetTemperature(Command):
     @staticmethod
     async def callback(update: telegram.Update, _: _default_context):
         try:  # check if text message was sent
-            message = models.TextMessage.from_update(update)
+            message = core.TextMessage.from_update(update)
         except ValueError:
             return
 
@@ -284,13 +243,15 @@ class SetTemperature(Command):
             if not 0.0 <= temp <= 2.0:
                 raise ValueError
         except (IndexError, ValueError):
-            await utils.reply_code(
+            await telegram_utils.reply_code(
                 message, "Temperature must be between 0.0 and 2.0"
             )
             return
 
         await utils.set_temp(message, temp)
-        await utils.reply_code(message, "Temperature set successfully")
+        await telegram_utils.reply_code(
+            message, "Temperature set successfully"
+        )
 
 
 class ToggleStreaming(Command):
@@ -301,31 +262,11 @@ class ToggleStreaming(Command):
     @staticmethod
     async def callback(update: telegram.Update, _: _default_context):
         try:  # check if text message was sent
-            message = models.TextMessage.from_update(update)
+            message = core.TextMessage.from_update(update)
         except ValueError:
             return
 
         if await utils.toggle_streaming(message):
-            await utils.reply_code(message, "Streaming enabled")
+            await telegram_utils.reply_code(message, "Streaming enabled")
         else:
-            await utils.reply_code(message, "Streaming disabled")
-
-
-class Stop(Command):
-    names: tuple = ("stop",)
-    description = "Stop the model from generating the message"
-
-    @override
-    @staticmethod
-    async def callback(update: telegram.Update, _: _default_context):
-        try:  # check if text message was sent
-            message = models.TextMessage.from_update(update)
-        except ValueError:
-            return
-
-        if message.reply:
-            await utils.stop_model(message)
-            await utils.reply_code(message.reply, "Model stopped")
-        else:
-            await utils.stop_model(message, stop_all=True)
-            await utils.reply_code(message, "All models stopped")
+            await telegram_utils.reply_code(message, "Streaming disabled")

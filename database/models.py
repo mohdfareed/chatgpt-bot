@@ -107,3 +107,9 @@ class Message(database.core.DatabaseModel):
 
     # message id and chat id are a unique combination
     __table_args__ = (sql.UniqueConstraint("message_id", "chat_id"),)
+
+
+__all__ = [
+    "Chat",
+    "Message",
+]

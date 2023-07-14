@@ -101,13 +101,9 @@ class DatabaseModel(orm.DeclarativeBase, async_sql.AsyncAttrs):
 class DatabaseError(Exception):
     """Exception raised for database errors."""
 
-    pass
-
 
 class ModelNotFound(DatabaseError):
     """Exception raised when a model was not found in database."""
-
-    pass
 
 
 async def db_engine():
@@ -161,3 +157,13 @@ async def _validate_connection(engine: async_sql.AsyncEngine):
                 pass
     except Exception:
         raise ConnectionError("Failed to connect to database")
+
+
+__all__ = [
+    "DatabaseModel",
+    "DatabaseError",
+    "ModelNotFound",
+    "db_engine",
+    "start_engine",
+    "initialize",
+]

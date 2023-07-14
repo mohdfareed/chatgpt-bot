@@ -29,7 +29,7 @@ def run_app(debug: bool = False, log: bool = False) -> None:
     # load environment variables
     load_dotenv(override=True)
     # load the bot and the database
-    import bot.core as chatgpt_bot
+    import bot.app as chatgpt_bot
     import database.core as chatgpt_db
 
     try:  # run the bot and db

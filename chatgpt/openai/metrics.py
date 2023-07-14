@@ -54,12 +54,14 @@ class MetricsHandler(chatgpt.events.ModelStart, chatgpt.events.ModelEnd):
                     message.prompt_tokens,
                     prompts_tokens + tools_tokens,
                 )
+                chatgpt.logger.debug(f"Message: {message.serialize()}")
             if message.reply_tokens != generated_tokens:
                 chatgpt.logger.warning(
                     "Reply tokens mismatch: {actual: %s, computed: %s}",
                     message.reply_tokens,
                     generated_tokens,
                 )
+                chatgpt.logger.debug(f"Message: {message.serialize()}")
 
         # update the message's usage
         message.prompt_tokens = prompts_tokens + tools_tokens
