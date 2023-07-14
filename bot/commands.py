@@ -75,26 +75,6 @@ class Help(Command):
         )
 
 
-class Models(Command):
-    names = ("models", "available_models")
-    description = "Show the available models"
-
-    @override
-    @staticmethod
-    async def callback(update: telegram.Update, context: _default_context):
-        try:  # check if text message was sent
-            message = core.TextMessage.from_update(update)
-        except ValueError:
-            return
-
-        available_models = []
-        for model in chatgpt.core.ModelConfig.supported_models():
-            available_models.append(f"<code>{model.name}</code>")
-        await message.telegram_message.reply_html(
-            "\n".join(available_models).strip() or "No models available"
-        )
-
-
 class Tools(Command):
     names = ("tools", "available_tools")
     description = "Show the available tools"
@@ -179,33 +159,6 @@ class Model(Command):
 
         config_text = await utils.load_config(message)
         await message.telegram_message.reply_html(config_text)
-
-
-class SetModel(Command):
-    names: tuple = ("set_model",)
-    description = "Set the chat model"
-
-    @override
-    @staticmethod
-    async def callback(update: telegram.Update, _: _default_context):
-        try:  # check if text message was sent
-            message = core.TextMessage.from_update(update)
-        except ValueError:
-            return
-
-        try:  # parse the model name from the message
-            model_name = message.text.split(" ", 1)[1].strip()
-            # use default model if no model name was found
-            model_name = (
-                model_name or chatgpt.core.ModelConfig().chat_model.name
-            )
-            model = chatgpt.core.ModelConfig.model(model_name)
-        except (IndexError, ValueError):
-            await telegram_utils.reply_code(message, "Invalid model name")
-            return
-
-        await utils.set_model(message, model.name)
-        await telegram_utils.reply_code(message, "Model set successfully")
 
 
 class SetTools(Command):
