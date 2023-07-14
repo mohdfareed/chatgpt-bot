@@ -195,6 +195,7 @@ class SupportedChatModel(Serializable):
     def __init__(
         self,
         name: str,
+        title: str = "",
         size=0,
         input_cost=0.0,
         output_cost=0.0,
@@ -202,6 +203,8 @@ class SupportedChatModel(Serializable):
     ):
         self.name = name
         """The name of the model."""
+        self.title = title or name
+        """The title of the model. Defaults to the name of the model."""
         self.size = size
         """The size of input the model can accept in tokens."""
         self.input_cost = input_cost
@@ -213,6 +216,7 @@ class SupportedChatModel(Serializable):
 
 CHATGPT = SupportedChatModel(
     "gpt-3.5-turbo-0613",
+    title="GPT-3.5 Turbo",
     size=4000,
     input_cost=0.0015,
     output_cost=0.002,
@@ -221,6 +225,7 @@ CHATGPT = SupportedChatModel(
 
 CHATGPT_16K = SupportedChatModel(
     "gpt-3.5-turbo-16k",
+    title="GPT-3.5 Turbo 16k",
     size=16000,
     input_cost=0.003,
     output_cost=0.004,
@@ -229,6 +234,7 @@ CHATGPT_16K = SupportedChatModel(
 
 GPT4 = SupportedChatModel(
     "gpt-4",
+    title="GPT-4",
     size=8000,
     input_cost=0.03,
     output_cost=0.06,
@@ -237,6 +243,7 @@ GPT4 = SupportedChatModel(
 
 GPT4_32K = SupportedChatModel(
     "gpt-4-32k",
+    title="GPT-4 32k",
     size=32000,
     input_cost=0.06,
     output_cost=0.12,

@@ -9,9 +9,10 @@ import telegram.constants
 import telegram.ext as telegram_extensions
 from typing_extensions import override
 
-from bot import models, utils
+from bot import core, utils
 
 _default_context = telegram_extensions.ContextTypes.DEFAULT_TYPE
+_mention = telegram.constants.MessageEntityType.MENTION
 
 
 class MessageHandler(abc.ABC):
@@ -63,7 +64,7 @@ class PrivateMessageHandler(MessageHandler):
     @staticmethod
     async def callback(update: telegram.Update, context: _default_context):
         try:  # check if text message was sent
-            message = models.TextMessage.from_update(update)
+            message = core.TextMessage.from_update(update)
         except ValueError:
             return
 
@@ -85,7 +86,7 @@ class GroupMessageHandler(MessageHandler):
     @staticmethod
     async def callback(update: telegram.Update, context: _default_context):
         try:  # check if text message was sent
-            message = models.TextMessage.from_update(update)
+            message = core.TextMessage.from_update(update)
         except ValueError:
             return
 
@@ -95,7 +96,14 @@ class GroupMessageHandler(MessageHandler):
             return  # don't reply to edited messages
 
         # reply only to mentions of the bot
-        if context.bot.name in message.text:
+        if _is_bot_mention(message, context.bot.username):
             await utils.reply_to_user(message, reply=True)
         else:  # store other messages as context
             await utils.add_message(message)
+
+
+def _is_bot_mention(message: core.TelegramMessage, bot_username: str):
+    for entity in message.telegram_message.entities:
+        if entity.type == _mention and entity.user.username == bot_username:
+            return True
+    return False

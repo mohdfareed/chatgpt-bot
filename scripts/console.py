@@ -23,6 +23,7 @@ import chatgpt.addons
 import chatgpt.core
 import chatgpt.events
 import chatgpt.memory
+import chatgpt.messages
 import chatgpt.model
 import chatgpt.tools
 
