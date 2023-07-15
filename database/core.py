@@ -7,11 +7,17 @@ import sqlalchemy as sql
 import sqlalchemy.exc as sql_exc
 import sqlalchemy.ext.asyncio as async_sql
 import sqlalchemy.orm as orm
+import sqlalchemy_utils
 import tenacity
+from sqlalchemy_utils.types.encrypted import encrypted_type
 
 import database
 
 _engine: async_sql.AsyncEngine | None = None  # global database engine
+
+encrypted_column = sqlalchemy_utils.StringEncryptedType(
+    sql.Unicode, database.encryption_key, encrypted_type.FernetEngine
+)
 
 
 class DatabaseModel(orm.DeclarativeBase, async_sql.AsyncAttrs):
@@ -166,4 +172,5 @@ __all__ = [
     "db_engine",
     "start_engine",
     "initialize",
+    "encrypted_column",
 ]

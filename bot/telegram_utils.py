@@ -36,9 +36,9 @@ async def edit_message(
         if type(msg) == bool:
             msg = message.telegram_message
         return core.TelegramMessage(msg)
-    except Exception as e:
+    except telegram.error.BadRequest as e:
         if "Message is not modified" in str(e):
-            return message  # ignore if the message is not modified
+            return message  # ignore if the message was not modified
         else:  # raise if the error is not due to the message not changing
             raise e
 
@@ -60,11 +60,15 @@ async def reply_code(
     return await reply(message, f"<code>{reply_text}</code>", markup)
 
 
-async def set_typing_status(message: core.TelegramMessage):
+def set_typing_status(message: core.TelegramMessage):
     """Set the typing status of the message's chat."""
-    while True:
-        await message.telegram_message.chat.send_action(TYPING_STATUS)
-        await asyncio.sleep(5)
+
+    async def _set_status():
+        while True:
+            await message.telegram_message.chat.send_action(TYPING_STATUS)
+            await asyncio.sleep(5)
+
+    return asyncio.create_task(_set_status())
 
 
 def create_markup(

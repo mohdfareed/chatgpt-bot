@@ -6,6 +6,7 @@ import typing
 
 import telegram
 import telegram.ext as telegram_extensions
+from typing_extensions import override
 
 import chatgpt.messages
 import database.core as database
@@ -177,7 +178,7 @@ class Button(abc.ABC):
     def all_handlers(cls) -> list[telegram_extensions.CallbackQueryHandler]:
         """Get every button's handler, recursively."""
         import bot.chat_handler
-        import bot.config_menus
+        import bot.settings
 
         handlers = []
         for button in cls.__subclasses__():
@@ -197,9 +198,11 @@ class Button(abc.ABC):
 class Menu(abc.ABC):
     """A menu displayed as a message."""
 
-    def __init__(self, message: TelegramMessage) -> None:
+    def __init__(self, message: TelegramMessage, user_id: int | None = None):
         self.message = message
         """The message of the menu."""
+        self.user_id = user_id
+        """The ID of the user interacting with the menu."""
 
     @abc.abstractproperty
     async def info(self) -> str:
@@ -211,31 +214,64 @@ class Menu(abc.ABC):
         """The menu's layout."""
         ...
 
+    @staticmethod
+    @abc.abstractmethod
+    def title() -> str:
+        """The menu's title."""
+        ...
+
     async def render(self):
         """Render the menu."""
         import bot.telegram_utils
 
         menu_markup = bot.telegram_utils.create_markup(await self.layout)
-        await self.message.telegram_message.edit_text(
-            await self.info,
-            reply_markup=menu_markup,
-            parse_mode=_html_parse_mode,
-        )
+        try:
+            await self.message.telegram_message.edit_text(
+                await self.info,
+                reply_markup=menu_markup,
+                parse_mode=_html_parse_mode,
+            )
+        except telegram.error.BadRequest as e:
+            if "Message is not modified" in str(e):
+                return  # ignore if the message was not modified
+            else:  # raise if the error is not due to the message not changing
+                raise e
 
     @classmethod
-    def menu_id(cls):
+    def id(cls):
         return cls.__qualname__
 
     @classmethod
-    def get_menu(cls, menu_id: str) -> typing.Type["Menu"]:
+    def get_menu(cls, menu_id: str) -> typing.Type["Menu"] | None:
         """Get the menu with the given ID."""
-        import bot.config_menus
+        import bot.settings
 
         for menu in cls.__subclasses__():
-            if menu.menu_id() == menu_id:
+            if menu.id() == menu_id:
                 return menu
-            try:  # check if the menu has any submenus
-                return menu.get_menu(menu_id)
-            except ValueError:
-                pass
-        raise ValueError(f"Menu with ID {menu_id} not found.")
+            # check if the menu has any submenus
+            if submenu := menu.get_menu(menu_id):
+                return submenu
+        return None
+
+
+class MenuButton(Button):
+    """A button that displays a menu."""
+
+    def __init__(self, menu: typing.Type[Menu], is_parent: bool = False):
+        from bot.settings import BACK_BUTTON
+
+        # add back button if parent
+        title = f"{BACK_BUTTON} {menu.title()}" if is_parent else menu.title()
+        super().__init__(menu.id(), title)
+
+    @override
+    @classmethod
+    async def callback(cls, data, query):
+        if not query.message:
+            return
+        message = TelegramMessage(query.message)
+
+        if not (menu := Menu.get_menu(data)):
+            raise ValueError(f"Menu with ID {menu} not found.")
+        await menu(message, query.from_user.id).render()

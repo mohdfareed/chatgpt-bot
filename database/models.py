@@ -11,9 +11,7 @@ from typing_extensions import override
 
 import database
 
-_encrypted = sqlalchemy_utils.StringEncryptedType(
-    sql.Unicode, database.encryption_key, encrypted_type.FernetEngine
-)
+encrypted_column = database.core.encrypted_column
 
 
 class Chat(database.core.DatabaseModel):
@@ -25,7 +23,7 @@ class Chat(database.core.DatabaseModel):
     """The chat's unique ID."""
     messages: orm.Mapped[list["Message"]] = orm.relationship()
     """The chat's messages."""
-    data: orm.Mapped[str | None] = orm.mapped_column(_encrypted)
+    data: orm.Mapped[str | None] = orm.mapped_column(encrypted_column)
     """The chat's data."""
 
     def __init__(
@@ -66,7 +64,7 @@ class Message(database.core.DatabaseModel):
     """The message's ID. Unique within a chat."""
     chat_id: orm.Mapped[str] = orm.mapped_column(sql.ForeignKey(Chat.chat_id))
     """The ID of the chat to which the message belongs."""
-    data: orm.Mapped[str] = orm.mapped_column(_encrypted, default="{}")
+    data: orm.Mapped[str] = orm.mapped_column(encrypted_column, default="{}")
     """The message's data."""
 
     def __init__(

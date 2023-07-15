@@ -104,6 +104,10 @@ class GroupMessageHandler(MessageHandler):
 
 def _is_bot_mention(message: core.TelegramMessage, bot_username: str):
     for entity in message.telegram_message.entities:
-        if entity.type == _mention and entity.user.username == bot_username:
+        if (
+            entity.type == _mention
+            and entity._bot
+            and entity._bot.username == bot_username
+        ):
             return True
     return False

@@ -21,6 +21,11 @@ class InternetSearch(chatgpt.tools.Tool):
 
     @property
     @override
+    def title(self):
+        return "Internet Search"
+
+    @property
+    @override
     def name(self):
         return "internet_search"
 
@@ -55,6 +60,11 @@ class WikiSearch(chatgpt.tools.Tool):
 
     @property
     @override
+    def title(self):
+        return "Wikipedia Search"
+
+    @property
+    @override
     def name(self):
         return "wiki_search"
 
@@ -84,6 +94,11 @@ class WikiSearch(chatgpt.tools.Tool):
 
 class Python(chatgpt.tools.Tool):
     """A tool for executing Python code."""
+
+    @property
+    @override
+    def title(self):
+        return "Python Interpreter"
 
     @property
     @override
@@ -131,6 +146,8 @@ def available_tools(
     tool=chatgpt.tools.Tool,
 ) -> typing.Iterator[chatgpt.tools.Tool]:
     """Returns all the available tools."""
+    from chatgpt import addons, tools
+
     if not inspect.isabstract(tool):
         yield tool()  # type: ignore
     for sub_tool in tool.__subclasses__():

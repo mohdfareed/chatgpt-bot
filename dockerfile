@@ -1,11 +1,16 @@
 FROM python
 
+# set work directory
+WORKDIR /chatgpt_bot
 # copy bot files
-WORKDIR /usr/src/app
 COPY bot ./bot
 COPY chatgpt ./chatgpt
 COPY database ./database
+# copy scripts
 COPY scripts ./scripts
+# copy requirements
+COPY requirements.txt ./requirements.txt
+COPY .env ./.env
 
 # start the bot
-CMD [ "scripts/update.sh" ]
+ENTRYPOINT [ "scripts/run.sh" ]

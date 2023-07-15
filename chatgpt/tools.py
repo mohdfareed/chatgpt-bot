@@ -42,6 +42,11 @@ class ToolsManager:
 class Tool(core.Serializable, abc.ABC):
     """A tool that can be used by a model to generate replies."""
 
+    @property
+    def title(self) -> str:
+        """The title of the tool."""
+        return self.name
+
     @abc.abstractproperty
     def name(self) -> str:  # type: ignore
         """The name of the tool."""

@@ -3,13 +3,15 @@
 import asyncio
 import uuid
 
-import telegram
 from typing_extensions import override
 
+import bot
 import chatgpt.core
 import chatgpt.events
+import chatgpt.memory
 import chatgpt.messages
-from bot import core, formatter, telegram_utils
+from bot import core, formatter, telegram_utils, tools, utils
+from database.core import ModelNotFound
 
 TOOL_USAGE_MESSAGE = """
 Using tool: <code>{tool_name}</code>
@@ -30,12 +32,14 @@ class ModelMessageHandler(
     chatgpt.events.ModelGeneration,
     chatgpt.events.ModelEnd,
     chatgpt.events.ModelReply,
+    chatgpt.events.ToolUse,
     chatgpt.events.ToolResult,
+    chatgpt.events.ModelError,
 ):
     """Handles model generated replies."""
 
-    CHUNK_SIZE = 10
-    """The number of packets to send at once."""
+    CHUNK_TIME = 0.5
+    """The time to wait between sending chunks, in seconds."""
     running_models: dict[int, chatgpt.core.ChatModel] = {}
     """The list of running models."""
 
@@ -46,6 +50,8 @@ class ModelMessageHandler(
         """The user message to which the model is replying."""
         self.is_replying = reply
         """Whether the model is replying to the message."""
+        self.timer = Timer()
+        """The timer to wait between sending chunks."""
 
     @override
     async def on_model_run(self, model):
@@ -54,12 +60,12 @@ class ModelMessageHandler(
     @override
     async def on_model_start(self, config, context, tools):
         # set typing status
-        self.typing = asyncio.create_task(
-            telegram_utils.set_typing_status(self.user_message)
-        )
+        self.typing = telegram_utils.set_typing_status(self.user_message)
+        # send first packet
+        self.timer.count = self.CHUNK_TIME
         # reset handler states
-        self.counter = 0  # the accumulated packets counter
         self.reply = None  # the model's reply message
+        self.aggregated_reply = None  # the aggregated reply message
         self.status = [[]]  # message status (none initially)
         self.status += [[StopModel(self.model_id)]]  # the stop button
 
@@ -67,32 +73,28 @@ class ModelMessageHandler(
     async def on_model_generation(self, packet, aggregator):
         if not aggregator:  # not streaming
             return
-
+        # store the aggregated reply
+        self.aggregated_reply = aggregator.reply
         # wait for chunks to accumulate
-        if self.counter < self.CHUNK_SIZE:
-            self.counter += 1
-            return  # don't send packets if the counter is not full
+        if self.timer.count < self.CHUNK_TIME:
+            return
 
         # send packet
         await self._send_packet(aggregator.reply)
-        self.counter = 0  # reset counter
+        self.timer.start()  # reset timer
 
     @override
     async def on_model_end(self, message):
-        # send remaining packets
-        self.status = []  # remove stop button
-        self._resolve_finish_reason(message.finish_reason)
+        self.timer.stop()  # stop the timer
         await self._send_packet(message)
         # check if the model has finished with a reply
         if not self.reply:
+            bot.logger.error(f"Model's reply is empty.\n{message.serialize()}")
             raise chatgpt.core.ModelError("Model did not generate a reply.")
 
         # set the message's metadata with the sent reply's metadata
         message.id = str(self.reply.id)
         message.metadata = self.reply.metadata
-        # store tool usage to append its results
-        if isinstance(message, chatgpt.messages.ToolUsage):
-            self.usage = message
 
     @override
     async def on_tool_result(self, results):
@@ -104,9 +106,42 @@ class ModelMessageHandler(
         )
 
     @override
+    async def on_tool_use(self, usage):
+        # store tool usage to append its results
+        self.usage = usage
+        # finalize the message
+        await self._finalize_message_status(usage)
+        await self._send_packet(usage)
+
+    @override
     async def on_model_reply(self, reply):
         # pop the model from the running models list
         ModelMessageHandler.running_models.pop(self.model_id)
+        # finalize the message
+        await self._finalize_message_status(reply)
+        await self._send_packet(reply)
+
+    @override
+    async def on_model_error(self, error):
+        ModelMessageHandler.running_models.pop(self.model_id)
+        if not self.aggregated_reply:
+            return
+
+        # finalize the message
+        await self._finalize_message_status(self.aggregated_reply)
+        # check if model error
+        if isinstance(error, chatgpt.core.ModelError):
+            self.status += [[Status(str(error))]]
+        await self._send_packet(self.aggregated_reply)
+
+    async def _finalize_message_status(
+        self, message: chatgpt.messages.ModelMessage | None = None
+    ):
+        # replace the stop button with a delete button
+        self.status = [[]]  # reset status
+        self.status += [[DeleteMessage()]]
+        # set message status by resolving finish reason
+        self._resolve_finish_reason(message.finish_reason)
 
     async def _send_packet(self, new_message: chatgpt.messages.ModelMessage):
         message = _create_message(new_message)  # parse message
@@ -155,8 +190,29 @@ class StopModel(core.Button):
         try:  # only if model is running
             model_id = int(data)
             ModelMessageHandler.running_models[model_id].stop()
-            await query.answer("Model Stopped")
-        except (ValueError, KeyError):
+            await query.answer("Model stopped")
+        except KeyError:
+            await query.answer("Model is not running")
+            pass
+
+
+class DeleteMessage(core.Button):
+    """The button to delete a model message."""
+
+    def __init__(self):
+        super().__init__("", "Delete")
+
+    @override
+    @classmethod
+    async def callback(cls, data, query):
+        """The callback for the button."""
+        if not query.message:
+            return
+        message = core.TelegramMessage(query.message)
+        try:  # delete from db and telegram
+            await utils.delete_message(message)
+            await query.message.delete()
+        except ModelNotFound:
             pass
 
 
@@ -171,6 +227,30 @@ class Status(core.Button):
     def callback(cls, data, query):
         """The callback for the button."""
         pass
+
+
+class Timer:
+    """Basic timer, accurate to 0.1 seconds."""
+
+    def __init__(self):
+        self.count: float
+        """The number of seconds passed."""
+        self._timer = None
+
+    def start(self):
+        """Start the timer."""
+        self.stop()
+        self.count = 0
+        self._timer = asyncio.create_task(self._start_timer())
+
+    def stop(self):
+        """Stop the timer."""
+        self._timer.cancel() if self._timer else None
+
+    async def _start_timer(self):
+        while True:
+            self.count += 0.1
+            await asyncio.sleep(0.1)
 
 
 def _create_message(
@@ -193,8 +273,10 @@ def _format_tool_usage(usage: chatgpt.messages.ToolUsage, results=None) -> str:
         if len(results.content) > 450
         else results.content
     )  # parse results
+
+    tool = tools.from_tool_name(usage.tool_name)
     return TOOL_RESULTS_MESSAGE.format(
-        tool_name=usage.tool_name,
+        tool_name=tool.title,
         args_str=usage.args_str,
         results=results,
     )

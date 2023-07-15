@@ -12,7 +12,7 @@ from typing_extensions import override
 import chatgpt.core
 import chatgpt.tools
 import database.core
-from bot import core, formatter, handlers, telegram_utils, tools, utils
+from bot import core, formatter, handlers, telegram_utils, utils
 
 _default_context = telegram_extensions.ContextTypes.DEFAULT_TYPE
 
@@ -47,7 +47,7 @@ class Command(handlers.MessageHandler, abc.ABC):
     @classmethod
     def all_commands(cls):
         """Returns all the commands."""
-        import bot.config_menus
+        import bot.settings
 
         if not inspect.isabstract(cls):
             yield cls()  # type: ignore
@@ -75,60 +75,8 @@ class Help(Command):
         )
 
 
-class Tools(Command):
-    names = ("tools", "available_tools")
-    description = "Show the available tools"
-
-    @override
-    @staticmethod
-    async def callback(update: telegram.Update, context: _default_context):
-        try:  # check if text message was sent
-            message = core.TextMessage.from_update(update)
-        except ValueError:
-            return
-
-        available_tools = []
-        for tool in tools.available_tools():
-            available_tools.append(f"<code>{tool.name}</code>")
-        await message.telegram_message.reply_html(
-            "\n".join(available_tools).strip() or "No tools available"
-        )
-
-
-class Usage(Command):
-    names = ("usage",)
-    description = "Show the user and chat usage"
-
-    @override
-    @staticmethod
-    async def callback(update: telegram.Update, _: _default_context):
-        try:  # check if text message was sent
-            message = core.TextMessage.from_update(update)
-        except ValueError:
-            return
-
-        usage = await utils.get_usage(message)
-        await telegram_utils.reply_code(message, usage)
-
-
-class DeleteHistory(Command):
-    names = ("delete_history",)
-    description = "Delete the chat history"
-
-    @override
-    @staticmethod
-    async def callback(update: telegram.Update, _: _default_context):
-        try:  # check if text message was sent
-            message = core.TextMessage.from_update(update)
-        except ValueError:
-            return
-
-        await utils.delete_history(message)
-        await telegram_utils.reply_code(message, "Chat history deleted")
-
-
 class DeleteMessage(Command):
-    names = ("delete", "delete_message")
+    names = ("delete", "delete_message", "del", "d")
     description = "Delete a message from the chat history"
 
     @override
@@ -140,57 +88,12 @@ class DeleteMessage(Command):
             return
         try:
             await utils.delete_message(message.reply or message)
-            await telegram_utils.reply_code(message, "Message deleted")
+            try:
+                await message.telegram_message.delete()
+            except:
+                await telegram_utils.reply_code(message, "Message deleted")
         except database.core.ModelNotFound:
             await telegram_utils.reply_code(message, "Message not found")
-
-
-class Model(Command):
-    names: tuple = ("model",)
-    description = "Get the chat model's configuration"
-
-    @override
-    @staticmethod
-    async def callback(update: telegram.Update, _: _default_context):
-        try:  # check if text message was sent
-            message = core.TextMessage.from_update(update)
-        except ValueError:
-            return
-
-        config_text = await utils.load_config(message)
-        await message.telegram_message.reply_html(config_text)
-
-
-class SetTools(Command):
-    names: tuple = ("set_tools",)
-    description = "Set the model's tools, separated by spaces or newlines"
-
-    @override
-    @staticmethod
-    async def callback(update: telegram.Update, _: _default_context):
-        try:  # check if text message was sent
-            message = core.TextMessage.from_update(update)
-        except ValueError:
-            return
-
-        # use default tools if no tools are found
-        selected_tools = chatgpt.core.ModelConfig().tools
-        try:  # parse the tool names from the message
-            requested_tools = message.text.split(" ", 1)[1].strip()
-            for tool in requested_tools.split():
-                try:  # check if the tool is valid
-                    selected_tool = tools.from_tool_name(tool)
-                except ValueError:  # stop if the tool is invalid
-                    await telegram_utils.reply_code(
-                        message, f"Invalid tool: {tool}"
-                    )
-                    return
-                selected_tools.append(selected_tool)
-        except IndexError:
-            pass  # use default tools if no tools were provided
-
-        await utils.set_tools(message, selected_tools)
-        await telegram_utils.reply_code(message, "Tools set successfully")
 
 
 class SetSystemPrompt(Command):
@@ -252,21 +155,3 @@ class SetTemperature(Command):
         await telegram_utils.reply_code(
             message, "Temperature set successfully"
         )
-
-
-class ToggleStreaming(Command):
-    names: tuple = ("stream", "toggle_stream")
-    description = "Toggle whether the model streams messages"
-
-    @override
-    @staticmethod
-    async def callback(update: telegram.Update, _: _default_context):
-        try:  # check if text message was sent
-            message = core.TextMessage.from_update(update)
-        except ValueError:
-            return
-
-        if await utils.toggle_streaming(message):
-            await telegram_utils.reply_code(message, "Streaming enabled")
-        else:
-            await telegram_utils.reply_code(message, "Streaming disabled")

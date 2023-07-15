@@ -63,40 +63,23 @@ async def count_usage(
     await chat_metrics.save()
 
 
-async def get_usage(message: core.TelegramMessage):
-    user_metrics = await metrics.TelegramMetrics(
-        entity_id=str(message.user.id)
-    ).load()
-    chat_metrics = await metrics.TelegramMetrics(
-        entity_id=message.chat_id
-    ).load()
-
-    return (
-        f"User tokens usage: {round(user_metrics.usage, 4)}\n"
-        f"       usage cost: ${round(chat_metrics.usage_cost, 2)}\n"
-        f"Chat tokens usage: {round(chat_metrics.usage, 4)}\n"
-        f"       usage cost: ${round(chat_metrics.usage_cost, 2)}"
-    )
+async def get_usage(user_id: int | str, chat_id: int | str):
+    user_metrics = await metrics.TelegramMetrics(entity_id=str(user_id)).load()
+    chat_metrics = await metrics.TelegramMetrics(entity_id=str(chat_id)).load()
+    return user_metrics, chat_metrics
 
 
-async def set_temp(message: core.TelegramMessage, temp: float):
+async def get_config(message: core.TelegramMessage):
     chat_history = await chatgpt.memory.ChatHistory.initialize(message.chat_id)
     chat_model = await chat_history.model
-    chat_model.temperature = temp
-    await chat_history.set_model(chat_model)
+    return chat_model
 
 
-async def set_prompt(message: core.TelegramMessage, prompt: str):
+async def set_config(
+    message: core.TelegramMessage, config: chatgpt.core.ModelConfig
+):
     chat_history = await chatgpt.memory.ChatHistory.initialize(message.chat_id)
-    chat_model = await chat_history.model
-    chat_model.prompt = chatgpt.messages.SystemMessage(prompt)
-    await chat_history.set_model(chat_model)
-
-
-async def load_config(message: core.TelegramMessage):
-    chat_history = await chatgpt.memory.ChatHistory.initialize(message.chat_id)
-    chat_model = await chat_history.model
-    return _format_model(chat_model)
+    await chat_history.set_model(config)
 
 
 async def set_model(message: core.TelegramMessage, model_name: str):
@@ -106,18 +89,44 @@ async def set_model(message: core.TelegramMessage, model_name: str):
     await chat_history.set_model(chat_model)
 
 
-async def get_model(message: core.TelegramMessage):
+async def toggle_tool(message: core.TelegramMessage, tool: chatgpt.tools.Tool):
     chat_history = await chatgpt.memory.ChatHistory.initialize(message.chat_id)
     chat_model = await chat_history.model
-    return chat_model.chat_model
+    for t in chat_model.tools:
+        # disable the tool if enabled
+        if t.name == tool.name:
+            chat_model.tools.remove(t)
+            await chat_history.set_model(chat_model)
+            return False
+    # enable the tool if disabled
+    chat_model.tools.append(tool)
+    await chat_history.set_model(chat_model)
+    return True
 
 
-async def set_tools(
-    message: core.TelegramMessage, tools: list[chatgpt.tools.Tool]
-):
+async def has_tool(message: core.TelegramMessage, tool: chatgpt.tools.Tool):
     chat_history = await chatgpt.memory.ChatHistory.initialize(message.chat_id)
     chat_model = await chat_history.model
-    chat_model.tools = tools
+    return tool.name in [t.name for t in chat_model.tools]
+
+
+async def get_tools(message: core.TelegramMessage):
+    chat_history = await chatgpt.memory.ChatHistory.initialize(message.chat_id)
+    chat_model = await chat_history.model
+    return chat_model.tools
+
+
+async def set_prompt(message: core.TelegramMessage, prompt: str):
+    chat_history = await chatgpt.memory.ChatHistory.initialize(message.chat_id)
+    chat_model = await chat_history.model
+    chat_model.prompt = chatgpt.messages.SystemMessage(prompt)
+    await chat_history.set_model(chat_model)
+
+
+async def set_temp(message: core.TelegramMessage, temp: float):
+    chat_history = await chatgpt.memory.ChatHistory.initialize(message.chat_id)
+    chat_model = await chat_history.model
+    chat_model.temperature = temp
     await chat_history.set_model(chat_model)
 
 
@@ -134,18 +143,3 @@ async def set_max_tokens(message: core.TelegramMessage, max: int):
     chat_model = await chat_history.model
     chat_model.max_tokens = max
     await chat_history.set_model(chat_model)
-
-
-def _format_model(config: chatgpt.core.ModelConfig):
-    tools = [f"<code>{tool.name}</code>" for tool in config.tools]
-    prompt = config.prompt or chatgpt.messages.SystemMessage("")
-    return formatter.format_message(
-        f"Name: <code>{config.chat_model.name}</code>\n"
-        f"Size: <code>{config.chat_model.size} tokens</code>\n"
-        f"Temperature: <code>{config.temperature}</code>\n"
-        f"Input cost: <code>${config.chat_model.input_cost}/1k tokens</code>\n"
-        f"Output cost: <code>${config.chat_model.output_cost}/1k tokens</code>\n"
-        f"Streams messages: <code>{config.streaming}</code>\n"
-        f"Tools: {', '.join(tools)}\n"
-        f"System prompt: <code>{prompt.content}</code>"
-    )
