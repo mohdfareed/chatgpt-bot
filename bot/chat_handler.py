@@ -3,13 +3,12 @@
 import asyncio
 import uuid
 
-import telegram
 from typing_extensions import override
 
 import chatgpt.core
 import chatgpt.events
 import chatgpt.messages
-from bot import core, formatter, telegram_utils
+from bot import core, formatter, telegram_utils, tools
 
 TOOL_USAGE_MESSAGE = """
 Using tool: <code>{tool_name}</code>
@@ -193,8 +192,10 @@ def _format_tool_usage(usage: chatgpt.messages.ToolUsage, results=None) -> str:
         if len(results.content) > 450
         else results.content
     )  # parse results
+
+    tool = tools.from_tool_name(usage.tool_name)
     return TOOL_RESULTS_MESSAGE.format(
-        tool_name=usage.tool_name,
+        tool_name=tool.title,
         args_str=usage.args_str,
         results=results,
     )

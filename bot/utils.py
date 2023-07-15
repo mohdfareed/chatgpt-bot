@@ -112,13 +112,31 @@ async def get_model(message: core.TelegramMessage):
     return chat_model.chat_model
 
 
-async def set_tools(
-    message: core.TelegramMessage, tools: list[chatgpt.tools.Tool]
-):
+async def toggle_tool(message: core.TelegramMessage, tool: chatgpt.tools.Tool):
     chat_history = await chatgpt.memory.ChatHistory.initialize(message.chat_id)
     chat_model = await chat_history.model
-    chat_model.tools = tools
+    for t in chat_model.tools:
+        # disable the tool if enabled
+        if t.name == tool.name:
+            chat_model.tools.remove(t)
+            await chat_history.set_model(chat_model)
+            return False
+    # enable the tool if disabled
+    chat_model.tools.append(tool)
     await chat_history.set_model(chat_model)
+    return True
+
+
+async def has_tool(message: core.TelegramMessage, tool: chatgpt.tools.Tool):
+    chat_history = await chatgpt.memory.ChatHistory.initialize(message.chat_id)
+    chat_model = await chat_history.model
+    return tool.name in [t.name for t in chat_model.tools]
+
+
+async def get_tools(message: core.TelegramMessage):
+    chat_history = await chatgpt.memory.ChatHistory.initialize(message.chat_id)
+    chat_model = await chat_history.model
+    return chat_model.tools
 
 
 async def toggle_streaming(message: core.TelegramMessage):

@@ -216,11 +216,17 @@ class Menu(abc.ABC):
         import bot.telegram_utils
 
         menu_markup = bot.telegram_utils.create_markup(await self.layout)
-        await self.message.telegram_message.edit_text(
-            await self.info,
-            reply_markup=menu_markup,
-            parse_mode=_html_parse_mode,
-        )
+        try:
+            await self.message.telegram_message.edit_text(
+                await self.info,
+                reply_markup=menu_markup,
+                parse_mode=_html_parse_mode,
+            )
+        except telegram.error.BadRequest as e:
+            if "Message is not modified" in str(e):
+                return  # ignore if the message was not modified
+            else:  # raise if the error is not due to the message not changing
+                raise e
 
     @classmethod
     def menu_id(cls):

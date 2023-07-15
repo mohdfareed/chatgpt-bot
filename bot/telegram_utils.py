@@ -36,9 +36,9 @@ async def edit_message(
         if type(msg) == bool:
             msg = message.telegram_message
         return core.TelegramMessage(msg)
-    except Exception as e:
+    except telegram.error.BadRequest as e:
         if "Message is not modified" in str(e):
-            return message  # ignore if the message is not modified
+            return message  # ignore if the message was not modified
         else:  # raise if the error is not due to the message not changing
             raise e
 

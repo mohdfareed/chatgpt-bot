@@ -80,6 +80,11 @@ class Calculator(chatgpt.tools.Tool):
 
     @property
     @override
+    def title(self):
+        return "Calculator"
+
+    @property
+    @override
     def name(self) -> str:
         return "calculator"
 

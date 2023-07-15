@@ -3,14 +3,15 @@
 import asyncio
 import typing
 
-import telegram
 from typing_extensions import override
 
 import chatgpt.core
-from bot import commands, core, telegram_utils, utils
+import chatgpt.tools
+from bot import commands, core, telegram_utils, tools, utils
 from bot.core import TelegramMessage
 
 BACK_BUTTON = "⬅ Back"
+ENABLED_INDICATOR = "✓"
 
 
 class BotSettingsMenu(core.Menu, commands.Command):
@@ -50,6 +51,9 @@ class BotSettingsMenu(core.Menu, commands.Command):
                 MenuButton(ModelMenu, "Chat Model"),
             ],
             [
+                MenuButton(ToolsMenu, "Model Tools"),
+            ],
+            [
                 CloseButton("Close Menu"),
             ],
         ]
@@ -62,7 +66,6 @@ class ModelMenu(core.Menu):
         """A button that sets a chat model."""
 
         def __init__(self, chat_model: str, title: str):
-            # use chat model name as button data
             super().__init__(chat_model, title)
 
         @override
@@ -98,9 +101,53 @@ class ModelMenu(core.Menu):
             models.append(
                 [ModelMenu.ModelButton(model.name, f"{model.title}")]
             )
-        return models + [
-            [MenuButton(BotSettingsMenu, BACK_BUTTON
-        )]]
+        return models + [[MenuButton(BotSettingsMenu, BACK_BUTTON)]]
+
+
+class ToolsMenu(core.Menu):
+    """Set the model's tools."""
+
+    class ToolButton(core.Button):
+        """A button that enables a tool."""
+
+        def __init__(self, tool_name: str, tool_title: str):
+            super().__init__(tool_name, tool_title)
+
+        @override
+        @classmethod
+        async def callback(cls, data, query):
+            """The callback for the button."""
+            if not query.message:
+                return
+            message = core.TelegramMessage(query.message)
+            tool = tools.from_tool_name(data)
+            # toggle the tool
+            if await utils.toggle_tool(message, tool):
+                await query.answer(f"Enabled tool {tool.title}.")
+            else:
+                await query.answer(f"Disabled tool {tool.title}.")
+            # refresh the menu
+            await ToolsMenu(message).render()
+
+    @property
+    @override
+    async def info(self):
+        return "Toggle tools for the chat model."
+
+    @property
+    @override
+    async def layout(self):
+        available_tools = []
+        for tool in tools.available_tools():
+            tool_title = await self._create_tool_title(tool)
+            available_tools.append(
+                [ToolsMenu.ToolButton(tool.name, tool_title)]
+            )
+        return available_tools + [[MenuButton(BotSettingsMenu, BACK_BUTTON)]]
+
+    async def _create_tool_title(self, tool: chatgpt.tools.Tool) -> str:
+        has_tool = await utils.has_tool(self.message, tool)
+        return (f"{ENABLED_INDICATOR} " if has_tool else "") + tool.title
 
 
 class MenuButton(core.Button):
