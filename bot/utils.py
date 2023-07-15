@@ -63,34 +63,10 @@ async def count_usage(
     await chat_metrics.save()
 
 
-async def get_usage(message: core.TelegramMessage):
-    user_metrics = await metrics.TelegramMetrics(
-        entity_id=str(message.user.id)
-    ).load()
-    chat_metrics = await metrics.TelegramMetrics(
-        entity_id=message.chat_id
-    ).load()
-
-    return (
-        f"User tokens usage: {round(user_metrics.usage, 4)}\n"
-        f"       usage cost: ${round(chat_metrics.usage_cost, 2)}\n"
-        f"Chat tokens usage: {round(chat_metrics.usage, 4)}\n"
-        f"       usage cost: ${round(chat_metrics.usage_cost, 2)}"
-    )
-
-
-async def set_temp(message: core.TelegramMessage, temp: float):
-    chat_history = await chatgpt.memory.ChatHistory.initialize(message.chat_id)
-    chat_model = await chat_history.model
-    chat_model.temperature = temp
-    await chat_history.set_model(chat_model)
-
-
-async def set_prompt(message: core.TelegramMessage, prompt: str):
-    chat_history = await chatgpt.memory.ChatHistory.initialize(message.chat_id)
-    chat_model = await chat_history.model
-    chat_model.prompt = chatgpt.messages.SystemMessage(prompt)
-    await chat_history.set_model(chat_model)
+async def get_usage(user_id: int | str, chat_id: int | str):
+    user_metrics = await metrics.TelegramMetrics(entity_id=str(user_id)).load()
+    chat_metrics = await metrics.TelegramMetrics(entity_id=str(chat_id)).load()
+    return user_metrics, chat_metrics
 
 
 async def get_config(message: core.TelegramMessage):
@@ -138,6 +114,20 @@ async def get_tools(message: core.TelegramMessage):
     chat_history = await chatgpt.memory.ChatHistory.initialize(message.chat_id)
     chat_model = await chat_history.model
     return chat_model.tools
+
+
+async def set_prompt(message: core.TelegramMessage, prompt: str):
+    chat_history = await chatgpt.memory.ChatHistory.initialize(message.chat_id)
+    chat_model = await chat_history.model
+    chat_model.prompt = chatgpt.messages.SystemMessage(prompt)
+    await chat_history.set_model(chat_model)
+
+
+async def set_temp(message: core.TelegramMessage, temp: float):
+    chat_history = await chatgpt.memory.ChatHistory.initialize(message.chat_id)
+    chat_model = await chat_history.model
+    chat_model.temperature = temp
+    await chat_history.set_model(chat_model)
 
 
 async def toggle_streaming(message: core.TelegramMessage):

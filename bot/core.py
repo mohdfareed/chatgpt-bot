@@ -198,9 +198,11 @@ class Button(abc.ABC):
 class Menu(abc.ABC):
     """A menu displayed as a message."""
 
-    def __init__(self, message: TelegramMessage):
+    def __init__(self, message: TelegramMessage, user_id: int | None = None):
         self.message = message
         """The message of the menu."""
+        self.user_id = user_id
+        """The ID of the user interacting with the menu."""
 
     @abc.abstractproperty
     async def info(self) -> str:
@@ -272,4 +274,4 @@ class MenuButton(Button):
 
         if not (menu := Menu.get_menu(data)):
             raise ValueError(f"Menu with ID {menu} not found.")
-        await menu(message).render()
+        await menu(message, query.from_user.id).render()

@@ -13,7 +13,7 @@ class ToolsMenu(core.Menu):
     @property
     @override
     async def info(self):
-        return "Toggle tools for the chat model."
+        return "Toggle tools for the chat model to use."
 
     @property
     @override

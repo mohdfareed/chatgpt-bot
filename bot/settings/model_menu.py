@@ -15,7 +15,7 @@ class ModelMenu(core.Menu):
     async def info(self):
         model = (await utils.get_config(self.message)).chat_model
         model_settings = (
-            f"The currently selected chat model:\n"
+            f"<b>The currently selected chat model:</b>\n"
             f"Name: <code>{model.title}</code>\n"
             f"Size: <code>{model.size} tokens</code>\n"
             f"Input cost: <code>${model.input_cost}/1k tokens</code>\n"

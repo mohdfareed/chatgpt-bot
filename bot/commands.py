@@ -75,22 +75,6 @@ class Help(Command):
         )
 
 
-class Usage(Command):
-    names = ("usage",)
-    description = "Show the user and chat usage"
-
-    @override
-    @staticmethod
-    async def callback(update: telegram.Update, _: _default_context):
-        try:  # check if text message was sent
-            message = core.TextMessage.from_update(update)
-        except ValueError:
-            return
-
-        usage = await utils.get_usage(message)
-        await telegram_utils.reply_code(message, usage)
-
-
 class DeleteMessage(Command):
     names = ("delete", "delete_message")
     description = "Delete a message from the chat history"

@@ -2,8 +2,9 @@
 
 from typing_extensions import override
 
+import chatgpt.core
 import chatgpt.messages
-from bot import core, metrics, utils
+from bot import core, metrics, settings, utils
 
 
 class ConfigMenu(core.Menu):
@@ -17,7 +18,7 @@ class ConfigMenu(core.Menu):
         tools_titles = [tool.title for tool in tools]
         prompt = config.prompt or chatgpt.messages.SystemMessage("")
         return (
-            "Active model configuration:\n"
+            "<b>Active model configuration:</b>\n"
             f"Model: <code>{config.chat_model.title}</code>\n"
             f"Temperature: <code>{config.temperature}</code>\n"
             f"Streams messages: <code>{config.streaming}</code>\n"
@@ -30,13 +31,16 @@ class ConfigMenu(core.Menu):
     async def layout(self):
         from bot.settings.main_menu import BotSettingsMenu
 
-        configs = await metrics.TelegramMetrics.get_configs(
-            str(self.message.chat_id)
-        )
+        active_config = await utils.get_config(self.message)
+        configs = await metrics.TelegramMetrics.get_configs(str(self.user_id))
 
-        buttons: list[list[core.Button]] = [
-            [SetConfigButton(index)] for index in range(len(configs))
-        ]
+        buttons: list[list[core.Button]] = []
+        for config, index in zip(configs, range(len(configs))):
+            config_title = await self._create_config_title(
+                config, index, active_config
+            )
+            buttons.append([SetConfigButton(index, config_title)])
+
         return buttons + [
             [AddConfigButton(), DeleteConfigButton()],
             [core.MenuButton(BotSettingsMenu, is_parent=True)],
@@ -47,13 +51,23 @@ class ConfigMenu(core.Menu):
     def title():
         return "Configurations"
 
+    async def _create_config_title(
+        self,
+        config: chatgpt.core.ModelConfig,
+        config_index: int,
+        active_config: chatgpt.core.ModelConfig,
+    ) -> str:
+        return (
+            f"{settings.ENABLED_INDICATOR} " if config == active_config else ""
+        ) + f"Config {config_index + 1}"
+
 
 class SetConfigButton(core.Button):
     """A button that sets a model configuration."""
 
-    def __init__(self, config_index: int):
+    def __init__(self, config_index: int, title: str):
         # use config name as button data
-        super().__init__(str(config_index), f"Config {config_index}")
+        super().__init__(str(config_index), title)
 
     @override
     @classmethod
@@ -68,7 +82,7 @@ class SetConfigButton(core.Button):
         await utils.set_config(message, configs[int(data)])
         await query.answer(f"Activate model configuration {data}.")
         # refresh the menu
-        await ConfigMenu(message).render()
+        await ConfigMenu(message, query.from_user.id).render()
 
 
 class DeleteConfigButton(core.Button):
@@ -76,7 +90,7 @@ class DeleteConfigButton(core.Button):
 
     def __init__(self):
         # use title name as button data
-        title = "Add Current Configuration"
+        title = "Delete"
         super().__init__(title, title)
 
     @override
@@ -91,7 +105,8 @@ class DeleteConfigButton(core.Button):
             str(query.from_user.id), active_config
         ):
             await query.answer(f"Model configuration deleted.")
-            await ConfigMenu(message).render()  # refresh the menu
+            # refresh the menu
+            await ConfigMenu(message, query.from_user.id).render()
         else:
             await query.answer(f"Model active configuration not found.")
 
@@ -101,7 +116,7 @@ class AddConfigButton(core.Button):
 
     def __init__(self):
         # use title name as button data
-        title = "Add Current Configuration"
+        title = "Add"
         super().__init__(title, title)
 
     @override
@@ -119,4 +134,4 @@ class AddConfigButton(core.Button):
         else:
             await query.answer(f"Model configuration already exists.")
         # refresh the menu
-        await ConfigMenu(message).render()
+        await ConfigMenu(message, query.from_user.id).render()

@@ -3,7 +3,7 @@ the bot and the chat model."""
 
 from typing_extensions import override
 
-from bot import commands, core, telegram_utils, utils
+from bot import commands, core, metrics, settings, telegram_utils, utils
 from bot.settings.config_menu import ConfigMenu
 from bot.settings.model_menu import ModelMenu
 from bot.settings.tools_menu import ToolsMenu
@@ -13,9 +13,13 @@ class BotSettingsMenu(core.Menu, commands.Command):
     """The main menu of the bot's settings. Acts as the entry point to
     configuring the bot and the chat model."""
 
-    def __init__(self, message: core.TelegramMessage | None = None) -> None:
+    def __init__(
+        self,
+        message: core.TelegramMessage | None = None,
+        user_id: int | None = None,
+    ) -> None:
         # initialize as root menu if no message is given
-        super().__init__(message)  # type: ignore
+        super().__init__(message, user_id)  # type: ignore
 
     names = ("settings",)
     description = "Configure the bot and chat model."
@@ -50,29 +54,13 @@ class BotSettingsMenu(core.Menu, commands.Command):
                 DeleteHistoryButton(),
                 ToggleStreamingButton(),
             ],
-            [CloseButton()],
+            [CloseButton(), core.MenuButton(UsageMenu)],
         ]
 
     @staticmethod
     @override
     def title():
         return "Settings"
-
-
-class CloseButton(core.Button):
-    """A button that closes the menu."""
-
-    def __init__(self):
-        # use title as button data
-        title = "Close"
-        super().__init__(title, title)
-
-    @override
-    @classmethod
-    async def callback(cls, data, query):
-        if not query.message:
-            return
-        await query.message.delete()
 
 
 class DeleteHistoryButton(core.Button):
@@ -113,3 +101,58 @@ class ToggleStreamingButton(core.Button):
             await query.answer("Streaming enabled.")
         else:
             await query.answer("Streaming disabled.")
+
+
+class UsageMenu(core.Menu):
+    """Show the user's usage of the bot."""
+
+    @property
+    @override
+    async def info(self):
+        user_usage, chat_usage = await utils.get_usage(
+            self.user_id or self.message.user.id, self.message.chat_id
+        )
+        usage_info = self._create_usage_message(user_usage, chat_usage)
+        return usage_info
+
+    @property
+    @override
+    async def layout(self):
+        return [
+            [core.MenuButton(BotSettingsMenu, is_parent=True)],
+        ]
+
+    @staticmethod
+    @override
+    def title():
+        return "$ Usage"
+
+    def _create_usage_message(
+        self,
+        user_metrics: metrics.TelegramMetrics,
+        chat_metrics: metrics.TelegramMetrics,
+    ) -> str:
+        return (
+            f"<b>User tokens use and total cost of usage.</b>\n"
+            f"<code>{round(user_metrics.usage, 4)} tokens</code>\n"
+            f"<code>${round(chat_metrics.usage_cost, 2)}</code>\n"
+            f"<b>Chat tokens use and total cost of usage.</b>\n"
+            f"<code>{round(chat_metrics.usage, 4)} tokens</code>\n"
+            f"<code>${round(chat_metrics.usage_cost, 2)}</code>"
+        )
+
+
+class CloseButton(core.Button):
+    """A button that closes the menu."""
+
+    def __init__(self):
+        # use title as button data
+        title = f"{settings.DISABLED_INDICATOR} Close"
+        super().__init__(title, title)
+
+    @override
+    @classmethod
+    async def callback(cls, data, query):
+        if not query.message:
+            return
+        await query.message.delete()
