@@ -32,7 +32,7 @@ class ConfigMenu(core.Menu):
         from bot.settings.main_menu import BotSettingsMenu
 
         active_config = await utils.get_config(self.message)
-        configs = await metrics.TelegramMetrics.get_configs(str(self.user_id))
+        configs = await metrics.TelegramMetrics.get_configs(str(self.user.id))
 
         buttons: list[list[core.Button]] = []
         for config, index in zip(configs, range(len(configs))):
@@ -82,7 +82,7 @@ class SetConfigButton(core.Button):
         await utils.set_config(message, configs[int(data)])
         await query.answer(f"Model configuration {data} activated")
         # refresh the menu
-        await ConfigMenu(message, query.from_user.id).render()
+        await ConfigMenu(message, query.from_user).render()
 
 
 class DeleteConfigButton(core.Button):
@@ -106,7 +106,7 @@ class DeleteConfigButton(core.Button):
         ):
             await query.answer(f"Model configuration deleted")
             # refresh the menu
-            await ConfigMenu(message, query.from_user.id).render()
+            await ConfigMenu(message, query.from_user).render()
         else:
             await query.answer(f"Model configuration not found")
 
@@ -134,4 +134,4 @@ class AddConfigButton(core.Button):
         else:
             await query.answer(f"Model configuration already exists")
         # refresh the menu
-        await ConfigMenu(message, query.from_user.id).render()
+        await ConfigMenu(message, query.from_user).render()

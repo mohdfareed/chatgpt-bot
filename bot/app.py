@@ -82,8 +82,6 @@ def setup_handlers(app: telegram_extensions.Application):
         app.add_handler(command.handler, command.group)
     for handler in handlers.MessageHandler.all_handlers():
         app.add_handler(handler.handler, handler.group)
-    config_menu = settings.main_menu.BotSettingsMenu()
-    app.add_handler(config_menu.handler, config_menu.group)
 
 
 async def _error_handler(update, context: telegram_extensions.CallbackContext):

@@ -47,6 +47,8 @@ class MessageHandler(abc.ABC):
     @classmethod
     def all_handlers(cls):
         """Returns all the handlers."""
+        import bot.settings
+
         if not inspect.isabstract(cls):
             yield cls()  # type: ignore
         for sub_handler in cls.__subclasses__():

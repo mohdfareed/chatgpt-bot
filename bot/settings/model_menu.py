@@ -4,7 +4,6 @@ from typing_extensions import override
 
 import chatgpt.core
 from bot import core, settings, utils
-from bot.core import Menu, TelegramMessage
 
 
 class ModelMenu(core.Menu):
@@ -15,11 +14,12 @@ class ModelMenu(core.Menu):
     async def info(self):
         model = (await utils.get_config(self.message)).chat_model
         model_settings = (
-            f"<b>The currently selected chat model:</b>\n"
-            f"Name: <code>{model.title}</code>\n"
+            f"<b>The current configuration's chat model:</b>\n"
+            f"Name: <code>{model.name}</code>\n"
             f"Size: <code>{model.size} tokens</code>\n"
             f"Input cost: <code>${model.input_cost}/1k tokens</code>\n"
-            f"Output cost: <code>${model.output_cost}/1k tokens</code>"
+            f"Output cost: <code>${model.output_cost}/1k tokens</code>\n\n"
+            "Switch to another supported chat model."
         )
         return model_settings
 
@@ -71,5 +71,5 @@ class ModelButton(core.Button):
         await utils.set_config(message, config)
 
         # refresh the menu
-        await ModelMenu(message).render()
+        await ModelMenu(message, query.from_user).render()
         await query.answer()
