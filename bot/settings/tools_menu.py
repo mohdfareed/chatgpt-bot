@@ -53,11 +53,9 @@ class ToolButton(core.Button):
         if not query.message:
             return
         message = core.TelegramMessage(query.message)
-        tool = tools.from_tool_name(data)
         # toggle the tool
-        if await utils.toggle_tool(message, tool):
-            await query.answer(f"Enabled tool {tool.title}.")
-        else:
-            await query.answer(f"Disabled tool {tool.title}.")
+        tool = tools.from_tool_name(data)
+        await utils.toggle_tool(message, tool)
         # refresh the menu
         await ToolsMenu(message).render()
+        await query.answer()
