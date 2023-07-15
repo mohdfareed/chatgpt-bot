@@ -32,6 +32,11 @@ async def add_message(message: core.TextMessage):
     await chat_history.add_message(message.to_chat_message())
 
 
+async def get_message(message: core.TelegramMessage):
+    chat_history = await chatgpt.memory.ChatHistory.initialize(message.chat_id)
+    return await chat_history.get_message(str(message.id))
+
+
 async def delete_message(message: core.TelegramMessage):
     chat_history = await chatgpt.memory.ChatHistory.initialize(message.chat_id)
     await chat_history.delete_message(str(message.id))
