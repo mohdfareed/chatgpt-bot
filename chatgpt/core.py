@@ -125,6 +125,11 @@ class Serializable(abc.ABC):
                     return sub_subclass
         return None
 
+    def __eq__(self, __value: object) -> bool:
+        if isinstance(__value, Serializable):
+            return self.serialize() == __value.serialize()
+        return super().__eq__(__value)
+
 
 class ModelConfig(Serializable):
     """ChatGPT model configuration and parameters."""
