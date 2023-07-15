@@ -13,7 +13,12 @@ class ToolsMenu(core.Menu):
     @property
     @override
     async def info(self):
-        return "Toggle tools for the chat model to use."
+        tools = (await utils.get_config(self.message)).tools
+        return (
+            "Toggle tools to which the chat model has access.\n"
+            "<b>Warning:</b> Some tools may be expensive to use due to the "
+            "token count of their usage.\n\n"
+        ) + self._tools_description(tools)
 
     @property
     @override
@@ -22,7 +27,7 @@ class ToolsMenu(core.Menu):
 
         buttons: list[list[core.Button]] = []
         for tool in tools.available_tools():
-            tool_title = await self._create_tool_title(tool)
+            tool_title = await self._tool_title(tool)
             buttons.append([ToolButton(tool.name, tool_title)])
 
         return buttons + [
@@ -34,11 +39,19 @@ class ToolsMenu(core.Menu):
     def title():
         return "Model Tools"
 
-    async def _create_tool_title(self, tool: chatgpt.tools.Tool) -> str:
+    async def _tool_title(self, tool: chatgpt.tools.Tool) -> str:
         has_tool = await utils.has_tool(self.message, tool)
         return (
             f"{settings.ENABLED_INDICATOR} " if has_tool else ""
         ) + tool.title
+
+    def _tools_description(self, tools: list[chatgpt.tools.Tool]) -> str:
+        description = "<b>Enabled tools:</b>\n\n"
+        for tool in tools:
+            description += f"<code>{tool.title}</code>:\n"
+            description += f"{tool.description}\n\n"
+
+        return description.strip()
 
 
 class ToolButton(core.Button):
