@@ -275,3 +275,4 @@ class MenuButton(Button):
         if not (menu := Menu.get_menu(data)):
             raise ValueError(f"Menu with ID {menu} not found.")
         await menu(message, query.from_user.id).render()
+        await query.answer()

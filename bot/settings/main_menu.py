@@ -79,7 +79,7 @@ class DeleteHistoryButton(core.Button):
         message = core.TelegramMessage(query.message)
 
         await utils.delete_history(message)
-        await query.answer("Chat history deleted.")
+        await query.answer("Chat history deleted")
 
 
 class ToggleStreamingButton(core.Button):
@@ -98,9 +98,9 @@ class ToggleStreamingButton(core.Button):
         message = core.TelegramMessage(query.message)
 
         if await utils.toggle_streaming(message):
-            await query.answer("Streaming enabled.")
+            await query.answer("Streaming enabled")
         else:
-            await query.answer("Streaming disabled.")
+            await query.answer("Streaming disabled")
 
 
 class UsageMenu(core.Menu):
@@ -156,3 +156,4 @@ class CloseButton(core.Button):
         if not query.message:
             return
         await query.message.delete()
+        await query.answer()
