@@ -9,7 +9,7 @@ import telegram
 import telegram.ext as telegram_extensions
 
 import bot
-from bot import commands, config_menus, core, handlers
+from bot import commands, core, handlers, settings
 
 BOT_NAME = "ChatGPT_Dev" if bot.dev_mode else "ChatGPT"
 SHORT_DESCRIPTION = "ChatGPT bot"
@@ -82,7 +82,7 @@ def setup_handlers(app: telegram_extensions.Application):
         app.add_handler(command.handler, command.group)
     for handler in handlers.MessageHandler.all_handlers():
         app.add_handler(handler.handler, handler.group)
-    config_menu = config_menus.BotSettingsMenu()
+    config_menu = settings.main_menu.BotSettingsMenu()
     app.add_handler(config_menu.handler, config_menu.group)
 
 

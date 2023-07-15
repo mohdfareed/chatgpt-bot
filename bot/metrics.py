@@ -7,6 +7,7 @@ import sqlalchemy.ext.asyncio as async_sql
 import sqlalchemy.orm as orm
 from typing_extensions import override
 
+import chatgpt.core
 import chatgpt.events
 import database.core as database
 from bot import core, utils
@@ -41,6 +42,20 @@ class TelegramMetrics(database.DatabaseModel):
     """The entity's token usage count."""
     usage_cost: orm.Mapped[float] = orm.mapped_column(default=0.0)
     """The entity's token usage cost."""
+    data: orm.Mapped[str | None] = orm.mapped_column(database.encrypted_column)
+    """The entity's configurations data."""
+
+    @property
+    def configs(self) -> list[str]:
+        """The entity's model configs."""
+        if self.data:
+            return self.data.split("\n")
+        else:
+            return []
+
+    @configs.setter
+    def configs(self, configs: list[str]):
+        self.data = "\n".join(configs)
 
     def __init__(
         self,
@@ -48,6 +63,7 @@ class TelegramMetrics(database.DatabaseModel):
         entity_id: str | None = None,
         usage: int = 0,
         usage_cost: float = 0.0,
+        configs: list[str] = [],
         engine: async_sql.AsyncEngine | None = None,
         **kw: typing.Any,
     ):
@@ -56,6 +72,7 @@ class TelegramMetrics(database.DatabaseModel):
             entity_id=entity_id,
             usage=usage,
             usage_cost=usage_cost,
+            configs=configs,
             engine=engine,
             **kw,
         )
@@ -67,3 +84,41 @@ class TelegramMetrics(database.DatabaseModel):
             (type(self).id == self.id)
             | (type(self).entity_id == self.entity_id)
         )
+
+    @classmethod
+    async def get_configs(cls, entity_id: str):
+        """Get the configs used by an entity."""
+        entity = await TelegramMetrics(entity_id=entity_id).load()
+        # deserialize the configs
+        return [
+            chatgpt.core.ModelConfig.deserialize(c) for c in entity.configs
+        ]
+
+    @classmethod
+    async def add_config(
+        cls, entity_id: str, config: chatgpt.core.ModelConfig
+    ):
+        """Store a config used by an entity."""
+        entity = await TelegramMetrics(entity_id=entity_id).load()
+        # serialize the model and add it if it doesn't exist
+        if (serialized_config := config.serialize()) not in entity.configs:
+            entity.configs = entity.configs + [serialized_config]
+            await entity.save()
+            return True
+        return False
+
+    @classmethod
+    async def delete_config(
+        cls, entity_id: str, config: chatgpt.core.ModelConfig
+    ):
+        """Store a config used by an entity."""
+        entity = await TelegramMetrics(entity_id=entity_id).load()
+        try:  # remove the model from the entity's models
+            configs = entity.configs
+            configs.remove(config.serialize())
+            entity.configs = configs
+
+            await entity.save()
+            return True
+        except ValueError:
+            return False

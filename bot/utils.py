@@ -93,10 +93,17 @@ async def set_prompt(message: core.TelegramMessage, prompt: str):
     await chat_history.set_model(chat_model)
 
 
-async def load_config(message: core.TelegramMessage):
+async def get_config(message: core.TelegramMessage):
     chat_history = await chatgpt.memory.ChatHistory.initialize(message.chat_id)
     chat_model = await chat_history.model
-    return _format_model(chat_model)
+    return chat_model
+
+
+async def set_config(
+    message: core.TelegramMessage, config: chatgpt.core.ModelConfig
+):
+    chat_history = await chatgpt.memory.ChatHistory.initialize(message.chat_id)
+    await chat_history.set_model(config)
 
 
 async def set_model(message: core.TelegramMessage, model_name: str):
@@ -104,12 +111,6 @@ async def set_model(message: core.TelegramMessage, model_name: str):
     chat_model = await chat_history.model
     chat_model.chat_model = chatgpt.core.ModelConfig.model(model_name)
     await chat_history.set_model(chat_model)
-
-
-async def get_model(message: core.TelegramMessage):
-    chat_history = await chatgpt.memory.ChatHistory.initialize(message.chat_id)
-    chat_model = await chat_history.model
-    return chat_model.chat_model
 
 
 async def toggle_tool(message: core.TelegramMessage, tool: chatgpt.tools.Tool):
@@ -152,18 +153,3 @@ async def set_max_tokens(message: core.TelegramMessage, max: int):
     chat_model = await chat_history.model
     chat_model.max_tokens = max
     await chat_history.set_model(chat_model)
-
-
-def _format_model(config: chatgpt.core.ModelConfig):
-    tools = [f"<code>{tool.name}</code>" for tool in config.tools]
-    prompt = config.prompt or chatgpt.messages.SystemMessage("")
-    return formatter.format_message(
-        f"Name: <code>{config.chat_model.name}</code>\n"
-        f"Size: <code>{config.chat_model.size} tokens</code>\n"
-        f"Temperature: <code>{config.temperature}</code>\n"
-        f"Input cost: <code>${config.chat_model.input_cost}/1k tokens</code>\n"
-        f"Output cost: <code>${config.chat_model.output_cost}/1k tokens</code>\n"
-        f"Streams messages: <code>{config.streaming}</code>\n"
-        f"Tools: {', '.join(tools)}\n"
-        f"System prompt: <code>{prompt.content}</code>"
-    )
