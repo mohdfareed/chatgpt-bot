@@ -5,8 +5,6 @@ import typing
 import sqlalchemy as sql
 import sqlalchemy.ext.asyncio as async_sql
 import sqlalchemy.orm as orm
-import sqlalchemy_utils
-from sqlalchemy_utils.types.encrypted import encrypted_type
 from typing_extensions import override
 
 import database
