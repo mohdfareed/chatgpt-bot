@@ -60,11 +60,15 @@ async def reply_code(
     return await reply(message, f"<code>{reply_text}</code>", markup)
 
 
-async def set_typing_status(message: core.TelegramMessage):
+def set_typing_status(message: core.TelegramMessage):
     """Set the typing status of the message's chat."""
-    while True:
-        await message.telegram_message.chat.send_action(TYPING_STATUS)
-        await asyncio.sleep(5)
+
+    async def _set_status():
+        while True:
+            await message.telegram_message.chat.send_action(TYPING_STATUS)
+            await asyncio.sleep(5)
+
+    return asyncio.create_task(_set_status())
 
 
 def create_markup(

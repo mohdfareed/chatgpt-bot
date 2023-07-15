@@ -38,8 +38,8 @@ class ModelMessageHandler(
 ):
     """Handles model generated replies."""
 
-    CHUNK_SIZE = 10
-    """The number of packets to send at once."""
+    CHUNK_TIME = 0.5
+    """The time to wait between sending chunks, in seconds."""
     running_models: dict[int, chatgpt.core.ChatModel] = {}
     """The list of running models."""
 
@@ -50,6 +50,8 @@ class ModelMessageHandler(
         """The user message to which the model is replying."""
         self.is_replying = reply
         """Whether the model is replying to the message."""
+        self.timer = Timer()
+        """The timer to wait between sending chunks."""
 
     @override
     async def on_model_run(self, model):
@@ -58,11 +60,10 @@ class ModelMessageHandler(
     @override
     async def on_model_start(self, config, context, tools):
         # set typing status
-        self.typing = asyncio.create_task(
-            telegram_utils.set_typing_status(self.user_message)
-        )
+        self.typing = telegram_utils.set_typing_status(self.user_message)
+        # send first packet
+        self.timer.count = self.CHUNK_TIME
         # reset handler states
-        self.counter = 0  # the accumulated packets counter
         self.reply = None  # the model's reply message
         self.aggregated_reply = None  # the aggregated reply message
         self.status = [[]]  # message status (none initially)
@@ -74,18 +75,17 @@ class ModelMessageHandler(
             return
         # store the aggregated reply
         self.aggregated_reply = aggregator.reply
-
         # wait for chunks to accumulate
-        if self.counter < self.CHUNK_SIZE:
-            self.counter += 1
-            return  # don't send packets if the counter is not full
+        if self.timer.count < self.CHUNK_TIME:
+            return
 
         # send packet
         await self._send_packet(aggregator.reply)
-        self.counter = 0  # reset counter
+        self.timer.start()  # reset timer
 
     @override
     async def on_model_end(self, message):
+        self.timer.stop()  # stop the timer
         await self._send_packet(message)
         # check if the model has finished with a reply
         if not self.reply:
@@ -227,6 +227,30 @@ class Status(core.Button):
     def callback(cls, data, query):
         """The callback for the button."""
         pass
+
+
+class Timer:
+    """Basic timer, accurate to 0.1 seconds."""
+
+    def __init__(self):
+        self.count: float
+        """The number of seconds passed."""
+        self._timer = None
+
+    def start(self):
+        """Start the timer."""
+        self.stop()
+        self.count = 0
+        self._timer = asyncio.create_task(self._start_timer())
+
+    def stop(self):
+        """Stop the timer."""
+        self._timer.cancel() if self._timer else None
+
+    async def _start_timer(self):
+        while True:
+            self.count += 0.1
+            await asyncio.sleep(0.1)
 
 
 def _create_message(
