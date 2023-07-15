@@ -131,6 +131,8 @@ async def db_engine():
 
 async def start_engine(url):
     """Start a new database engine."""
+    import bot.metrics  # bot metrics db model
+
     # initialize database
     engine = async_sql.create_async_engine(url)
     await _validate_connection(engine)
