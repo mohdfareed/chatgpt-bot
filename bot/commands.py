@@ -76,7 +76,7 @@ class Help(Command):
 
 
 class DeleteMessage(Command):
-    names = ("delete", "delete_message")
+    names = ("delete", "delete_message", "del", "d")
     description = "Delete a message from the chat history"
 
     @override
@@ -88,7 +88,10 @@ class DeleteMessage(Command):
             return
         try:
             await utils.delete_message(message.reply or message)
-            await telegram_utils.reply_code(message, "Message deleted")
+            try:
+                await message.telegram_message.delete()
+            except:
+                await telegram_utils.reply_code(message, "Message deleted")
         except database.core.ModelNotFound:
             await telegram_utils.reply_code(message, "Message not found")
 

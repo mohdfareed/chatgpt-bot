@@ -130,6 +130,9 @@ class Serializable(abc.ABC):
             return self.serialize() == __value.serialize()
         return super().__eq__(__value)
 
+    def __repr__(self) -> str:
+        return self.serialize()
+
 
 class ModelConfig(Serializable):
     """ChatGPT model configuration and parameters."""
