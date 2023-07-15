@@ -38,7 +38,7 @@ class ModelMessageHandler(
 ):
     """Handles model generated replies."""
 
-    CHUNK_TIME = 0.5
+    CHUNK_TIME = 0.25
     """The time to wait between sending chunks, in seconds."""
     running_models: dict[int, chatgpt.core.ChatModel] = {}
     """The list of running models."""
@@ -101,8 +101,9 @@ class ModelMessageHandler(
         if not self.reply:
             raise
         # append the results to the reply
+        markup = telegram_utils.create_markup(self.status)
         await telegram_utils.edit_message(
-            self.reply, _create_message(self.usage, results)
+            self.reply, _create_message(self.usage, results), markup
         )
 
     @override
@@ -139,7 +140,7 @@ class ModelMessageHandler(
     ):
         # replace the stop button with a delete button
         self.status = [[]]  # reset status
-        self.status += [[DeleteMessage()]]
+        self.status += [[DeleteMessage(), ReplyCost()]]
         # set message status by resolving finish reason
         self._resolve_finish_reason(message.finish_reason)
 
@@ -170,18 +171,18 @@ class ModelMessageHandler(
         if reason == chatgpt.core.FinishReason.UNDEFINED:
             self.status += [[Status("Model Finished Unexpectedly")]]
         if reason == chatgpt.core.FinishReason.LIMIT_REACHED:
-            self.status += [[Status("Model Size Limit Reached")]]
+            self.status += [[Status("Size Limit Reached")]]
         if reason == chatgpt.core.FinishReason.CENSORED:
-            self.status += [[Status("Model was Censored")]]
+            self.status += [[Status("Censored")]]
         if reason == chatgpt.core.FinishReason.CANCELLED:
-            self.status += [[Status("Model was Cancelled")]]
+            self.status += [[Status("Cancelled")]]
 
 
 class StopModel(core.Button):
     """The button to stop a model."""
 
     def __init__(self, model_id: int):
-        super().__init__(str(model_id), "Stop")
+        super().__init__(str(model_id), "Cancel")
 
     @override
     @classmethod
@@ -194,6 +195,34 @@ class StopModel(core.Button):
         except KeyError:
             await query.answer("Model is not running")
             pass
+
+
+class ReplyCost(core.Button):
+    """The button to display the cost of a reply."""
+
+    def __init__(self):
+        super().__init__("", "Cost")
+
+    @override
+    @classmethod
+    async def callback(cls, data, query):
+        """The callback for the button."""
+        if not query.message:
+            return
+        message = core.TelegramMessage(query.message)
+
+        # retrieve the reply
+        reply = await utils.get_message(message)
+        if not isinstance(reply, chatgpt.messages.ModelMessage):
+            return
+
+        # show the cost
+        cost = (
+            f"Prompt: {reply.prompt_tokens} tokens\n"
+            f"Reply: {reply.reply_tokens} tokens\n"
+            f"${round(reply.cost, 2)}"
+        )
+        await query.answer(cost, show_alert=True)
 
 
 class DeleteMessage(core.Button):
@@ -249,8 +278,8 @@ class Timer:
 
     async def _start_timer(self):
         while True:
-            self.count += 0.1
-            await asyncio.sleep(0.1)
+            self.count += 0.01
+            await asyncio.sleep(0.01)
 
 
 def _create_message(

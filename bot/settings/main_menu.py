@@ -134,10 +134,10 @@ class UsageMenu(core.Menu):
     ) -> str:
         return (
             f"<b>User tokens use and total cost of usage.</b>\n"
-            f"<code>{round(user_metrics.usage, 4)} tokens</code>\n"
+            f"<code>{user_metrics.usage / 1000}k tokens</code>\n"
             f"<code>${round(chat_metrics.usage_cost, 2)}</code>\n"
             f"<b>Chat tokens use and total cost of usage.</b>\n"
-            f"<code>{round(chat_metrics.usage, 4)} tokens</code>\n"
+            f"<code>{chat_metrics.usage / 1000}k tokens</code>\n"
             f"<code>${round(chat_metrics.usage_cost, 2)}</code>"
         )
 
