@@ -5,7 +5,7 @@ import chatgpt.memory
 import chatgpt.messages
 import chatgpt.model
 import chatgpt.tools
-from bot import chat_handler, core, formatter, metrics
+from bot import chat_handler, core, metrics, telegram_utils
 
 
 async def reply_to_user(message: core.TextMessage, reply=False):
@@ -44,7 +44,12 @@ async def delete_message(message: core.TelegramMessage):
 
 async def delete_history(message: core.TelegramMessage):
     chat_history = await chatgpt.memory.ChatHistory.initialize(message.chat_id)
-    await chat_history.clear()
+    messages = await chat_history.messages
+    for model_message in messages:
+        if model_message.pinned:
+            continue
+        await chat_history.delete_message(model_message.id)
+        await telegram_utils.delete_message(message, int(model_message.id))
 
 
 async def count_usage(

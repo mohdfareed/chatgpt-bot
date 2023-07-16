@@ -11,5 +11,4 @@ from . import (
     model_menu,
     model_settings,
     tools_menu,
-    usage_menu,
 )

@@ -33,8 +33,8 @@ class BotSettingsMenu(core.Menu, commands.Command):
         menu = BotSettingsMenu(message)
         menu_markup = telegram_utils.create_markup(await menu.layout)
         menu_info = await menu.info  # type: ignore
+        await telegram_utils.delete_message(message)
         await telegram_utils.send_message(message, menu_info, menu_markup)
-        await message.telegram_message.delete()
 
     @property
     @override

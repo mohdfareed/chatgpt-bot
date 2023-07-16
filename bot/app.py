@@ -66,10 +66,11 @@ def setup_profile(app: telegram_extensions.Application):
     prev_level = logging.getLogger(error_module).level
 
     try:  # profile setup has a very long cool-down
-        logging.getLogger(error_module).setLevel(logging.ERROR)
+        logging.getLogger(error_module).setLevel(logging.CRITICAL)
         new_loop = asyncio.new_event_loop()
         asyncio.set_event_loop(new_loop)
-        _ = new_loop.run_until_complete(_setup_profile(app))
+        _ = new_loop.run_until_complete(_setup_profile())
+        # restore the previous logging level
         logging.getLogger(error_module).setLevel(prev_level)
         bot.logger.info("Bot profile set successfully")
     except Exception:

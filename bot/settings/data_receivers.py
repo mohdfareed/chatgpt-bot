@@ -8,7 +8,7 @@ import telegram.constants
 import telegram.ext as telegram_extensions
 from typing_extensions import override
 
-from bot import core, handlers
+from bot import core, handlers, telegram_utils
 
 # the receivers of the active requests
 _active_requests: dict[str, "DataReceiver"] = {}
@@ -104,11 +104,8 @@ class TextDataHandler(handlers.MessageHandler):
             return
 
         await receiver.handle(message)
-        try:  # delete data after handling
-            await message.telegram_message.delete()
-        except:
-            pass
-
+        # delete data after handling
+        await telegram_utils.delete_message(message)
         # don't pass to other handlers
         raise telegram_extensions.ApplicationHandlerStop
 

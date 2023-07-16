@@ -1,7 +1,5 @@
 """The memory of models."""
 
-from turtle import mode
-
 import sqlalchemy.ext.asyncio as async_sql
 from typing_extensions import override
 
