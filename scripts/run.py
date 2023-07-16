@@ -30,13 +30,13 @@ def main(clean: bool = False) -> None:
 
     # activate virtual environment
     if sys.platform == "win32":
-        os.system("& .venv\\Scripts\\Activate.ps1")
+        env_cmd = "& .venv\\Scripts\\Activate.ps1 &&"
     else:
-        os.system("source .venv/bin/activate")
+        env_cmd = "source .venv/bin/activate &&"
     print()
 
     # start the bot
-    exit(os.system("python3 ./scripts/start.py --log"))
+    exit(os.system(f"{env_cmd} python3 ./scripts/start.py --log"))
 
 
 def update_repo():
