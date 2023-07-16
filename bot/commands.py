@@ -9,8 +9,6 @@ import telegram
 import telegram.ext as telegram_extensions
 from typing_extensions import override
 
-import chatgpt.core
-import chatgpt.tools
 import database.core
 from bot import core, formatter, handlers, telegram_utils, utils
 
@@ -94,64 +92,3 @@ class DeleteMessage(Command):
                 await telegram_utils.reply_code(message, "Message deleted")
         except database.core.ModelNotFound:
             await telegram_utils.reply_code(message, "Message not found")
-
-
-class SetSystemPrompt(Command):
-    names = ("sys", "set_sys")
-    description = "Set the system prompt of the model"
-
-    @override
-    @staticmethod
-    async def callback(update: telegram.Update, context: _default_context):
-        try:  # check if text message was sent
-            message = core.TextMessage.from_update(update)
-        except ValueError:
-            return
-
-        sys_message = None
-        try:  # parse the message in the format `/command content`
-            sys_message = message.text.split(" ", 1)[1].strip()
-        except IndexError:
-            pass
-
-        # parse text from reply if no text was found in message
-        if isinstance(message.reply, core.TextMessage):
-            sys_message = sys_message or message.reply.text
-
-        # use default prompt if no text was found
-        sys_message = sys_message or chatgpt.core.ModelConfig().prompt.content
-        await utils.set_prompt(message, sys_message)
-        await telegram_utils.reply_code(
-            message, f"System prompt updated successfully"
-        )
-
-
-class SetTemperature(Command):
-    names: tuple = ("temp", "set_temp")
-    description = "Set the model's temperature"
-
-    @override
-    @staticmethod
-    async def callback(update: telegram.Update, _: _default_context):
-        try:  # check if text message was sent
-            message = core.TextMessage.from_update(update)
-        except ValueError:
-            return
-
-        try:  # parse the temperature from the message
-            temp_str = message.text.split(" ", 1)[1].strip()
-            # use default temp if no text was found
-            temp_str = temp_str or chatgpt.core.ModelConfig().temperature
-            temp = float(temp_str)
-            if not 0.0 <= temp <= 2.0:
-                raise ValueError
-        except (IndexError, ValueError):
-            await telegram_utils.reply_code(
-                message, "Temperature must be between 0.0 and 2.0"
-            )
-            return
-
-        await utils.set_temp(message, temp)
-        await telegram_utils.reply_code(
-            message, "Temperature set successfully"
-        )
