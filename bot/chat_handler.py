@@ -56,12 +56,12 @@ class ModelMessageHandler(
 
     @override
     async def on_model_run(self, model):
+        # set typing status
+        self.typing = telegram_utils.set_typing_status(self.user_message)
         ModelMessageHandler.running_models[self.model_id] = model
 
     @override
     async def on_model_start(self, config, context, tools):
-        # set typing status
-        self.typing = telegram_utils.set_typing_status(self.user_message)
         # send first packet
         self.timer.count = self.CHUNK_TIME
         # reset handler states
