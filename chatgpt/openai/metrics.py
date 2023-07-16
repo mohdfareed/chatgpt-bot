@@ -25,13 +25,13 @@ class MetricsHandler(chatgpt.events.ModelStart, chatgpt.events.ModelEnd):
         prompts_tokens = chatgpt.openai.tokenization.messages_tokens(
             self._prompts, self._model
         )
-        # compute generated tokens count
-        generated_tokens = chatgpt.openai.tokenization.model_tokens(
-            message, self._model, len(self._tools) > 0
-        )
         # compute tools tokens count
         tools_tokens = chatgpt.openai.tokenization.tools_tokens(
             self._tools, self._model
+        )
+        # compute generated tokens count
+        generated_tokens = chatgpt.openai.tokenization.model_tokens(
+            message, self._model, len(self._tools) > 0
         )
 
         cost = (  # compute cost of all tokens
@@ -54,7 +54,12 @@ class MetricsHandler(chatgpt.events.ModelStart, chatgpt.events.ModelEnd):
                     message.prompt_tokens,
                     prompts_tokens + tools_tokens,
                 )
-                chatgpt.logger.debug(f"Message: {message.serialize()}")
+                chatgpt.logger.debug(
+                    f"Tools ({tools_tokens} tokens): {self._tools}"
+                )
+                chatgpt.logger.debug(
+                    f"Prompt ({prompts_tokens} tokens): {self._prompts}"
+                )
             if message.reply_tokens != generated_tokens:
                 chatgpt.logger.warning(
                     "Reply tokens mismatch: {actual: %s, computed: %s}",
