@@ -57,7 +57,7 @@ def main() -> None:
     # update the repo
     print_bold("Committing changes...")
     if not run_command(
-        "git commit -m 'Merge branch '" + current_branch + "' into deployment"
+        f"git commit -m 'Merge branch '{current_branch}' into deployment"
     ):
         print_error("Error: Failed to commit changes")
         sys.exit(1)
