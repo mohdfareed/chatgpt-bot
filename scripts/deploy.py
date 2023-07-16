@@ -37,7 +37,6 @@ def main() -> None:
             print_bold("Error: Failed to stash changes")
             sys.exit(1)
         changes_stashed = True
-        print()
 
     # switch to deployment branch
     if not run_command("git checkout " + DEPLOYMENT_BRANCH):
@@ -85,7 +84,7 @@ def main() -> None:
         print()
 
     os.chdir(current_dir)
-    print_success("Successfully deployed to " + DEPLOYMENT_BRANCH)
+    print_success(f"Successfully deployed to {DEPLOYMENT_BRANCH} branch")
 
 
 if __name__ == "__main__":
