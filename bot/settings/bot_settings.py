@@ -46,55 +46,15 @@ class BotSettingsMenu(core.Menu, commands.Command):
     async def layout(self) -> list[list[core.Button]]:
         return [
             [core.MenuButton(ConfigMenu), core.MenuButton(ModelSettingsMenu)],
-            [DeleteHistoryButton(), ToggleStreamingButton()],
-            [CloseButton(), core.MenuButton(UsageMenu)],
+            [DeleteHistoryButton()],
+            [ToggleReplyModeButton(), ToggleStreamingButton()],
+            [CloseButton(), UsageButton()],
         ]
 
     @staticmethod
     @override
     def title():
         return "Settings"
-
-
-class UsageMenu(core.Menu):
-    """Show the user's usage of the bot."""
-
-    @property
-    @override
-    async def info(self):
-        user_usage, chat_usage = await utils.get_usage(
-            self.user.id or self.message.user.id, self.message.chat_id
-        )
-        usage_info = self._create_usage_message(user_usage, chat_usage)
-        return usage_info
-
-    @property
-    @override
-    async def layout(self):
-        from bot.settings.bot_settings import BotSettingsMenu
-
-        return [
-            [core.MenuButton(BotSettingsMenu, is_parent=True)],
-        ]
-
-    @staticmethod
-    @override
-    def title():
-        return "$ Usage"
-
-    def _create_usage_message(
-        self,
-        user_metrics: metrics.TelegramMetrics,
-        chat_metrics: metrics.TelegramMetrics,
-    ) -> str:
-        return (
-            f"<b>User tokens use and total cost of usage.</b>\n"
-            f"<code>{int(user_metrics.usage / 1000)}k tokens</code>\n"
-            f"<code>${round(chat_metrics.usage_cost, 2)}</code>\n"
-            f"<b>Chat tokens use and total cost of usage.</b>\n"
-            f"<code>{int(chat_metrics.usage / 1000)}k tokens</code>\n"
-            f"<code>${round(chat_metrics.usage_cost, 2)}</code>"
-        )
 
 
 class DeleteHistoryButton(core.Button):
@@ -116,6 +76,27 @@ class DeleteHistoryButton(core.Button):
         await query.answer("Chat history deleted")
 
 
+class ToggleReplyModeButton(core.Button):
+    """A button that toggles the reply mode of the bot."""
+
+    def __init__(self):
+        # use the title as the button data
+        title = "Reply to Mentions"
+        super().__init__(title, title)
+
+    @override
+    @classmethod
+    async def callback(cls, data, query):
+        if not query.message:
+            return
+        message = core.TelegramMessage(query.message)
+
+        if await utils.toggle_reply_mode(message.chat_id):
+            await query.answer("Bot will reply to mentions only")
+        else:
+            await query.answer("Bot will reply to all messages")
+
+
 class ToggleStreamingButton(core.Button):
     """A button that toggles streaming of replies."""
 
@@ -135,6 +116,45 @@ class ToggleStreamingButton(core.Button):
             await query.answer("Streaming enabled")
         else:
             await query.answer("Streaming disabled")
+
+
+class UsageButton(core.Button):
+    """A button that displays the usage."""
+
+    def __init__(self):
+        # use the title as the button data
+        title = "$ Usage"
+        super().__init__(title, title)
+
+    @override
+    @classmethod
+    async def callback(cls, data, query):
+        if not query.message:
+            return
+        message = core.TelegramMessage(query.message)
+
+        user_usage, chat_usage = await utils.get_usage(
+            query.from_user.id, message.chat_id
+        )
+        usage_info = cls._create_usage_message(user_usage, chat_usage)
+        await query.answer(usage_info, show_alert=True)
+
+    @classmethod
+    def _create_usage_message(
+        cls,
+        user_metrics: metrics.TelegramMetrics,
+        chat_metrics: metrics.TelegramMetrics,
+    ) -> str:
+        user_tokens = int(user_metrics.usage / 1000)
+        chat_tokens = int(chat_metrics.usage / 1000)
+        user_usage_cost = round(user_metrics.usage_cost, 2)
+        chat_usage_cost = round(chat_metrics.usage_cost, 2)
+        return (
+            f"User usage:\n"
+            f"{user_tokens}k tokens | ${user_usage_cost}\n"
+            f"Chat usage:\n"
+            f"{chat_tokens}k tokens | ${chat_usage_cost}"
+        )
 
 
 class CloseButton(core.Button):

@@ -163,11 +163,11 @@ async def toggle_streaming(message: core.TelegramMessage):
     return chat_model.streaming
 
 
-async def set_max_tokens(message: core.TelegramMessage, max: int):
-    chat_history = await chatgpt.memory.ChatHistory.initialize(message.chat_id)
-    chat_model = await chat_history.model
-    chat_model.max_tokens = max
-    await chat_history.set_model(chat_model)
+async def toggle_reply_mode(chat_id: int | str):
+    chat_metrics = await metrics.TelegramMetrics(entity_id=str(chat_id)).load()
+    chat_metrics.reply_to_mentions = not chat_metrics.reply_to_mentions
+    await chat_metrics.save()
+    return chat_metrics.reply_to_mentions
 
 
 async def clean_memory(memory: chatgpt.memory.ChatMemory, chat_id: int):
