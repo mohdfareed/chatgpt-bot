@@ -55,7 +55,7 @@ def main() -> None:
     # update the repo
     print_bold("\nCommitting changes...")
     commit_message = (
-        f"Merge branch '{current_branch}' into '{DEPLOYMENT_BRANCH}'"
+        f"Merge branch '{current_branch}' into {DEPLOYMENT_BRANCH}"
     )
     if os.system(f'git commit -m "{commit_message}"'):
         restore(current_branch, changes_stashed)
