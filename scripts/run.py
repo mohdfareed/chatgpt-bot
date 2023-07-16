@@ -73,7 +73,7 @@ def update_repo():
     return changes_stashed
 
 
-if __name__ == "main":
+if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Update the current branch then setup and start the bot."
     )
