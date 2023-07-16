@@ -23,7 +23,7 @@ class ToolsMenu(core.Menu):
     @property
     @override
     async def layout(self):
-        from bot.settings.bot_settings import BotSettingsMenu
+        from bot.settings.model_settings import ModelSettingsMenu
 
         tools_buttons = []
         available_tools = tools.available_tools()
@@ -32,7 +32,7 @@ class ToolsMenu(core.Menu):
             tool_title = await self._tool_title(tool)
             tools_buttons.append(ToolButton(tool.name, tool_title))
         # create the menu layout
-        back_button = core.MenuButton(BotSettingsMenu, is_parent=True)
+        back_button = core.MenuButton(ModelSettingsMenu, is_parent=True)
         return ToolsMenu.create_grid(tools_buttons, back_button)
 
     @staticmethod

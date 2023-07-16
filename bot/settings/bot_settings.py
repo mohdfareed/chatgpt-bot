@@ -3,10 +3,9 @@ the bot and the chat model."""
 
 from typing_extensions import override
 
-from bot import commands, core, settings, telegram_utils, utils
+from bot import commands, core, metrics, settings, telegram_utils, utils
 from bot.settings.config_menu import ConfigMenu
 from bot.settings.model_settings import ModelSettingsMenu
-from bot.settings.usage_menu import UsageMenu
 
 
 class BotSettingsMenu(core.Menu, commands.Command):
@@ -35,6 +34,7 @@ class BotSettingsMenu(core.Menu, commands.Command):
         menu_markup = telegram_utils.create_markup(await menu.layout)
         menu_info = await menu.info  # type: ignore
         await telegram_utils.send_message(message, menu_info, menu_markup)
+        await message.telegram_message.delete()
 
     @property
     @override
@@ -54,6 +54,47 @@ class BotSettingsMenu(core.Menu, commands.Command):
     @override
     def title():
         return "Settings"
+
+
+class UsageMenu(core.Menu):
+    """Show the user's usage of the bot."""
+
+    @property
+    @override
+    async def info(self):
+        user_usage, chat_usage = await utils.get_usage(
+            self.user.id or self.message.user.id, self.message.chat_id
+        )
+        usage_info = self._create_usage_message(user_usage, chat_usage)
+        return usage_info
+
+    @property
+    @override
+    async def layout(self):
+        from bot.settings.bot_settings import BotSettingsMenu
+
+        return [
+            [core.MenuButton(BotSettingsMenu, is_parent=True)],
+        ]
+
+    @staticmethod
+    @override
+    def title():
+        return "$ Usage"
+
+    def _create_usage_message(
+        self,
+        user_metrics: metrics.TelegramMetrics,
+        chat_metrics: metrics.TelegramMetrics,
+    ) -> str:
+        return (
+            f"<b>User tokens use and total cost of usage.</b>\n"
+            f"<code>{int(user_metrics.usage / 1000)}k tokens</code>\n"
+            f"<code>${round(chat_metrics.usage_cost, 2)}</code>\n"
+            f"<b>Chat tokens use and total cost of usage.</b>\n"
+            f"<code>{int(chat_metrics.usage / 1000)}k tokens</code>\n"
+            f"<code>${round(chat_metrics.usage_cost, 2)}</code>"
+        )
 
 
 class DeleteHistoryButton(core.Button):
