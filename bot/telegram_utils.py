@@ -4,7 +4,7 @@ import asyncio
 
 import telegram.constants
 
-from bot import core, formatter
+from bot import app, core, formatter
 
 TYPING_STATUS = telegram.constants.ChatAction.TYPING
 PARSE_MODE = telegram.constants.ParseMode.HTML
@@ -58,6 +58,21 @@ async def reply_code(
 ):
     """Reply to a message with a code block."""
     return await reply(message, f"<code>{reply_text}</code>", markup)
+
+
+async def delete_message(
+    message: core.TelegramMessage, message_id: int | None = None
+):
+    """Delete a message, if possible. Returns success. If an ID is provided,
+    delete that message instead."""
+    try:
+        if message_id:
+            await app.active_bot.delete_message(message.chat.id, message_id)
+        else:
+            await message.telegram_message.delete()
+        return True
+    except:
+        return False
 
 
 def set_typing_status(message: core.TelegramMessage):

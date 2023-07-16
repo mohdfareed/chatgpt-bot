@@ -148,7 +148,9 @@ class ModelMessageHandler(
         tool_results: chatgpt.messages.ToolResult | None = None,
         final=False,
     ):
-        message = _create_message(new_message, tool_results)  # parse message
+        # parse message
+        if not (message := _create_message(new_message, tool_results)):
+            return
         # add ellipsis if still generating or no message
         if not final or not message:
             message += "..."

@@ -17,9 +17,13 @@ DESCRIPTION = """
 ChatGPT based Telegram bot.
 """.strip()
 
+active_bot: telegram_extensions.ExtBot
+"""The active bot instance."""
+
 
 def run(update_profile=True):
     """Setup and run the bot."""
+    global active_bot
 
     # configure the bot
     defaults = telegram_extensions.Defaults(
@@ -38,10 +42,11 @@ def run(update_profile=True):
         .build()
     )
 
-    # setup the bot's application
+    active_bot = application.bot
+    # setup the bot's updates handlers
     setup_handlers(application)
-    if update_profile:  # update the bot's profile
-        setup_profile(application)
+    # update the bot's profile, if specified
+    setup_profile() if update_profile else None
 
     # start the bot
     if not bot.dev_mode:  # run in webhook mode for production
@@ -60,7 +65,7 @@ def run(update_profile=True):
     bot.logger.info("Telegram bot has stopped")
 
 
-def setup_profile(app: telegram_extensions.Application):
+def setup_profile():
     # disable logging for the profile setup
     error_module = "telegram.ext.AIORateLimiter"
     prev_level = logging.getLogger(error_module).level
@@ -106,14 +111,13 @@ async def _error_handler(update, context: telegram_extensions.CallbackContext):
     raise context.error or Exception("Unknown error encountered...")
 
 
-async def _setup_profile(app):
-    chat_bot: telegram_extensions.ExtBot = app.bot
+async def _setup_profile():
     cmds = [cmd.bot_command for cmd in commands.Command.all_commands()]
-    await chat_bot.set_my_name(BOT_NAME)
-    await chat_bot.set_my_description(DESCRIPTION)
-    await chat_bot.set_my_short_description(SHORT_DESCRIPTION)
-    await chat_bot.set_my_commands(cmds)
-    await chat_bot.set_my_default_administrator_rights(
+    await active_bot.set_my_name(BOT_NAME)
+    await active_bot.set_my_description(DESCRIPTION)
+    await active_bot.set_my_short_description(SHORT_DESCRIPTION)
+    await active_bot.set_my_commands(cmds)
+    await active_bot.set_my_default_administrator_rights(
         telegram.ChatAdministratorRights(
             can_delete_messages=True,
             can_manage_topics=True,
