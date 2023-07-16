@@ -42,39 +42,46 @@ def main() -> None:
     if os.system("git checkout " + DEPLOYMENT_BRANCH):
         print_error("Error: Failed to checkout deployment branch")
         sys.exit(1)
-    print()
 
     # merge current branch into deployment branch
     print_bold(f"Merging {current_branch} into {DEPLOYMENT_BRANCH}...")
     if os.system("git merge " + current_branch + " --no-commit --no-ff"):
+        restore(current_branch, changes_stashed)
         print_error(
             "Error: Merge failed, resolve conflicts and continue deployment manually"
         )
         sys.exit(1)
-    print()
 
     # update the repo
-    print_bold("Committing changes...")
+    print_bold("\nCommitting changes...")
     commit_message = (
         f"Merge branch '{current_branch}' into '{DEPLOYMENT_BRANCH}'"
     )
     if os.system(f'git commit -m "{commit_message}"'):
+        restore(current_branch, changes_stashed)
         print_error("Error: Failed to commit changes")
         sys.exit(1)
     else:  # push changes
+        print_bold("Pushing changes...")
         if os.system("git push origin " + DEPLOYMENT_BRANCH):
+            restore(current_branch, changes_stashed)
             print_error(
                 "Error: Push failed, publish the deployment branch manually"
             )
             sys.exit(1)
     print()
 
+    # restore workspace
+    restore(current_branch, changes_stashed)
+    os.chdir(current_dir)
+    print_success(f"\nSuccessfully deployed to {DEPLOYMENT_BRANCH} branch")
+
+
+def restore(current_branch, changes_stashed):
     # switch back to current branch
     if os.system("git checkout " + current_branch):
         print_error("Error: Failed to switch back to " + current_branch)
         sys.exit(1)
-    print()
-
     # restore stashed changes
     if changes_stashed:
         print_bold("Restoring stashed changes...")
@@ -82,9 +89,6 @@ def main() -> None:
             print_error("Error: Failed to restore stashed changes")
             sys.exit(1)
         print()
-
-    os.chdir(current_dir)
-    print_success(f"Successfully deployed to {DEPLOYMENT_BRANCH} branch")
 
 
 if __name__ == "__main__":
