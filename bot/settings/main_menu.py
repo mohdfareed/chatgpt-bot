@@ -3,10 +3,7 @@ the bot and the chat model."""
 
 from typing_extensions import override
 
-from bot import commands, core, metrics, settings, telegram_utils, utils
-from bot.settings.config_menu import ConfigMenu
-from bot.settings.model_menu import ModelMenu
-from bot.settings.tools_menu import ToolsMenu
+from bot import commands, core, settings, telegram_utils, utils
 
 
 class BotSettingsMenu(core.Menu, commands.Command):
@@ -44,11 +41,21 @@ class BotSettingsMenu(core.Menu, commands.Command):
     @property
     @override
     async def layout(self) -> list[list[core.Button]]:
+        from bot.settings import data_receivers as receivers
+        from bot.settings.config_menu import ConfigMenu
+        from bot.settings.model_menu import ModelMenu
+        from bot.settings.tools_menu import ToolsMenu
+        from bot.settings.usage_menu import UsageMenu
+
         return [
             [core.MenuButton(ConfigMenu)],
             [
                 core.MenuButton(ModelMenu),
                 core.MenuButton(ToolsMenu),
+            ],
+            [
+                core.MenuButton(receivers.SysPromptReceiver),
+                core.MenuButton(receivers.TemperatureReceiver),
             ],
             [
                 DeleteHistoryButton(),
@@ -101,45 +108,6 @@ class ToggleStreamingButton(core.Button):
             await query.answer("Streaming enabled")
         else:
             await query.answer("Streaming disabled")
-
-
-class UsageMenu(core.Menu):
-    """Show the user's usage of the bot."""
-
-    @property
-    @override
-    async def info(self):
-        user_usage, chat_usage = await utils.get_usage(
-            self.user_id or self.message.user.id, self.message.chat_id
-        )
-        usage_info = self._create_usage_message(user_usage, chat_usage)
-        return usage_info
-
-    @property
-    @override
-    async def layout(self):
-        return [
-            [core.MenuButton(BotSettingsMenu, is_parent=True)],
-        ]
-
-    @staticmethod
-    @override
-    def title():
-        return "$ Usage"
-
-    def _create_usage_message(
-        self,
-        user_metrics: metrics.TelegramMetrics,
-        chat_metrics: metrics.TelegramMetrics,
-    ) -> str:
-        return (
-            f"<b>User tokens use and total cost of usage.</b>\n"
-            f"<code>{user_metrics.usage / 1000}k tokens</code>\n"
-            f"<code>${round(chat_metrics.usage_cost, 2)}</code>\n"
-            f"<b>Chat tokens use and total cost of usage.</b>\n"
-            f"<code>{chat_metrics.usage / 1000}k tokens</code>\n"
-            f"<code>${round(chat_metrics.usage_cost, 2)}</code>"
-        )
 
 
 class CloseButton(core.Button):

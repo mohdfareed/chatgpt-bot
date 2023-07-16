@@ -129,6 +129,8 @@ async def set_prompt(message: core.TelegramMessage, prompt: str):
 
 
 async def set_temp(message: core.TelegramMessage, temp: float):
+    if not (0 <= temp <= 2):
+        raise ValueError("Temperature must be between 0 and 2.")
     chat_history = await chatgpt.memory.ChatHistory.initialize(message.chat_id)
     chat_model = await chat_history.model
     chat_model.temperature = temp

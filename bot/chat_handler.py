@@ -97,6 +97,14 @@ class ModelMessageHandler(
         message.metadata = self.reply.metadata
 
     @override
+    async def on_tool_use(self, usage):
+        # store tool usage to append its results
+        self.usage = usage
+        # finalize the message
+        await self._finalize_message_status(usage)
+        await self._send_packet(usage, final=True)
+
+    @override
     async def on_tool_result(self, results):
         if not self.reply:
             raise
@@ -107,20 +115,12 @@ class ModelMessageHandler(
         )
 
     @override
-    async def on_tool_use(self, usage):
-        # store tool usage to append its results
-        self.usage = usage
-        # finalize the message
-        await self._finalize_message_status(usage)
-        await self._send_packet(usage)
-
-    @override
     async def on_model_reply(self, reply):
         # pop the model from the running models list
         ModelMessageHandler.running_models.pop(self.model_id)
         # finalize the message
         await self._finalize_message_status(reply)
-        await self._send_packet(reply)
+        await self._send_packet(reply, final=True)
 
     @override
     async def on_model_error(self, error):
@@ -133,7 +133,7 @@ class ModelMessageHandler(
         # check if model error
         if isinstance(error, chatgpt.core.ModelError):
             self.status += [[Status(str(error))]]
-        await self._send_packet(self.aggregated_reply)
+        await self._send_packet(self.aggregated_reply, final=True)
 
     async def _finalize_message_status(
         self, message: chatgpt.messages.ModelMessage | None = None
@@ -144,8 +144,14 @@ class ModelMessageHandler(
         # set message status by resolving finish reason
         self._resolve_finish_reason(message.finish_reason)
 
-    async def _send_packet(self, new_message: chatgpt.messages.ModelMessage):
+    async def _send_packet(
+        self, new_message: chatgpt.messages.ModelMessage, final=False
+    ):
         message = _create_message(new_message)  # parse message
+        # add ellipsis if still generating or no message
+        if not final or not message:
+            message += "..."
+
         if self.reply:  # edit the existing reply
             markup = telegram_utils.create_markup(self.status)
             await telegram_utils.edit_message(self.reply, message, markup)

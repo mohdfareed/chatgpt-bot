@@ -22,7 +22,7 @@ class MessageHandler(abc.ABC):
     """The message update filters."""
     block: bool | None = None
     """Whether the message handler should block other handlers."""
-    group: int = 0
+    group: int = 10
     """The handler's group. Handlers in the same group are mutually exclusive.
     Lower group numbers have higher priority."""
 
@@ -47,6 +47,8 @@ class MessageHandler(abc.ABC):
     @classmethod
     def all_handlers(cls):
         """Returns all the handlers."""
+        import bot.settings
+
         if not inspect.isabstract(cls):
             yield cls()  # type: ignore
         for sub_handler in cls.__subclasses__():
@@ -106,11 +108,3 @@ def _is_bot_mention(message: core.TelegramMessage, bot_username: str):
     entities = message.telegram_message.parse_caption_entities([_mention])
     entities.update(message.telegram_message.parse_entities([_mention]))
     return f"@{bot_username}" in entities.values()
-    # for entity in message.telegram_message.entities:
-    #     if (
-    #         entity.type == _mention
-    #         and entity.user
-    #         and entity.user.name == f"@{bot_username}"
-    #     ):
-    #         return True
-    # return False
