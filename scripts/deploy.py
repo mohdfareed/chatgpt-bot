@@ -56,9 +56,10 @@ def main() -> None:
 
     # update the repo
     print_bold("Committing changes...")
-    if not run_command(
-        f"git commit -m 'Merge branch '{current_branch}' into deployment"
-    ):
+    commit_message = (
+        f"Merge branch '{current_branch}' into '{DEPLOYMENT_BRANCH}'"
+    )
+    if not run_command(f'git commit -m "{commit_message}"'):
         print_error("Error: Failed to commit changes")
         sys.exit(1)
     else:  # push changes
@@ -87,7 +88,7 @@ def main() -> None:
     print_success("Successfully deployed to " + DEPLOYMENT_BRANCH)
 
 
-if __name__ == "main":
+if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Deploy the current branch into the deployment branch"
     )
