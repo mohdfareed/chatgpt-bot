@@ -26,8 +26,6 @@ def messages_tokens(
     num_tokens = 2  # messages are primed with 2 tokens
     for message in messages:
         num_tokens += message_tokens(message, model)
-
-    num_tokens += 16  # for tool usage
     return num_tokens + 1  # replies are primed with 1 token
 
 
@@ -36,12 +34,10 @@ def message_tokens(message: messages.Message, model: core.SupportedChatModel):
     count = 0
     if message.content:
         count += tokens(message.content, model) + 3
-
     if message.name:
         count += tokens(message.name, model) + 2
     else:  # role is omitted if name is present
         count += tokens(message.ROLE(), model)
-
     if type(message) is messages.ToolUsage:
         count += tokens(message.tool_name, model) + 6
         count += tokens(message.args_str, model)
@@ -49,30 +45,20 @@ def message_tokens(message: messages.Message, model: core.SupportedChatModel):
 
 
 def tools_tokens(tools: list[tools.Tool], model: core.SupportedChatModel):
-    """Return the number of tokens used by a list of functions."""
+    """Get the number of tokens in a list of tools."""
     # FIXME: this is a very rough estimate
 
-    num_tokens = 0
+    (names, descriptions, parameters) = (0, 0, 0)
     for tool in tools:
-        function_tokens = tokens(tool.name, model)
-        function_tokens += tokens(tool.description, model)
-        if tool.parameters:
-            for param in tool.parameters:
-                function_tokens += tokens(param.name, model)
-                if param.type:
-                    function_tokens += 2
-                    function_tokens += tokens(param.type, model)
-                if param.description:
-                    function_tokens += 2
-                    function_tokens += tokens(param.description, model)
-                if param.enum:
-                    function_tokens -= 3
-                    for v in param.enum:
-                        function_tokens += 3
-                        function_tokens += tokens(v, model)
-            function_tokens += 11
-        num_tokens += function_tokens
-    num_tokens += 12
+        names += tokens(tool.name, model)
+        descriptions += tokens(tool.description or "", model)
+        for param in tool.parameters:
+            parameters += tokens(str(param.to_dict().values()), model)
+
+    num_tokens = 15
+    num_tokens += names
+    num_tokens += descriptions
+    num_tokens += parameters
     return num_tokens
 
 
