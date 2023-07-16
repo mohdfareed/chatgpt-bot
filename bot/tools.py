@@ -142,37 +142,6 @@ class Python(chatgpt.tools.Tool):
         return (output or "").strip()
 
 
-class DummyTool(chatgpt.tools.Tool):
-    """A dummy tool used for debugging."""
-
-    @property
-    @override
-    def title(self):
-        return "Debugging Tool"
-
-    @property
-    @override
-    def name(self):
-        return "dummy_tool"
-
-    @property
-    @override
-    def description(self):
-        return "Dummy tool used for debugging."
-
-    @property
-    @override
-    def parameters(self):
-        return []
-
-    @override
-    async def _run(self) -> str:
-        import asyncio
-
-        await asyncio.sleep(0)
-        return "Done"
-
-
 def available_tools(tool=chatgpt.tools.Tool) -> list[chatgpt.tools.Tool]:
     """Returns all the available tools."""
     from chatgpt import addons, tools

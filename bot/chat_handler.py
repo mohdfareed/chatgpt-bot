@@ -201,7 +201,6 @@ class StopModel(core.Button):
             await query.answer("Model stopped")
         except KeyError:
             await query.answer("Model is not running")
-            pass
 
 
 class ReplyCost(core.Button):
@@ -248,8 +247,9 @@ class DeleteMessage(core.Button):
         try:  # delete from db and telegram
             await utils.delete_message(message)
             await query.message.delete()
+            await query.answer("Message deleted")
         except ModelNotFound:
-            pass
+            await query.answer("Message not found")
 
 
 class Status(core.Button):
@@ -260,9 +260,10 @@ class Status(core.Button):
 
     @override
     @classmethod
-    def callback(cls, data, query):
+    async def callback(cls, data, query):
         """The callback for the button."""
-        pass
+        # do nothing
+        await query.answer()
 
 
 class Timer:
