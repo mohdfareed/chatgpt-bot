@@ -26,16 +26,17 @@ class ModelMenu(core.Menu):
     @property
     @override
     async def layout(self):
-        from bot.settings.main_menu import BotSettingsMenu
+        from bot.settings.bot_settings import BotSettingsMenu
 
+        model_buttons = []
         active_model = (await utils.get_config(self.message)).chat_model
-        buttons: list[list[core.Button]] = []
+        # create a button for each model
         for model in chatgpt.core.ModelConfig.supported_models():
             model_title = await self._create_model_title(model, active_model)
-            buttons.append([ModelButton(model.name, model_title)])
-        return buttons + [
-            [core.MenuButton(BotSettingsMenu, is_parent=True)],
-        ]
+            model_buttons.append(ModelButton(model.name, model_title))
+        # create the menu layout
+        back_button = core.MenuButton(BotSettingsMenu, is_parent=True)
+        return ModelMenu.create_grid(model_buttons, back_button)
 
     @staticmethod
     @override

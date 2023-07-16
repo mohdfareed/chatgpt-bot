@@ -88,6 +88,12 @@ async def _error_handler(update, context: telegram_extensions.CallbackContext):
     import bot.formatter
     import bot.telegram_utils
 
+    if (  # ignore old queries
+        "Query is too old and response timeout expired or query id is invalid"
+        in str(context.error)
+    ):
+        return
+
     # reply with the error message if possible
     if isinstance(update, telegram.Update) and update.effective_message:
         message = core.TelegramMessage(update.effective_message)
