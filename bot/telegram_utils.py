@@ -93,3 +93,15 @@ def create_markup(
     for row in buttons:
         markup += [[button.telegram_button for button in row]]
     return telegram.InlineKeyboardMarkup(markup)
+
+
+async def is_deleted(chat_id: int, message_id: int, previous_markup=None):
+    """Check if a message has been deleted."""
+    try:
+        await app.active_bot.edit_message_reply_markup(
+            chat_id, message_id, reply_markup=previous_markup
+        )
+    except Exception as e:
+        if "Message to edit not found" in str(e):
+            return True
+        return False

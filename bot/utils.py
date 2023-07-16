@@ -5,7 +5,7 @@ import chatgpt.memory
 import chatgpt.messages
 import chatgpt.model
 import chatgpt.tools
-from bot import chat_handler, core, metrics, telegram_utils
+from bot import chat_handler, core, logger, metrics, telegram_utils
 
 
 async def reply_to_user(message: core.TextMessage, reply=False):
@@ -18,6 +18,8 @@ async def reply_to_user(message: core.TextMessage, reply=False):
         message.chat_id,
         summarization_handlers=[metrics_handler],
     )
+    # clean memory
+    await clean_memory(memory, message.chat.id)
     # setup the chat model
     model = chatgpt.model.ChatModel(
         memory=memory,
@@ -166,3 +168,15 @@ async def set_max_tokens(message: core.TelegramMessage, max: int):
     chat_model = await chat_history.model
     chat_model.max_tokens = max
     await chat_history.set_model(chat_model)
+
+
+async def clean_memory(memory: chatgpt.memory.ChatMemory, chat_id: int):
+    messages = await memory.history.messages
+    for history_message in messages:
+        try:
+            message_id = int(history_message.id)
+        except ValueError:
+            continue
+        if await telegram_utils.is_deleted(chat_id, message_id):
+            logger.debug(f"Deleting message:\n{history_message.serialize()}")
+            await memory.history.delete_message(history_message.id)
