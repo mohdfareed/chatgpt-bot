@@ -27,7 +27,10 @@ class ChatModel(chatgpt.openai.chat_model.OpenAIChatModel):
         """Run the model."""
         # start running the model
         await self.events_manager.trigger_model_run(self)
-        reply = await self._run_model(self._core(new_message))
+        try:
+            reply = await self._run_model(self._core(new_message))
+        except chatgpt.core.ModelError:
+            return  # model error, do nothing
 
         # broadcast reply if any
         if isinstance(reply, chatgpt.messages.ModelMessage):

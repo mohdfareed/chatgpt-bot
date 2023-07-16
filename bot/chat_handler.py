@@ -122,16 +122,9 @@ class ModelMessageHandler(
 
     @override
     async def on_model_error(self, error):
-        ModelMessageHandler.running_models.pop(self.model_id)
-        if not self.aggregated_reply:
-            return
-
-        # finalize the message
-        await self._finalize_message_status(self.aggregated_reply)
-        # check if model error
+        # append the error to the message status
         if isinstance(error, chatgpt.core.ModelError):
             self.status += [[Status(str(error))]]
-        await self._send_packet(self.aggregated_reply, final=True)
 
     async def _finalize_message_status(
         self, message: chatgpt.messages.ModelMessage | None = None
