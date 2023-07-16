@@ -148,7 +148,8 @@ class ModelMessageHandler(
         self, new_message: chatgpt.messages.ModelMessage, final=False
     ):
         message = _create_message(new_message)  # parse message
-        if not final:  # add ellipsis if not final
+        # add ellipsis if still generating or no message
+        if not final or not message:
             message += "..."
 
         if self.reply:  # edit the existing reply

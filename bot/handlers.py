@@ -22,7 +22,7 @@ class MessageHandler(abc.ABC):
     """The message update filters."""
     block: bool | None = None
     """Whether the message handler should block other handlers."""
-    group: int = 0
+    group: int = 10
     """The handler's group. Handlers in the same group are mutually exclusive.
     Lower group numbers have higher priority."""
 

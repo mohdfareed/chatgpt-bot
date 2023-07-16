@@ -6,7 +6,7 @@ DISABLED_INDICATOR = "✗"
 
 from . import (
     config_menu,
-    data_receiver,
+    data_receivers,
     main_menu,
     model_menu,
     tools_menu,
