@@ -13,7 +13,7 @@ LOGGING_MODULES = ["bot", "chatgpt", "database"]
 """The main logging modules."""
 
 
-def run_app(debug=False, log=False, setup_profile=True) -> None:
+def main(debug=False, log=False, setup_profile=True) -> None:
     """Instantiates and runs the app.
     Args:
         debug (bool): Whether to log debug messages.
@@ -22,7 +22,7 @@ def run_app(debug=False, log=False, setup_profile=True) -> None:
     """
 
     print("[bold]Starting chatgpt_bot...[/]")
-    _setup_logging(to_file=log, debug=debug)
+    setup_logging(to_file=log, debug=debug)
 
     # add package directory to the path
     os.chdir(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
@@ -43,7 +43,7 @@ def run_app(debug=False, log=False, setup_profile=True) -> None:
     print("[bold green]chatgpt_bot stopped[/]")
 
 
-def _setup_logging(to_file, debug):
+def setup_logging(to_file, debug):
     # configure logging
     logging.captureWarnings(True)
     root_logger = logging.getLogger()
@@ -57,12 +57,13 @@ def _setup_logging(to_file, debug):
     (local_logger := logging.getLogger(__name__)).setLevel(level)
 
     # setup console and file loggers
-    _configure_console_logging(root_logger, debug)
+    configure_console_logging(root_logger, debug)
     if to_file:  # set up logging to file
-        _configure_file_logging(root_logger)
+        configure_file_logging(root_logger)
+    local_logger.debug("Debug mode enabled")
 
 
-def _configure_console_logging(logger: logging.Logger, debug: bool):
+def configure_console_logging(logger: logging.Logger, debug: bool):
     format = (
         r"%(message)s [bright_black]- [italic]%(name)s[/italic] "
         r"\[[underline]%(filename)s:%(lineno)d[/underline]]"
@@ -84,7 +85,7 @@ def _configure_console_logging(logger: logging.Logger, debug: bool):
     logger.addHandler(console_handler)
 
 
-def _configure_file_logging(logger: logging.Logger):
+def configure_file_logging(logger: logging.Logger):
     format = (
         "[%(asctime)s] %(levelname)-8s "
         "%(message)s - %(name)s [%(filename)s:%(lineno)d]"
@@ -122,4 +123,4 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
-    run_app(args.debug, args.log, not args.disable_setup)
+    main(args.debug, args.log, not args.disable_setup)
