@@ -60,7 +60,6 @@ def _setup_logging(to_file, debug):
     _configure_console_logging(root_logger, debug)
     if to_file:  # set up logging to file
         _configure_file_logging(root_logger)
-    local_logger.debug("Debug mode enabled")
 
 
 def _configure_console_logging(logger: logging.Logger, debug: bool):
@@ -116,10 +115,11 @@ if __name__ == "__main__":
         "-l", "--log", action="store_true", help="log to a file"
     )
     parser.add_argument(  # default is True
-        "--disable-profile-setup",
-        action="store_false",
+        "-s",
+        "--disable-setup",
+        action="store_true",
         help="disable setup/update of the bot's profile",
     )
 
     args = parser.parse_args()
-    run_app(args.debug, args.log, not args.disable_profile_setup)
+    run_app(args.debug, args.log, not args.disable_setup)

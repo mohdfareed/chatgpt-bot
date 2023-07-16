@@ -9,7 +9,7 @@ import telegram
 import telegram.ext as telegram_extensions
 
 import bot
-from bot import commands, core, handlers, settings
+from bot import commands, core, handlers
 
 BOT_NAME = "ChatGPT_Dev" if bot.dev_mode else "ChatGPT"
 SHORT_DESCRIPTION = "ChatGPT bot"
@@ -71,8 +71,9 @@ def setup_profile(app: telegram_extensions.Application):
         asyncio.set_event_loop(new_loop)
         _ = new_loop.run_until_complete(_setup_profile(app))
         logging.getLogger(error_module).setLevel(prev_level)
+        bot.logger.info("Bot profile set successfully")
     except Exception:
-        bot.logger.warning("Bot profile could not be set up")
+        bot.logger.warning("Bot profile could not be set")
 
 
 def setup_handlers(app: telegram_extensions.Application):
