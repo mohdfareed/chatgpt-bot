@@ -46,8 +46,6 @@ class DataReceiver(core.Menu, abc.ABC):
         message = await self.description + "\n\n"
         if self.has_error:
             message += self.error_info + "\n\n"
-        if self.message.chat.telegram_chat.type != _private_chat:
-            message += f"Reply must be by {self.user.name}."
         return message.strip()
 
     @property

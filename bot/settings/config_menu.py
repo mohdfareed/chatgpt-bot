@@ -24,7 +24,11 @@ class ConfigMenu(core.Menu):
             f"Streams messages: <code>{config.streaming}</code>\n"
             f"Tools: {', '.join(tools_titles)}\n"
             f"System prompt: <code>{prompt.content}</code>\n\n"
-            "Select a model configuration to activate."
+            "The active configuration is chat specific; while the list of "
+            "available configurations are user specific. Modifications to "
+            "the configurations list will be applied towards the user "
+            "requesting the change.\n\n"
+            "Select a model configuration to activate it."
         )
 
     @property
