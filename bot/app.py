@@ -112,3 +112,21 @@ async def _setup_profile(app):
     await chat_bot.set_my_description(DESCRIPTION)
     await chat_bot.set_my_short_description(SHORT_DESCRIPTION)
     await chat_bot.set_my_commands(cmds)
+    await chat_bot.set_my_default_administrator_rights(
+        telegram.ChatAdministratorRights(
+            can_delete_messages=True,
+            can_manage_topics=True,
+            # required arguments
+            is_anonymous=False,
+            can_manage_chat=False,
+            can_manage_video_chats=False,
+            can_restrict_members=False,
+            can_promote_members=False,
+            can_change_info=False,
+            can_invite_users=False,
+            # optional arguments
+            can_post_messages=False,
+            can_edit_messages=False,
+            can_pin_messages=False,
+        )
+    )
