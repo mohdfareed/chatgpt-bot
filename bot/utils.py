@@ -171,12 +171,12 @@ async def set_max_tokens(message: core.TelegramMessage, max: int):
 
 
 async def clean_memory(memory: chatgpt.memory.ChatMemory, chat_id: int):
-    messages = await memory.history.messages
-    for history_message in messages:
-        try:
-            message_id = int(history_message.id)
+    for message in await memory.history.messages:
+        try:  # check if message was sent to user
+            message_id = int(message.id)
         except ValueError:
             continue
+        # delete from model memory if deleted from telegram
         if await telegram_utils.is_deleted(chat_id, message_id):
-            logger.debug(f"Deleting message:\n{history_message.serialize()}")
-            await memory.history.delete_message(history_message.id)
+            logger.debug(f"Deleting message:\n{message.serialize()}")
+            await memory.history.delete_message(message.id)

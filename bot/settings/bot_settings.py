@@ -20,7 +20,7 @@ class BotSettingsMenu(core.Menu, commands.Command):
         # initialize as root menu if no message is given
         super().__init__(message, user_id)  # type: ignore
 
-    names = ("settings",)
+    names = ("start", "settings")
     description = "Configure the bot and chat model."
 
     @staticmethod

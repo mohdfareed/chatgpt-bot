@@ -54,7 +54,7 @@ class Command(handlers.MessageHandler, abc.ABC):
 
 
 class Help(Command):
-    names = ("start", "help")
+    names = ("help",)
     description = "Show the help message"
 
     help_message = textwrap.dedent(
@@ -71,24 +71,3 @@ class Help(Command):
         await update.effective_chat.send_message(
             dummy_message, parse_mode=telegram.constants.ParseMode.HTML
         )
-
-
-class DeleteMessage(Command):
-    names = ("delete", "delete_message", "del", "d")
-    description = "Delete a message from the chat history"
-
-    @override
-    @staticmethod
-    async def callback(update: telegram.Update, _: _default_context):
-        try:  # check if text message was sent
-            message = core.TextMessage.from_update(update)
-        except ValueError:
-            return
-        try:
-            await utils.delete_message(message.reply or message)
-            try:
-                await message.telegram_message.delete()
-            except:
-                await telegram_utils.reply_code(message, "Message deleted")
-        except database.core.ModelNotFound:
-            await telegram_utils.reply_code(message, "Message not found")
