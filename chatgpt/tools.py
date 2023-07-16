@@ -47,20 +47,25 @@ class Tool(core.Serializable, abc.ABC):
         """The title of the tool."""
         return self.name
 
+    @property
+    def user_description(self) -> str:
+        """A description of the tool for the user."""
+        return self.description
+
     @abc.abstractproperty
-    def name(self) -> str:  # type: ignore
+    def name(self) -> str:
         """The name of the tool."""
-        pass
+        ...
 
     @abc.abstractproperty
-    def description(self) -> str:  # type: ignore
-        """A description of the tool."""
-        pass
+    def description(self) -> str:
+        """A description of the tool for the model."""
+        ...
 
     @abc.abstractproperty
-    def parameters(self) -> list["ToolParameter"]:  # type: ignore
+    def parameters(self) -> list["ToolParameter"]:
         """A list of parameters for the tool."""
-        pass
+        ...
 
     @abc.abstractmethod
     async def _run(self, **kwargs: typing.Any) -> str:

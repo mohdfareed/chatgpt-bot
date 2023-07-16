@@ -50,7 +50,7 @@ class ToolsMenu(core.Menu):
         description = "<b>The current configuration's model tools:</b>\n\n"
         for tool in tools:
             description += f"<code>{tool.title}</code>:\n"
-            description += f"{tool.description}\n\n"
+            description += f"{tool.user_description}\n\n"
         return description
 
 
