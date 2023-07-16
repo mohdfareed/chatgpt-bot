@@ -18,7 +18,7 @@ ChatGPT based Telegram bot.
 """.strip()
 
 
-def run():
+def run(update_profile=True):
     """Setup and run the bot."""
 
     # configure the bot
@@ -40,7 +40,8 @@ def run():
 
     # setup the bot's application
     setup_handlers(application)
-    setup_profile(application)
+    if update_profile:  # update the bot's profile
+        setup_profile(application)
 
     # start the bot
     if not bot.dev_mode:  # run in webhook mode for production
