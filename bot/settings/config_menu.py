@@ -20,7 +20,7 @@ class ConfigMenu(core.Menu):
         return (
             "<b>Active model configuration:</b>\n"
             f"Model: <code>{config.chat_model.title}</code>\n"
-            f"Temperature: <code>{config.temperature}</code>\n"
+            f"Temperature: <code>{round(config.temperature, 2)}</code>\n"
             f"Streams messages: <code>{config.streaming}</code>\n"
             f"Tools: {', '.join(tools_titles)}\n"
             f"System prompt: <code>{prompt.content}</code>"

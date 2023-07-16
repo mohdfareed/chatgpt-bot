@@ -8,48 +8,12 @@ import telegram.constants
 import telegram.ext as telegram_extensions
 from typing_extensions import override
 
-from bot import core, handlers, settings, utils
+from bot import core, handlers, settings
 
-# the receivers of the active requests made by users
-_active_requests: dict[int, "DataReceiver"] = {}
+# the receivers of the active requests
+_active_requests: dict[str, "DataReceiver"] = {}
 _default_context = telegram_extensions.ContextTypes.DEFAULT_TYPE
-
-
-# class DataRequest(abc.ABC):
-#     """A data request."""
-
-#     def __init__(self, id: str, data_title: str, data_desc: str):
-#         self.id = id
-#         """The ID of the request."""
-#         self.data_title = data_title
-#         """The title of the data to be requested. Used as the button text."""
-#         self.data_desc = data_desc
-#         """The description of the data to be requested. Used as the menu content."""
-
-#     @abc.abstractmethod
-#     def data_handler(self, data_message: core.TelegramMessage) -> bool:
-#         """The handler for the data. Returns whether the data was handled."""
-#         ...
-
-
-# class DataRequestButton(core.Button):
-#     """A data request button. Requests data from the user."""
-
-#     def __init__(self, request: DataRequest, parent: typing.Type[core.Menu]):
-#         super().__init__(request.id, request.data_title)
-#         self.request = request
-#         """The data request details."""
-
-#     @override
-#     @classmethod
-#     async def callback(cls, data, query):
-#         if not query.message:
-#             return
-#         message = core.TelegramMessage(query.message)
-#         # initialize request
-#         _active_requests[query.from_user.id] = cls.request
-#         await DataReceiverMenu(message, query.from_user.id).render()
-#         await query.answer()
+_private_chat = telegram.Chat.PRIVATE
 
 
 class DataReceiver(core.Menu, abc.ABC):
@@ -60,23 +24,33 @@ class DataReceiver(core.Menu, abc.ABC):
         super().__init__(message, user)
         self.has_error = False
         """Whether the receiver encountered an error handling data."""
-        _active_requests[self.user.id] = self
+        _active_requests[id(self.message)] = self
 
-    async def cancel(self):
+    async def close(self):
         """Cancel the data request."""
         try:
-            del _active_requests[self.user.id]
+            del _active_requests[id(self.message)]
         except KeyError:
             pass
         await self.parent(self.message, self.user).render()
 
+    async def handle(self, data_message: core.TelegramMessage):
+        """Handle the data."""
+        if await self.data_handler(data_message):
+            await self.close()
+        else:
+            self.has_error = True
+            await self.render()
+
     @property
     @override
     async def info(self):
-        return (
-            f"{self.description}\n\n{self.error_info if self.has_error else ''}"
-            "Only messages sent by "
-        )
+        message = await self.description + "\n\n"
+        if self.has_error:
+            message += self.error_info + "\n\n"
+        if self.message.chat.telegram_chat.type != _private_chat:
+            message += f"Reply must be by {self.user.name}."
+        return message.strip()
 
     @property
     @override
@@ -93,7 +67,7 @@ class DataReceiver(core.Menu, abc.ABC):
 
     @property
     @abc.abstractmethod
-    def description(self) -> str:
+    async def description(self) -> str:
         """The description of the data to be requested."""
         ...
 
@@ -113,22 +87,29 @@ class TextDataHandler(handlers.MessageHandler):
     """Handle a text input message to a data request."""
 
     filters = (
-        handlers.MessageHandler.filters & telegram_extensions.filters.TEXT
+        handlers.MessageHandler.filters
+        & telegram_extensions.filters.TEXT
+        & telegram_extensions.filters.REPLY
     )
 
     @override
     @staticmethod
-    async def callback(update: telegram.Update, context: _default_context):
-        try:  # check if text message was sent
+    async def callback(update, context):
+        try:  # check if text message
             message = core.TextMessage.from_update(update)
         except ValueError:
             return
 
-        # reply to new messages
-        if update.message or update.channel_post:
-            await utils.reply_to_user(message, reply=False)
-        else:  # if a message was edited
-            await utils.add_message(message) if message.text else None
+        # retrieve receiver
+        receiver = _active_requests.get(id(message.reply))
+        if not receiver:
+            return
+
+        await receiver.handle(message)
+        try:  # delete data after handling
+            await message.telegram_message.delete()
+        except:
+            pass
 
 
 class RequestCancelButton(core.MenuButton):
@@ -143,8 +124,13 @@ class RequestCancelButton(core.MenuButton):
     async def callback(cls, _, query: telegram.CallbackQuery):
         if not query.message:
             return
-        receiver = _active_requests.get(query.from_user.id)
-
+        message = core.TelegramMessage(query.message)
+        receiver = _active_requests.get(id(message))
         if receiver:
-            await receiver.cancel()
+            await receiver.close()
         await query.answer()
+
+
+def id(message: core.TelegramMessage | None) -> str:
+    """Get the ID of a user in a chat."""
+    return f"{message.chat_id}:{message.id}" if message else ""
