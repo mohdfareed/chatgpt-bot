@@ -17,6 +17,7 @@ TOOL_USAGE_MESSAGE = """
 Using tool: <code>{tool_name}</code>
 With parameters:
 <code>{args_str}</code>
+{content}
 """.strip()
 
 TOOL_RESULTS_MESSAGE = f"""
@@ -86,7 +87,7 @@ class ModelMessageHandler(
     @override
     async def on_model_end(self, message):
         self.timer.stop()  # stop the timer
-        await self._send_packet(message)
+        await self._send_packet(message, final=True)  # send the final packet
         # check if the model has finished with a reply
         if not self.reply:
             bot.logger.error(f"Model's reply is empty.\n{message.serialize()}")
@@ -109,10 +110,7 @@ class ModelMessageHandler(
         if not self.reply:
             raise
         # append the results to the reply
-        markup = telegram_utils.create_markup(self.status)
-        await telegram_utils.edit_message(
-            self.reply, _create_message(self.usage, results), markup
-        )
+        await self._send_packet(self.usage, results, final=True)
 
     @override
     async def on_model_reply(self, reply):
@@ -145,9 +143,12 @@ class ModelMessageHandler(
         self._resolve_finish_reason(message.finish_reason)
 
     async def _send_packet(
-        self, new_message: chatgpt.messages.ModelMessage, final=False
+        self,
+        new_message: chatgpt.messages.ModelMessage,
+        tool_results: chatgpt.messages.ToolResult | None = None,
+        final=False,
     ):
-        message = _create_message(new_message)  # parse message
+        message = _create_message(new_message, tool_results)  # parse message
         # add ellipsis if still generating or no message
         if not final or not message:
             message += "..."
@@ -299,7 +300,9 @@ def _create_message(
 def _format_tool_usage(usage: chatgpt.messages.ToolUsage, results=None) -> str:
     if not results:
         return TOOL_USAGE_MESSAGE.format(
-            tool_name=usage.tool_name, args_str=usage.args_str
+            tool_name=usage.tool_name,
+            content=usage.content,
+            args_str=usage.args_str,
         )
 
     # truncate results to 450 characters with ellipsis
@@ -313,5 +316,6 @@ def _format_tool_usage(usage: chatgpt.messages.ToolUsage, results=None) -> str:
     return TOOL_RESULTS_MESSAGE.format(
         tool_name=tool.title,
         args_str=usage.args_str,
+        content=usage.content,
         results=results,
     )

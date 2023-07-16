@@ -44,15 +44,17 @@ class ChatModel(chatgpt.openai.chat_model.OpenAIChatModel):
         while True:  # run until model has replied or is stopped
             # generate reply and add to memory
             reply = await self._generate_reply(await self.memory.messages)
-            if reply is not None:  # potentially partial reply was generated
-                await self.memory.history.add_message(reply)
+            await self.memory.history.add_message(reply)
+            if not self._running:
+                break  # ensure model is still running
 
             # use tool if model is still running and has requested it
-            if isinstance(reply, chatgpt.messages.ToolUsage) and self._running:
+            if isinstance(reply, chatgpt.messages.ToolUsage):
                 await self._use_tool(reply)
-                continue  # send results to model
-            break  # no tool used or model stopped
-        return reply
+
+            # reply if the model generates a message content
+            if reply.content:
+                return reply
 
     async def _use_tool(self, usage: chatgpt.messages.ToolUsage):
         # use tool as cancelable task
