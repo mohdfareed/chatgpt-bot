@@ -59,7 +59,9 @@ class PrivateMessageHandler(MessageHandler):
     """Handle a private message."""
 
     filters = (
-        MessageHandler.filters & telegram_extensions.filters.ChatType.PRIVATE
+        MessageHandler.filters
+        & telegram_extensions.filters.ChatType.PRIVATE
+        & telegram_extensions.filters.UpdateType.MESSAGES
     )
 
     @override
@@ -81,7 +83,9 @@ class GroupMessageHandler(MessageHandler):
     """Handle a group message."""
 
     filters = (
-        MessageHandler.filters & telegram_extensions.filters.ChatType.GROUPS
+        MessageHandler.filters
+        & telegram_extensions.filters.ChatType.GROUPS
+        & telegram_extensions.filters.UpdateType.MESSAGES
     )
 
     @override
@@ -102,6 +106,26 @@ class GroupMessageHandler(MessageHandler):
             await utils.reply_to_user(message, reply=True)
         else:  # store other messages as context
             await utils.add_message(message)
+
+
+class PinServiceHandler(MessageHandler):
+    """Handle a pinning update of messages."""
+
+    filters = (
+        MessageHandler.filters & telegram_extensions.filters.UpdateType.MESSAGE
+    )
+    group = 0
+
+    @override
+    @staticmethod
+    async def callback(update: telegram.Update, context: _default_context):
+        if not (update_message := update.effective_message):
+            return
+        if not (pinned_message := update_message.pinned_message):
+            return
+        message = core.TextMessage(pinned_message)
+        await utils.pin_message(message)
+        raise telegram_extensions.ApplicationHandlerStop
 
 
 def _is_bot_mention(message: core.TelegramMessage, bot_username: str):

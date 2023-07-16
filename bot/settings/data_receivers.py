@@ -12,7 +12,6 @@ from bot import core, handlers, telegram_utils
 
 # the receivers of the active requests
 _active_requests: dict[str, "DataReceiver"] = {}
-_private_chat = telegram.Chat.PRIVATE
 
 
 class DataReceiver(core.Menu, abc.ABC):

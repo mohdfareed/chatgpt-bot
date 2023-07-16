@@ -52,6 +52,17 @@ async def delete_history(message: core.TelegramMessage):
         await telegram_utils.delete_message(message, int(model_message.id))
 
 
+async def pin_message(message: core.TelegramMessage) -> bool:
+    chat_history = await chatgpt.memory.ChatHistory.initialize(message.chat_id)
+    history_message = await chat_history.get_message(str(message.id))
+    if not history_message:
+        return False
+
+    history_message.pinned = True
+    await chat_history.add_message(history_message)
+    return True
+
+
 async def count_usage(
     message: core.TelegramMessage, results: chatgpt.messages.ModelMessage
 ):
