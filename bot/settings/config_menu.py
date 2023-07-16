@@ -23,28 +23,34 @@ class ConfigMenu(core.Menu):
             f"Temperature: <code>{round(config.temperature, 2)}</code>\n"
             f"Streams messages: <code>{config.streaming}</code>\n"
             f"Tools: {', '.join(tools_titles)}\n"
-            f"System prompt: <code>{prompt.content}</code>"
+            f"System prompt: <code>{prompt.content}</code>\n\n"
+            "The active configuration is chat specific; while the list of "
+            "available configurations are user specific. Modifications to "
+            "the configurations list will be applied towards the user "
+            "requesting the change.\n\n"
+            "Select a model configuration to activate it."
         )
 
     @property
     @override
     async def layout(self):
-        from bot.settings.main_menu import BotSettingsMenu
+        from bot.settings.bot_settings import BotSettingsMenu
 
+        config_buttons = []
         active_config = await utils.get_config(self.message)
         configs = await metrics.TelegramMetrics.get_configs(str(self.user.id))
-
-        buttons: list[list[core.Button]] = []
+        # create a button for each config
         for config, index in zip(configs, range(len(configs))):
             config_title = await self._create_config_title(
                 config, index, active_config
             )
-            buttons.append([SetConfigButton(index, config_title)])
-
-        return buttons + [
-            [AddConfigButton(), DeleteConfigButton()],
-            [core.MenuButton(BotSettingsMenu, is_parent=True)],
-        ]
+            config_buttons.append(SetConfigButton(index, config_title))
+        # create the menu layout
+        menu = ConfigMenu.create_grid(config_buttons, None)
+        # add back and control buttons
+        menu.append([AddConfigButton(), DeleteConfigButton()])
+        menu.append([core.MenuButton(BotSettingsMenu, is_parent=True)])
+        return menu
 
     @staticmethod
     @override

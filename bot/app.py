@@ -9,7 +9,7 @@ import telegram
 import telegram.ext as telegram_extensions
 
 import bot
-from bot import commands, core, handlers, settings
+from bot import commands, core, handlers
 
 BOT_NAME = "ChatGPT_Dev" if bot.dev_mode else "ChatGPT"
 SHORT_DESCRIPTION = "ChatGPT bot"
@@ -18,7 +18,7 @@ ChatGPT based Telegram bot.
 """.strip()
 
 
-def run():
+def run(update_profile=True):
     """Setup and run the bot."""
 
     # configure the bot
@@ -40,7 +40,8 @@ def run():
 
     # setup the bot's application
     setup_handlers(application)
-    setup_profile(application)
+    if update_profile:  # update the bot's profile
+        setup_profile(application)
 
     # start the bot
     if not bot.dev_mode:  # run in webhook mode for production
@@ -70,8 +71,9 @@ def setup_profile(app: telegram_extensions.Application):
         asyncio.set_event_loop(new_loop)
         _ = new_loop.run_until_complete(_setup_profile(app))
         logging.getLogger(error_module).setLevel(prev_level)
+        bot.logger.info("Bot profile set successfully")
     except Exception:
-        bot.logger.warning("Bot profile could not be set up")
+        bot.logger.warning("Bot profile could not be set")
 
 
 def setup_handlers(app: telegram_extensions.Application):
@@ -87,6 +89,12 @@ def setup_handlers(app: telegram_extensions.Application):
 async def _error_handler(update, context: telegram_extensions.CallbackContext):
     import bot.formatter
     import bot.telegram_utils
+
+    if (  # ignore old queries
+        "Query is too old and response timeout expired or query id is invalid"
+        in str(context.error)
+    ):
+        return
 
     # reply with the error message if possible
     if isinstance(update, telegram.Update) and update.effective_message:

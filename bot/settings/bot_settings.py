@@ -4,6 +4,9 @@ the bot and the chat model."""
 from typing_extensions import override
 
 from bot import commands, core, settings, telegram_utils, utils
+from bot.settings.config_menu import ConfigMenu
+from bot.settings.model_settings import ModelSettingsMenu
+from bot.settings.usage_menu import UsageMenu
 
 
 class BotSettingsMenu(core.Menu, commands.Command):
@@ -36,31 +39,14 @@ class BotSettingsMenu(core.Menu, commands.Command):
     @property
     @override
     async def info(self):
-        return "Configure the bot and chat model settings."
+        return "Configure the bot and model settings."
 
     @property
     @override
     async def layout(self) -> list[list[core.Button]]:
-        from bot.settings import data_receivers as receivers
-        from bot.settings.config_menu import ConfigMenu
-        from bot.settings.model_menu import ModelMenu
-        from bot.settings.tools_menu import ToolsMenu
-        from bot.settings.usage_menu import UsageMenu
-
         return [
-            [core.MenuButton(ConfigMenu)],
-            [
-                core.MenuButton(ModelMenu),
-                core.MenuButton(ToolsMenu),
-            ],
-            [
-                core.MenuButton(receivers.SysPromptReceiver),
-                core.MenuButton(receivers.TemperatureReceiver),
-            ],
-            [
-                DeleteHistoryButton(),
-                ToggleStreamingButton(),
-            ],
+            [core.MenuButton(ConfigMenu), core.MenuButton(ModelSettingsMenu)],
+            [DeleteHistoryButton(), ToggleStreamingButton()],
             [CloseButton(), core.MenuButton(UsageMenu)],
         ]
 

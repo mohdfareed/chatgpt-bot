@@ -142,16 +142,47 @@ class Python(chatgpt.tools.Tool):
         return (output or "").strip()
 
 
-def available_tools(
-    tool=chatgpt.tools.Tool,
-) -> typing.Iterator[chatgpt.tools.Tool]:
+class DummyTool(chatgpt.tools.Tool):
+    """A dummy tool used for debugging."""
+
+    @property
+    @override
+    def title(self):
+        return "Debugging Tool"
+
+    @property
+    @override
+    def name(self):
+        return "dummy_tool"
+
+    @property
+    @override
+    def description(self):
+        return "Dummy tool used for debugging."
+
+    @property
+    @override
+    def parameters(self):
+        return []
+
+    @override
+    async def _run(self) -> str:
+        import asyncio
+
+        await asyncio.sleep(0)
+        return "Done"
+
+
+def available_tools(tool=chatgpt.tools.Tool) -> list[chatgpt.tools.Tool]:
     """Returns all the available tools."""
     from chatgpt import addons, tools
 
+    all_tools: list[chatgpt.tools.Tool] = []
     if not inspect.isabstract(tool):
-        yield tool()  # type: ignore
+        all_tools.append(tool())  # type: ignore
     for sub_tool in tool.__subclasses__():
-        yield from available_tools(sub_tool)
+        all_tools.extend(available_tools(sub_tool))
+    return all_tools
 
 
 def from_tool_name(tool_name: str):

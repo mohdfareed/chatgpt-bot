@@ -103,9 +103,7 @@ class OpenAIChatModel(core.ChatModel):
             return reply
 
         # return streamed response if streaming
-        if self.config.streaming and isinstance(
-            completion, typing.AsyncGenerator
-        ):
+        if isinstance(completion, typing.AsyncGenerator):
             stream = self._cancelable(self._stream_completion(completion))
             return await stream
 

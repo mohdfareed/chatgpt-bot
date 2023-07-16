@@ -5,10 +5,11 @@ ENABLED_INDICATOR = "✓"
 DISABLED_INDICATOR = "✗"
 
 from . import (
+    bot_settings,
     config_menu,
     data_receivers,
-    main_menu,
     model_menu,
+    model_settings,
     tools_menu,
     usage_menu,
 )

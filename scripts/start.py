@@ -13,11 +13,12 @@ LOGGING_MODULES = ["bot", "chatgpt", "database"]
 """The main logging modules."""
 
 
-def run_app(debug: bool = False, log: bool = False) -> None:
+def run_app(debug=False, log=False, setup_profile=True) -> None:
     """Instantiates and runs the app.
     Args:
         debug (bool): Whether to log debug messages.
         log (bool): Whether to log to a file in addition to the console.
+        setup_profile (bool): Whether to setup/update the bot's profile.
     """
 
     print("[bold]Starting chatgpt_bot...[/]")
@@ -34,7 +35,7 @@ def run_app(debug: bool = False, log: bool = False) -> None:
 
     try:  # run the bot and db
         chatgpt_db.initialize()
-        chatgpt_bot.run()
+        chatgpt_bot.run(setup_profile)
     except Exception as e:
         logging.exception(e)
         exit(1)
@@ -59,7 +60,6 @@ def _setup_logging(to_file, debug):
     _configure_console_logging(root_logger, debug)
     if to_file:  # set up logging to file
         _configure_file_logging(root_logger)
-    local_logger.debug("Debug mode enabled")
 
 
 def _configure_console_logging(logger: logging.Logger, debug: bool):
@@ -114,6 +114,12 @@ if __name__ == "__main__":
     parser.add_argument(
         "-l", "--log", action="store_true", help="log to a file"
     )
+    parser.add_argument(  # default is True
+        "-s",
+        "--disable-setup",
+        action="store_true",
+        help="disable setup/update of the bot's profile",
+    )
 
     args = parser.parse_args()
-    run_app(args.debug, args.log)
+    run_app(args.debug, args.log, not args.disable_setup)

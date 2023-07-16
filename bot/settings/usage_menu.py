@@ -20,7 +20,7 @@ class UsageMenu(core.Menu):
     @property
     @override
     async def layout(self):
-        from bot.settings.main_menu import BotSettingsMenu
+        from bot.settings.bot_settings import BotSettingsMenu
 
         return [
             [core.MenuButton(BotSettingsMenu, is_parent=True)],

@@ -254,6 +254,18 @@ class Menu(abc.ABC):
                 return submenu
         return None
 
+    @staticmethod
+    def create_grid(buttons: list[Button], back_button: "MenuButton | None"):
+        grid = [buttons[n : n + 2] for n in range(0, len(buttons), 2)]
+        if not back_button:
+            return grid
+        # if number of tools is even, new row for back button
+        if len(buttons) % 2 == 0:
+            grid.append([back_button])
+        else:  # if number of tools is odd, add back button in the last row
+            grid[-1] = [back_button, grid[-1][0]]
+        return grid
+
 
 class MenuButton(Button):
     """A button that displays a menu."""
