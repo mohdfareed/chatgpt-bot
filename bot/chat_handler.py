@@ -131,7 +131,7 @@ class ModelMessageHandler(
     ):
         # replace the stop button with a delete button
         self.status = [[]]  # reset status
-        self.status += [[DeleteMessage(), ReplyCost()]]
+        self.status += [[ReplyUsage()]]
         # set message status by resolving finish reason
         self._resolve_finish_reason(message.finish_reason)
 
@@ -198,11 +198,11 @@ class StopModel(core.Button):
             await query.answer("Model is not running")
 
 
-class ReplyCost(core.Button):
+class ReplyUsage(core.Button):
     """The button to display the cost of a reply."""
 
     def __init__(self):
-        super().__init__("", "Cost")
+        super().__init__("", "Tokens Count")
 
     @override
     @classmethod
@@ -220,8 +220,7 @@ class ReplyCost(core.Button):
         # show the cost
         cost = (
             f"Prompt: {reply.prompt_tokens} tokens\n"
-            f"Reply: {reply.reply_tokens} tokens\n"
-            f"${round(reply.cost, 2)}"
+            f"Reply: {reply.reply_tokens} tokens"
         )
         await query.answer(cost, show_alert=True)
 
