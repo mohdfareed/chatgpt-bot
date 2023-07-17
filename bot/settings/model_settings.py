@@ -137,7 +137,7 @@ class ToggleStreamingButton(core.Button):
             return
         message = core.TelegramMessage(query.message)
 
-        if await utils.toggle_streaming(message):
-            await query.answer("Streaming enabled")
-        else:
-            await query.answer("Streaming disabled")
+        await utils.toggle_streaming(message)
+        # refresh the menu
+        await ModelSettingsMenu(message, query.from_user).render()
+        await query.answer()

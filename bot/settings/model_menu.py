@@ -63,7 +63,6 @@ class ModelButton(core.Button):
         config = await utils.get_config(message)
         config.chat_model = chatgpt.core.ModelConfig.model(data)
         await utils.set_config(message, config)
-
         # refresh the menu
         await ModelMenu(message, query.from_user).render()
         await query.answer()

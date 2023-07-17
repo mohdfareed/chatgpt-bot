@@ -76,9 +76,9 @@ class SetConfigButton(core.Button):
         )
 
         await utils.set_config(message, configs[int(data)])
-        await query.answer(f"Model configuration {data} activated")
         # refresh the menu
         await ConfigMenu(message, query.from_user).render()
+        await query.answer()
 
 
 class DeleteConfigButton(core.Button):

@@ -18,10 +18,10 @@ class BotSettingsMenu(core.Menu, commands.Command):
     def __init__(
         self,
         message: core.TelegramMessage | None = None,
-        user_id: int | None = None,
+        user: telegram.User | None = None,
     ) -> None:
         # initialize as root menu if no message is given
-        super().__init__(message, user_id)  # type: ignore
+        super().__init__(message, user)  # type: ignore
 
     names = ("start", "settings")
     description = "Configure the bot and chat model."
@@ -127,10 +127,10 @@ class ToggleReplyModeButton(core.Button):
             return
         message = core.TelegramMessage(query.message)
 
-        if await utils.toggle_reply_mode(message.chat_id):
-            await query.answer("Bot will reply to mentions only")
-        else:
-            await query.answer("Bot will reply to all messages")
+        await utils.toggle_reply_mode(message.chat_id)
+        # refresh the menu
+        await BotSettingsMenu(message, query.from_user).render()
+        await query.answer()
 
 
 class ToggleMessageDeletionButton(core.Button):
@@ -148,10 +148,10 @@ class ToggleMessageDeletionButton(core.Button):
             return
         message = core.TelegramMessage(query.message)
 
-        if await utils.toggle_message_deletion(message.chat_id):
-            await query.answer("Message deletion enabled")
-        else:
-            await query.answer("Message deletion disabled")
+        await utils.toggle_message_deletion(message.chat_id)
+        # refresh the menu
+        await BotSettingsMenu(message, query.from_user).render()
+        await query.answer()
 
 
 class UsageButton(core.Button):
@@ -198,7 +198,7 @@ class CloseButton(core.Button):
 
     def __init__(self):
         # use title as button data
-        title = f"{settings.DISABLED_INDICATOR} Close"
+        title = f"{settings.BACK_BUTTON} Close"
         super().__init__(title, title)
 
     @override
