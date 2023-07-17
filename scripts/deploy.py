@@ -61,6 +61,7 @@ def main() -> None:
         restore(current_branch, changes_stashed)
         print_error("Error: Failed to commit changes")
         sys.exit(1)
+
     else:  # push changes
         print_bold("Pushing changes...")
         if os.system("git push origin " + DEPLOYMENT_BRANCH):
