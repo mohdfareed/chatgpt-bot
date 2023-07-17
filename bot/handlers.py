@@ -120,7 +120,7 @@ class PinServiceHandler(MessageHandler):
     filters = (
         MessageHandler.filters & telegram_extensions.filters.UpdateType.MESSAGE
     )
-    group = 0
+    group = 5
 
     @override
     @staticmethod
