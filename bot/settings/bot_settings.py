@@ -53,12 +53,14 @@ class BotSettingsMenu(core.Menu, commands.Command):
                     core.MenuButton(ConfigMenu),
                     core.MenuButton(ModelSettingsMenu),
                 ],
-                [DeleteHistoryButton()],
+                [DeleteHistoryButton(), ToggleMessageDeletionButton()],
                 [CloseButton(), UsageButton()],
             ]
+        # group chat menu
         return [
             [core.MenuButton(ConfigMenu), core.MenuButton(ModelSettingsMenu)],
-            [DeleteHistoryButton(), ToggleReplyModeButton()],
+            [DeleteHistoryButton()],
+            [ToggleMessageDeletionButton(), ToggleReplyModeButton()],
             [CloseButton(), UsageButton()],
         ]
 
@@ -83,7 +85,13 @@ class DeleteHistoryButton(core.Button):
             return
         message = core.TelegramMessage(query.message)
 
-        await utils.delete_history(message)
+        # delete model messages
+        deleted_messages = await utils.delete_history(message)
+        # delete telegram messages
+        chat = await metrics.TelegramMetrics(entity_id=message.chat_id).load()
+        if chat.delete_messages:
+            for message_id in deleted_messages:
+                await telegram_utils.delete_message(message, int(message_id))
         await query.answer("Chat history deleted")
 
 
@@ -106,6 +114,28 @@ class ToggleReplyModeButton(core.Button):
             await query.answer("Bot will reply to mentions only")
         else:
             await query.answer("Bot will reply to all messages")
+
+
+class ToggleMessageDeletionButton(core.Button):
+    """A button that toggles whether the bot deletes messages when clearing
+    chat history."""
+
+    def __init__(self):
+        # use the title as the button data
+        title = "Toggle Deletion"
+        super().__init__(title, title)
+
+    @override
+    @classmethod
+    async def callback(cls, data, query):
+        if not query.message:
+            return
+        message = core.TelegramMessage(query.message)
+
+        if await utils.toggle_message_deletion(message.chat_id):
+            await query.answer("Message deletion enabled")
+        else:
+            await query.answer("Message deletion disabled")
 
 
 class UsageButton(core.Button):

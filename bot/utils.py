@@ -47,11 +47,15 @@ async def delete_message(message: core.TelegramMessage):
 async def delete_history(message: core.TelegramMessage):
     chat_history = await chatgpt.memory.ChatHistory.initialize(message.chat_id)
     messages = await chat_history.messages
+
+    deleted_messages: list[str] = []  # IDs of deleted messages
     for model_message in messages:
         if model_message.pinned:
-            continue
+            continue  # prevent deleting pinned messages
+
         await chat_history.delete_message(model_message.id)
-        await telegram_utils.delete_message(message, int(model_message.id))
+        deleted_messages.append(model_message.id)
+    return deleted_messages
 
 
 async def pin_message(message: core.TelegramMessage) -> bool:
@@ -168,6 +172,13 @@ async def toggle_reply_mode(chat_id: int | str):
     chat_metrics.reply_to_mentions = not chat_metrics.reply_to_mentions
     await chat_metrics.save()
     return chat_metrics.reply_to_mentions
+
+
+async def toggle_message_deletion(chat_id: int | str):
+    chat_metrics = await metrics.TelegramMetrics(entity_id=str(chat_id)).load()
+    chat_metrics.delete_messages = not chat_metrics.delete_messages
+    await chat_metrics.save()
+    return chat_metrics.delete_messages
 
 
 async def clean_memory(memory: chatgpt.memory.ChatMemory, chat_id: int):
