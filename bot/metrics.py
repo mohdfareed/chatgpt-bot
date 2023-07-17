@@ -44,6 +44,8 @@ class TelegramMetrics(database.DatabaseModel):
     """The entity's token usage cost."""
     reply_to_mentions: orm.Mapped[bool] = orm.mapped_column(default=True)
     """Whether the entity prefers replies to mentions only or all messages."""
+    delete_messages: orm.Mapped[bool] = orm.mapped_column(default=False)
+    """Whether the bot deletes messages sent by the entity when clearing history."""
     data: orm.Mapped[str | None] = orm.mapped_column(database.encrypted_column)
     """The entity's configurations data."""
 

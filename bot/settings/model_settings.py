@@ -5,7 +5,7 @@
 
 from typing_extensions import override
 
-from bot import core, utils
+from bot import core, settings, utils
 from bot.settings.data_receivers import DataReceiver
 from bot.settings.model_menu import ModelMenu
 from bot.settings.tools_menu import ToolsMenu
@@ -24,6 +24,11 @@ class ModelSettingsMenu(core.Menu):
     async def layout(self):
         from bot.settings.bot_settings import BotSettingsMenu
 
+        config = await utils.get_config(self.message)
+        stream_toggle_title = settings.create_title(
+            "Toggle Streaming", config.streaming, is_toggle=True
+        )
+
         return [
             [core.MenuButton(ModelMenu), core.MenuButton(ToolsMenu)],
             [
@@ -32,7 +37,7 @@ class ModelSettingsMenu(core.Menu):
             ],
             [
                 core.MenuButton(BotSettingsMenu, is_parent=True),
-                ToggleStreamingButton(),
+                ToggleStreamingButton(stream_toggle_title),
             ],
         ]
 
@@ -121,9 +126,8 @@ class TemperatureReceiver(DataReceiver):
 class ToggleStreamingButton(core.Button):
     """A button that toggles streaming of replies."""
 
-    def __init__(self):
+    def __init__(self, title):
         # use the title as the button data
-        title = "Toggle Streaming"
         super().__init__(title, title)
 
     @override
@@ -133,7 +137,7 @@ class ToggleStreamingButton(core.Button):
             return
         message = core.TelegramMessage(query.message)
 
-        if await utils.toggle_streaming(message):
-            await query.answer("Streaming enabled")
-        else:
-            await query.answer("Streaming disabled")
+        await utils.toggle_streaming(message)
+        # refresh the menu
+        await ModelSettingsMenu(message, query.from_user).render()
+        await query.answer()

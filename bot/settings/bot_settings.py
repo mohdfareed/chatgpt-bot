@@ -18,10 +18,10 @@ class BotSettingsMenu(core.Menu, commands.Command):
     def __init__(
         self,
         message: core.TelegramMessage | None = None,
-        user_id: int | None = None,
+        user: telegram.User | None = None,
     ) -> None:
         # initialize as root menu if no message is given
-        super().__init__(message, user_id)  # type: ignore
+        super().__init__(message, user)  # type: ignore
 
     names = ("start", "settings")
     description = "Configure the bot and chat model."
@@ -47,18 +47,38 @@ class BotSettingsMenu(core.Menu, commands.Command):
     @property
     @override
     async def layout(self) -> list[list[core.Button]]:
+        chat = await metrics.TelegramMetrics(
+            entity_id=self.message.chat_id
+        ).load()
+        will_reply = chat.reply_to_mentions
+        reply_toggle_title = settings.create_title(
+            "Reply to Mentions", will_reply, is_toggle=True
+        )
+        will_delete = chat.delete_messages
+        deletion_toggle_title = settings.create_title(
+            "Delete Messages", will_delete, is_toggle=True
+        )
+
         if self.message.chat.telegram_chat.type == _private:
             return [
                 [
                     core.MenuButton(ConfigMenu),
                     core.MenuButton(ModelSettingsMenu),
                 ],
-                [DeleteHistoryButton()],
+                [
+                    DeleteHistoryButton(),
+                    ToggleMessageDeletionButton(deletion_toggle_title),
+                ],
                 [CloseButton(), UsageButton()],
             ]
+        # group chat menu
         return [
             [core.MenuButton(ConfigMenu), core.MenuButton(ModelSettingsMenu)],
-            [DeleteHistoryButton(), ToggleReplyModeButton()],
+            [DeleteHistoryButton()],
+            [
+                ToggleMessageDeletionButton(deletion_toggle_title),
+                ToggleReplyModeButton(reply_toggle_title),
+            ],
             [CloseButton(), UsageButton()],
         ]
 
@@ -83,16 +103,21 @@ class DeleteHistoryButton(core.Button):
             return
         message = core.TelegramMessage(query.message)
 
-        await utils.delete_history(message)
+        # delete model messages
+        deleted_messages = await utils.delete_history(message)
+        # delete telegram messages
+        chat = await metrics.TelegramMetrics(entity_id=message.chat_id).load()
+        if chat.delete_messages:
+            for message_id in deleted_messages:
+                await telegram_utils.delete_message(message, int(message_id))
         await query.answer("Chat history deleted")
 
 
 class ToggleReplyModeButton(core.Button):
     """A button that toggles the reply mode of the bot."""
 
-    def __init__(self):
+    def __init__(self, title):
         # use the title as the button data
-        title = "Reply to Mentions"
         super().__init__(title, title)
 
     @override
@@ -102,10 +127,31 @@ class ToggleReplyModeButton(core.Button):
             return
         message = core.TelegramMessage(query.message)
 
-        if await utils.toggle_reply_mode(message.chat_id):
-            await query.answer("Bot will reply to mentions only")
-        else:
-            await query.answer("Bot will reply to all messages")
+        await utils.toggle_reply_mode(message.chat_id)
+        # refresh the menu
+        await BotSettingsMenu(message, query.from_user).render()
+        await query.answer()
+
+
+class ToggleMessageDeletionButton(core.Button):
+    """A button that toggles whether the bot deletes messages when clearing
+    chat history."""
+
+    def __init__(self, title):
+        # use the title as the button data
+        super().__init__(title, title)
+
+    @override
+    @classmethod
+    async def callback(cls, data, query):
+        if not query.message:
+            return
+        message = core.TelegramMessage(query.message)
+
+        await utils.toggle_message_deletion(message.chat_id)
+        # refresh the menu
+        await BotSettingsMenu(message, query.from_user).render()
+        await query.answer()
 
 
 class UsageButton(core.Button):
@@ -152,7 +198,7 @@ class CloseButton(core.Button):
 
     def __init__(self):
         # use title as button data
-        title = f"{settings.DISABLED_INDICATOR} Close"
+        title = f"{settings.BACK_BUTTON} Close"
         super().__init__(title, title)
 
     @override

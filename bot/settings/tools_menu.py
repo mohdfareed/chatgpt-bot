@@ -29,7 +29,9 @@ class ToolsMenu(core.Menu):
         available_tools = tools.available_tools()
         # create a button for each tool
         for tool in available_tools:
-            tool_title = await self._tool_title(tool)
+            tool_title = settings.create_title(
+                tool.title, await utils.has_tool(self.message, tool)
+            )
             tools_buttons.append(ToolButton(tool.name, tool_title))
         # create the menu layout
         back_button = core.MenuButton(ModelSettingsMenu, is_parent=True)
@@ -39,12 +41,6 @@ class ToolsMenu(core.Menu):
     @override
     def title():
         return "Model Tools"
-
-    async def _tool_title(self, tool: chatgpt.tools.Tool) -> str:
-        has_tool = await utils.has_tool(self.message, tool)
-        return (
-            f"{settings.ENABLED_INDICATOR} " if has_tool else ""
-        ) + tool.title
 
     def _tools_description(self, tools: list[chatgpt.tools.Tool]) -> str:
         description = "<b>The current configuration's model tools:</b>\n\n"

@@ -32,7 +32,9 @@ class ModelMenu(core.Menu):
         active_model = (await utils.get_config(self.message)).chat_model
         # create a button for each model
         for model in chatgpt.core.ModelConfig.supported_models():
-            model_title = await self._create_model_title(model, active_model)
+            model_title = settings.create_title(
+                model.title, model == active_model, is_toggle=False
+            )
             model_buttons.append(ModelButton(model.name, model_title))
         # create the menu layout
         back_button = core.MenuButton(ModelSettingsMenu, is_parent=True)
@@ -42,15 +44,6 @@ class ModelMenu(core.Menu):
     @override
     def title():
         return "Chat Model"
-
-    async def _create_model_title(
-        self,
-        model: chatgpt.core.SupportedChatModel,
-        active_model: chatgpt.core.SupportedChatModel,
-    ) -> str:
-        return (
-            f"{settings.ENABLED_INDICATOR} " if model == active_model else ""
-        ) + model.title
 
 
 class ModelButton(core.Button):
@@ -70,7 +63,6 @@ class ModelButton(core.Button):
         config = await utils.get_config(message)
         config.chat_model = chatgpt.core.ModelConfig.model(data)
         await utils.set_config(message, config)
-
         # refresh the menu
         await ModelMenu(message, query.from_user).render()
         await query.answer()
