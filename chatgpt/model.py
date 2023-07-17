@@ -49,7 +49,7 @@ class ChatModel(chatgpt.openai.chat_model.OpenAIChatModel):
             reply = await self._generate_reply(await self.memory.messages)
             await self.memory.history.add_message(reply)
             if not self._running:
-                break  # ensure model is still running
+                return reply  # ensure model is still running
 
             # use tool if model is still running and has requested it
             if isinstance(reply, chatgpt.messages.ToolUsage):

@@ -118,7 +118,11 @@ class ModelMessageHandler(
         ModelMessageHandler.running_models.pop(self.model_id)
         # finalize the message
         await self._finalize_message_status(reply)
-        await self._send_packet(reply, final=True)
+        await self._send_packet(
+            reply,
+            final=reply.finish_reason
+            is not chatgpt.core.FinishReason.CANCELLED,
+        )
 
     @override
     async def on_model_error(self, error):

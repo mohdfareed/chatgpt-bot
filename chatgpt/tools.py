@@ -17,19 +17,14 @@ class ToolsManager:
 
     async def use(self, tool_usage: messages.ToolUsage):
         """Execute a tool."""
-        result = None
-        tool = None
+        tool = self._tool_from_name(tool_usage.tool_name)
         try:  # get the tool's result
-            tool = self._tool_from_name(tool_usage.tool_name)
             result = await tool.use(**tool_usage.arguments)
         except (asyncio.CancelledError, KeyboardInterrupt):
-            pass  # canceled
+            return None  # canceled
         except Exception as e:
             result = str(e)  # return error message
-
-        if tool is not None and result is not None:
-            result = messages.ToolResult(result, tool.name)
-        return result
+        return messages.ToolResult(result, tool.name)
 
     def _tool_from_name(self, name: str) -> "Tool":
         """Get a tool from its name."""
