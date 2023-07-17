@@ -47,20 +47,38 @@ class BotSettingsMenu(core.Menu, commands.Command):
     @property
     @override
     async def layout(self) -> list[list[core.Button]]:
+        chat = await metrics.TelegramMetrics(
+            entity_id=self.message.chat_id
+        ).load()
+        will_reply = chat.reply_to_mentions
+        reply_toggle_title = settings.create_title(
+            "Reply to Mentions", will_reply, is_toggle=True
+        )
+        will_delete = chat.delete_messages
+        deletion_toggle_title = settings.create_title(
+            "Delete Messages", will_delete, is_toggle=True
+        )
+
         if self.message.chat.telegram_chat.type == _private:
             return [
                 [
                     core.MenuButton(ConfigMenu),
                     core.MenuButton(ModelSettingsMenu),
                 ],
-                [DeleteHistoryButton(), ToggleMessageDeletionButton()],
+                [
+                    DeleteHistoryButton(),
+                    ToggleMessageDeletionButton(deletion_toggle_title),
+                ],
                 [CloseButton(), UsageButton()],
             ]
         # group chat menu
         return [
             [core.MenuButton(ConfigMenu), core.MenuButton(ModelSettingsMenu)],
             [DeleteHistoryButton()],
-            [ToggleMessageDeletionButton(), ToggleReplyModeButton()],
+            [
+                ToggleMessageDeletionButton(deletion_toggle_title),
+                ToggleReplyModeButton(reply_toggle_title),
+            ],
             [CloseButton(), UsageButton()],
         ]
 
@@ -98,9 +116,8 @@ class DeleteHistoryButton(core.Button):
 class ToggleReplyModeButton(core.Button):
     """A button that toggles the reply mode of the bot."""
 
-    def __init__(self):
+    def __init__(self, title):
         # use the title as the button data
-        title = "Reply to Mentions"
         super().__init__(title, title)
 
     @override
@@ -120,9 +137,8 @@ class ToggleMessageDeletionButton(core.Button):
     """A button that toggles whether the bot deletes messages when clearing
     chat history."""
 
-    def __init__(self):
+    def __init__(self, title):
         # use the title as the button data
-        title = "Toggle Deletion"
         super().__init__(title, title)
 
     @override

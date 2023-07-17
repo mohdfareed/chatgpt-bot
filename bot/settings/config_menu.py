@@ -41,8 +41,8 @@ class ConfigMenu(core.Menu):
         configs = await metrics.TelegramMetrics.get_configs(str(self.user.id))
         # create a button for each config
         for config, index in zip(configs, range(len(configs))):
-            config_title = await self._create_config_title(
-                config, index, active_config
+            config_title = settings.create_title(
+                f"Config {index + 1}", config == active_config, is_toggle=False
             )
             config_buttons.append(SetConfigButton(index, config_title))
         # create the menu layout
@@ -56,16 +56,6 @@ class ConfigMenu(core.Menu):
     @override
     def title():
         return "Configurations"
-
-    async def _create_config_title(
-        self,
-        config: chatgpt.core.ModelConfig,
-        config_index: int,
-        active_config: chatgpt.core.ModelConfig,
-    ) -> str:
-        return (
-            f"{settings.ENABLED_INDICATOR} " if config == active_config else ""
-        ) + f"Config {config_index + 1}"
 
 
 class SetConfigButton(core.Button):
