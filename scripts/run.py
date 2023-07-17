@@ -8,7 +8,7 @@ import sys
 from utils import print_bold, print_success
 
 
-def main(clean: bool = False) -> None:
+def main(clean: bool = False, update: bool = False) -> None:
     """Update the bot and start it."""
     script_dir = os.path.dirname(os.path.realpath(__file__))
     os.chdir(os.path.join(script_dir, ".."))
@@ -20,8 +20,9 @@ def main(clean: bool = False) -> None:
     print_bold(f"Deployed branch: {current_branch}\n")
 
     # update the repo
-    update_repo()
-    print_success("Updated repository successfully\n")
+    if update:
+        update_repo()
+        print_success("Updated repository successfully\n")
 
     # setup the bot
     if os.system(f"python3 ./scripts/setup.py {'--clean' if clean else ''}"):
@@ -30,13 +31,13 @@ def main(clean: bool = False) -> None:
 
     # activate virtual environment
     if sys.platform == "win32":
-        os.system("& .venv\\Scripts\\Activate.ps1")
+        env_cmd = "& .venv\\Scripts\\Activate.ps1 &&"
     else:
-        os.system("source .venv/bin/activate")
+        env_cmd = "source .venv/bin/activate &&"
     print()
 
     # start the bot
-    exit(os.system("python3 ./scripts/start.py --log"))
+    exit(os.system(f"{env_cmd} python3 ./scripts/start.py --log"))
 
 
 def update_repo():
@@ -66,13 +67,18 @@ def update_repo():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Update the current branch then setup and start the bot."
+        description="Setup and start the bot. Updates the bot if necessary."
     )
     parser.add_argument(
         "--clean",
         action="store_true",
         help="run the bot in a clean environment",
     )
+    parser.add_argument(
+        "--update",
+        action="store_true",
+        help="update the bot",
+    )
     args = parser.parse_args()
 
-    main(args.clean)
+    main(args.clean, args.update)

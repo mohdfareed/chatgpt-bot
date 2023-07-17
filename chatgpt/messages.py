@@ -35,6 +35,8 @@ class Message(core.Serializable, abc.ABC):
         """The metadata of the message."""
         self.id: str = uuid.uuid4().hex
         """The unique ID of the message."""
+        self.pinned: bool = False
+        """Whether the message is pinned. Pinned messages are not deleted."""
         super().__init__(**kwargs)
 
     def to_message_dict(self):

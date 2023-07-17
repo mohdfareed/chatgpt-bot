@@ -33,6 +33,8 @@ class TelegramMessage:
         """The user who sent the message."""
         self.reply: TelegramMessage | None = None
         """The message to which this message is a reply if any."""
+        self.pinned: bool = message.pinned_message is not None
+        """Whether the message is pinned."""
         self.telegram_message = message
         """The Telegram message instance."""
 

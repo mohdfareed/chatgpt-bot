@@ -5,7 +5,7 @@ import chatgpt.memory
 import chatgpt.messages
 import chatgpt.model
 import chatgpt.tools
-from bot import chat_handler, core, formatter, metrics
+from bot import chat_handler, core, logger, metrics, telegram_utils
 
 
 async def reply_to_user(message: core.TextMessage, reply=False):
@@ -18,6 +18,8 @@ async def reply_to_user(message: core.TextMessage, reply=False):
         message.chat_id,
         summarization_handlers=[metrics_handler],
     )
+    # clean memory
+    await clean_memory(memory, message.chat.id)
     # setup the chat model
     model = chatgpt.model.ChatModel(
         memory=memory,
@@ -44,7 +46,23 @@ async def delete_message(message: core.TelegramMessage):
 
 async def delete_history(message: core.TelegramMessage):
     chat_history = await chatgpt.memory.ChatHistory.initialize(message.chat_id)
-    await chat_history.clear()
+    messages = await chat_history.messages
+    for model_message in messages:
+        if model_message.pinned:
+            continue
+        await chat_history.delete_message(model_message.id)
+        await telegram_utils.delete_message(message, int(model_message.id))
+
+
+async def pin_message(message: core.TelegramMessage) -> bool:
+    chat_history = await chatgpt.memory.ChatHistory.initialize(message.chat_id)
+    history_message = await chat_history.get_message(str(message.id))
+    if not history_message:
+        return False
+
+    history_message.pinned = True
+    await chat_history.add_message(history_message)
+    return True
 
 
 async def count_usage(
@@ -145,8 +163,20 @@ async def toggle_streaming(message: core.TelegramMessage):
     return chat_model.streaming
 
 
-async def set_max_tokens(message: core.TelegramMessage, max: int):
-    chat_history = await chatgpt.memory.ChatHistory.initialize(message.chat_id)
-    chat_model = await chat_history.model
-    chat_model.max_tokens = max
-    await chat_history.set_model(chat_model)
+async def toggle_reply_mode(chat_id: int | str):
+    chat_metrics = await metrics.TelegramMetrics(entity_id=str(chat_id)).load()
+    chat_metrics.reply_to_mentions = not chat_metrics.reply_to_mentions
+    await chat_metrics.save()
+    return chat_metrics.reply_to_mentions
+
+
+async def clean_memory(memory: chatgpt.memory.ChatMemory, chat_id: int):
+    for message in await memory.history.messages:
+        try:  # check if message was sent to user
+            message_id = int(message.id)
+        except ValueError:
+            continue
+        # delete from model memory if deleted from telegram
+        if await telegram_utils.is_deleted(chat_id, message_id):
+            logger.debug(f"Deleting message:\n{message.serialize()}")
+            await memory.history.delete_message(message.id)

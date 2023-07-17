@@ -3,15 +3,12 @@
 import inspect
 import io
 import sys
-import typing
 
 import wikipedia
 from langchain.utilities import GoogleSerperAPIWrapper, WikipediaAPIWrapper
 from typing_extensions import override
 
 import chatgpt.addons
-import chatgpt.core
-import chatgpt.events
 import chatgpt.tools
 from bot import SERPER_API_KEY
 
@@ -144,8 +141,6 @@ class Python(chatgpt.tools.Tool):
 
 def available_tools(tool=chatgpt.tools.Tool) -> list[chatgpt.tools.Tool]:
     """Returns all the available tools."""
-    from chatgpt import addons, tools
-
     all_tools: list[chatgpt.tools.Tool] = []
     if not inspect.isabstract(tool):
         all_tools.append(tool())  # type: ignore

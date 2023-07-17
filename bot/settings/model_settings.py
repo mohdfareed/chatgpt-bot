@@ -30,7 +30,10 @@ class ModelSettingsMenu(core.Menu):
                 core.MenuButton(SysPromptReceiver),
                 core.MenuButton(TemperatureReceiver),
             ],
-            [core.MenuButton(BotSettingsMenu, is_parent=True)],
+            [
+                core.MenuButton(BotSettingsMenu, is_parent=True),
+                ToggleStreamingButton(),
+            ],
         ]
 
     @staticmethod
@@ -113,3 +116,24 @@ class TemperatureReceiver(DataReceiver):
     @override
     def title():
         return "Temperature"
+
+
+class ToggleStreamingButton(core.Button):
+    """A button that toggles streaming of replies."""
+
+    def __init__(self):
+        # use the title as the button data
+        title = "Toggle Streaming"
+        super().__init__(title, title)
+
+    @override
+    @classmethod
+    async def callback(cls, data, query):
+        if not query.message:
+            return
+        message = core.TelegramMessage(query.message)
+
+        if await utils.toggle_streaming(message):
+            await query.answer("Streaming enabled")
+        else:
+            await query.answer("Streaming disabled")

@@ -108,7 +108,7 @@ class ChatMemory:
             )
 
         # add the new summary to the history
-        new_summary.last_message_id = await self.history.get_id(
+        new_summary.last_message_id = await self.history.get_database_id(
             history_messages[-1].id
         )
         await self.history.add_message(new_summary)
@@ -143,7 +143,7 @@ class ChatMemory:
                 continue
 
             # fill the un-summarized history
-            message_id = await self.history.get_id(message.id)
+            message_id = await self.history.get_database_id(message.id)
             if last_summarized_id is None:
                 history_messages.insert(0, message)
                 continue  # un-summarized if no summary exists
@@ -234,7 +234,7 @@ class ChatHistory:
             message_id=id, chat_id=self.chat_id, engine=self.engine
         ).delete()
 
-    async def get_id(self, message_id: str) -> int | None:
+    async def get_database_id(self, message_id: str) -> int | None:
         """Get the database id of a message by its message id."""
         db_message = await db.models.Message(
             message_id=message_id,
@@ -243,12 +243,14 @@ class ChatHistory:
         ).load()
         return db_message.id
 
-    async def clear(self) -> None:
-        """Clear the chat history."""
-        chat = await db.models.Chat(chat_id=self.chat_id).load()
-        for message in chat.messages:
-            await message.delete()
-        # (await message.delete() for message in chat.messages)
+    async def pin_message(self, message_id: str) -> bool:
+        """Pin a message to prevent it from being deleted. Returns success."""
+        message = await self.get_message(message_id)
+        if not message:
+            return False
+        message.pinned = True
+        await self.add_message(message)
+        return True
 
 
 class SummarizationModel(chatgpt.openai.chat_model.OpenAIChatModel):

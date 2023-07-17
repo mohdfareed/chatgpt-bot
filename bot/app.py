@@ -17,9 +17,13 @@ DESCRIPTION = """
 ChatGPT based Telegram bot.
 """.strip()
 
+active_bot: telegram_extensions.ExtBot
+"""The active bot instance."""
+
 
 def run(update_profile=True):
     """Setup and run the bot."""
+    global active_bot
 
     # configure the bot
     defaults = telegram_extensions.Defaults(
@@ -38,10 +42,11 @@ def run(update_profile=True):
         .build()
     )
 
-    # setup the bot's application
+    active_bot = application.bot
+    # setup the bot's updates handlers
     setup_handlers(application)
-    if update_profile:  # update the bot's profile
-        setup_profile(application)
+    # update the bot's profile, if specified
+    setup_profile() if update_profile else None
 
     # start the bot
     if not bot.dev_mode:  # run in webhook mode for production
@@ -60,16 +65,17 @@ def run(update_profile=True):
     bot.logger.info("Telegram bot has stopped")
 
 
-def setup_profile(app: telegram_extensions.Application):
+def setup_profile():
     # disable logging for the profile setup
     error_module = "telegram.ext.AIORateLimiter"
     prev_level = logging.getLogger(error_module).level
 
     try:  # profile setup has a very long cool-down
-        logging.getLogger(error_module).setLevel(logging.ERROR)
+        logging.getLogger(error_module).setLevel(logging.CRITICAL)
         new_loop = asyncio.new_event_loop()
         asyncio.set_event_loop(new_loop)
-        _ = new_loop.run_until_complete(_setup_profile(app))
+        _ = new_loop.run_until_complete(_setup_profile())
+        # restore the previous logging level
         logging.getLogger(error_module).setLevel(prev_level)
         bot.logger.info("Bot profile set successfully")
     except Exception:
@@ -105,10 +111,27 @@ async def _error_handler(update, context: telegram_extensions.CallbackContext):
     raise context.error or Exception("Unknown error encountered...")
 
 
-async def _setup_profile(app):
-    chat_bot: telegram_extensions.ExtBot = app.bot
+async def _setup_profile():
     cmds = [cmd.bot_command for cmd in commands.Command.all_commands()]
-    await chat_bot.set_my_name(BOT_NAME)
-    await chat_bot.set_my_description(DESCRIPTION)
-    await chat_bot.set_my_short_description(SHORT_DESCRIPTION)
-    await chat_bot.set_my_commands(cmds)
+    await active_bot.set_my_name(BOT_NAME)
+    await active_bot.set_my_description(DESCRIPTION)
+    await active_bot.set_my_short_description(SHORT_DESCRIPTION)
+    await active_bot.set_my_commands(cmds)
+    await active_bot.set_my_default_administrator_rights(
+        telegram.ChatAdministratorRights(
+            can_delete_messages=True,
+            can_manage_topics=True,
+            # required arguments
+            is_anonymous=False,
+            can_manage_chat=False,
+            can_manage_video_chats=False,
+            can_restrict_members=False,
+            can_promote_members=False,
+            can_change_info=False,
+            can_invite_users=False,
+            # optional arguments
+            can_post_messages=False,
+            can_edit_messages=False,
+            can_pin_messages=False,
+        )
+    )

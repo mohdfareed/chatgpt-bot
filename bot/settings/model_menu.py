@@ -26,7 +26,7 @@ class ModelMenu(core.Menu):
     @property
     @override
     async def layout(self):
-        from bot.settings.bot_settings import BotSettingsMenu
+        from bot.settings.model_settings import ModelSettingsMenu
 
         model_buttons = []
         active_model = (await utils.get_config(self.message)).chat_model
@@ -35,7 +35,7 @@ class ModelMenu(core.Menu):
             model_title = await self._create_model_title(model, active_model)
             model_buttons.append(ModelButton(model.name, model_title))
         # create the menu layout
-        back_button = core.MenuButton(BotSettingsMenu, is_parent=True)
+        back_button = core.MenuButton(ModelSettingsMenu, is_parent=True)
         return ModelMenu.create_grid(model_buttons, back_button)
 
     @staticmethod

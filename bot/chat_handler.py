@@ -122,23 +122,16 @@ class ModelMessageHandler(
 
     @override
     async def on_model_error(self, error):
-        ModelMessageHandler.running_models.pop(self.model_id)
-        if not self.aggregated_reply:
-            return
-
-        # finalize the message
-        await self._finalize_message_status(self.aggregated_reply)
-        # check if model error
+        # append the error to the message status
         if isinstance(error, chatgpt.core.ModelError):
             self.status += [[Status(str(error))]]
-        await self._send_packet(self.aggregated_reply, final=True)
 
     async def _finalize_message_status(
         self, message: chatgpt.messages.ModelMessage | None = None
     ):
         # replace the stop button with a delete button
         self.status = [[]]  # reset status
-        self.status += [[DeleteMessage(), ReplyCost()]]
+        self.status += [[ReplyUsage()]]
         # set message status by resolving finish reason
         self._resolve_finish_reason(message.finish_reason)
 
@@ -148,7 +141,9 @@ class ModelMessageHandler(
         tool_results: chatgpt.messages.ToolResult | None = None,
         final=False,
     ):
-        message = _create_message(new_message, tool_results)  # parse message
+        # parse message
+        if not (message := _create_message(new_message, tool_results)):
+            return
         # add ellipsis if still generating or no message
         if not final or not message:
             message += "..."
@@ -203,11 +198,11 @@ class StopModel(core.Button):
             await query.answer("Model is not running")
 
 
-class ReplyCost(core.Button):
+class ReplyUsage(core.Button):
     """The button to display the cost of a reply."""
 
     def __init__(self):
-        super().__init__("", "Cost")
+        super().__init__("", "Tokens Count")
 
     @override
     @classmethod
@@ -225,8 +220,7 @@ class ReplyCost(core.Button):
         # show the cost
         cost = (
             f"Prompt: {reply.prompt_tokens} tokens\n"
-            f"Reply: {reply.reply_tokens} tokens\n"
-            f"${round(reply.cost, 2)}"
+            f"Reply: {reply.reply_tokens} tokens"
         )
         await query.answer(cost, show_alert=True)
 

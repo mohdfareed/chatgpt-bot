@@ -78,7 +78,7 @@ async def main():
             handlers=[console_handler],
         )
         # await memory.initialize()
-        await memory.history.clear()
+        # await memory.history.clear()
 
         message = chatgpt.messages.UserMessage("Hi")
         await model.run(message)
