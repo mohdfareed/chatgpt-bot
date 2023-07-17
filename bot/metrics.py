@@ -42,7 +42,7 @@ class TelegramMetrics(database.DatabaseModel):
     """The entity's token usage count."""
     usage_cost: orm.Mapped[float] = orm.mapped_column(default=0.0)
     """The entity's token usage cost."""
-    reply_to_mentions: orm.Mapped[bool] = orm.mapped_column(default=False)
+    reply_to_mentions: orm.Mapped[bool] = orm.mapped_column(default=True)
     """Whether the entity prefers replies to mentions only or all messages."""
     data: orm.Mapped[str | None] = orm.mapped_column(database.encrypted_column)
     """The entity's configurations data."""
