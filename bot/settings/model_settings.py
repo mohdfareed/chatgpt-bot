@@ -26,7 +26,7 @@ class ModelSettingsMenu(core.Menu):
 
         config = await utils.get_config(self.message)
         stream_toggle_title = settings.create_title(
-            "Toggle Streaming", config.streaming, is_toggle=True
+            "Stream Messages", config.streaming, is_toggle=True
         )
 
         return [
