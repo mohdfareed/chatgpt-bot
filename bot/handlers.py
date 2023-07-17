@@ -9,7 +9,7 @@ import telegram.constants
 import telegram.ext as telegram_extensions
 from typing_extensions import override
 
-from bot import core, utils
+from bot import core, metrics, utils
 
 _default_context = telegram_extensions.ContextTypes.DEFAULT_TYPE
 _mention = telegram.constants.MessageEntityType.MENTION
@@ -91,7 +91,7 @@ class GroupMessageHandler(MessageHandler):
     @override
     @staticmethod
     async def callback(update: telegram.Update, context: _default_context):
-        try:  # check if text message was sent
+        try:  # check if text message was received
             message = core.TextMessage.from_update(update)
         except ValueError:
             return
@@ -101,11 +101,17 @@ class GroupMessageHandler(MessageHandler):
             await utils.add_message(message)
             return  # don't reply to edited messages
 
-        # reply only to mentions of the bot
-        if _is_bot_mention(message, context.bot.username):
-            await utils.reply_to_user(message, reply=True)
-        else:  # store other messages as context
-            await utils.add_message(message)
+        # check bot reply mode
+        chat = await metrics.TelegramMetrics(entity_id=message.chat_id).load()
+        if not chat.reply_to_mentions:
+            # reply to all messages
+            await utils.reply_to_user(message)
+
+        else:  # reply only to mentions of the bot
+            if _is_bot_mention(message, context.bot.username):
+                await utils.reply_to_user(message, reply=True)
+            else:  # store other messages as context
+                await utils.add_message(message)
 
 
 class PinServiceHandler(MessageHandler):

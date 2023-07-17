@@ -1,11 +1,14 @@
 """The main menu of the bot's settings. Acts as the entry point to configuring
 the bot and the chat model."""
 
+import telegram.constants
 from typing_extensions import override
 
 from bot import commands, core, metrics, settings, telegram_utils, utils
 from bot.settings.config_menu import ConfigMenu
 from bot.settings.model_settings import ModelSettingsMenu
+
+_private = telegram.constants.ChatType.PRIVATE
 
 
 class BotSettingsMenu(core.Menu, commands.Command):
@@ -33,8 +36,8 @@ class BotSettingsMenu(core.Menu, commands.Command):
         menu = BotSettingsMenu(message)
         menu_markup = telegram_utils.create_markup(await menu.layout)
         menu_info = await menu.info  # type: ignore
-        await telegram_utils.delete_message(message)
         await telegram_utils.send_message(message, menu_info, menu_markup)
+        await telegram_utils.delete_message(message)
 
     @property
     @override
@@ -44,10 +47,18 @@ class BotSettingsMenu(core.Menu, commands.Command):
     @property
     @override
     async def layout(self) -> list[list[core.Button]]:
+        if self.message.chat.telegram_chat.type == _private:
+            return [
+                [
+                    core.MenuButton(ConfigMenu),
+                    core.MenuButton(ModelSettingsMenu),
+                ],
+                [DeleteHistoryButton()],
+                [CloseButton(), UsageButton()],
+            ]
         return [
             [core.MenuButton(ConfigMenu), core.MenuButton(ModelSettingsMenu)],
-            [DeleteHistoryButton()],
-            [ToggleReplyModeButton(), ToggleStreamingButton()],
+            [DeleteHistoryButton(), ToggleReplyModeButton()],
             [CloseButton(), UsageButton()],
         ]
 
@@ -95,27 +106,6 @@ class ToggleReplyModeButton(core.Button):
             await query.answer("Bot will reply to mentions only")
         else:
             await query.answer("Bot will reply to all messages")
-
-
-class ToggleStreamingButton(core.Button):
-    """A button that toggles streaming of replies."""
-
-    def __init__(self):
-        # use the title as the button data
-        title = "Toggle Streaming"
-        super().__init__(title, title)
-
-    @override
-    @classmethod
-    async def callback(cls, data, query):
-        if not query.message:
-            return
-        message = core.TelegramMessage(query.message)
-
-        if await utils.toggle_streaming(message):
-            await query.answer("Streaming enabled")
-        else:
-            await query.answer("Streaming disabled")
 
 
 class UsageButton(core.Button):
