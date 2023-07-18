@@ -39,7 +39,7 @@ class ModelMessageHandler(
 ):
     """Handles model generated replies."""
 
-    CHUNK_TIME = 0.25
+    CHUNK_TIME = 1
     """The time to wait between sending chunks, in seconds."""
     running_models: dict[int, chatgpt.core.ChatModel] = {}
     """The list of running models."""
