@@ -133,11 +133,16 @@ class ModelMessageHandler(
     async def _finalize_message_status(
         self, message: chatgpt.messages.ModelMessage | None = None
     ):
-        # replace the stop button with a delete button
         self.status = [[]]  # reset status
-        self.status += [[ReplyUsage()]]
         # set message status by resolving finish reason
-        self._resolve_finish_reason(message.finish_reason)
+        if message.finish_reason == chatgpt.core.FinishReason.UNDEFINED:
+            self.status += [[Status("Model Finished Unexpectedly")]]
+        if message.finish_reason == chatgpt.core.FinishReason.LIMIT_REACHED:
+            self.status += [[Status("Size Limit Reached")]]
+        if message.finish_reason == chatgpt.core.FinishReason.CENSORED:
+            self.status += [[Status("Censored")]]
+        if message.finish_reason == chatgpt.core.FinishReason.CANCELLED:
+            self.status += [[Status("Cancelled")]]
 
     async def _send_packet(
         self,
@@ -173,16 +178,6 @@ class ModelMessageHandler(
                 self.user_message, new_message, status
             )
 
-    def _resolve_finish_reason(self, reason: chatgpt.core.FinishReason):
-        if reason == chatgpt.core.FinishReason.UNDEFINED:
-            self.status += [[Status("Model Finished Unexpectedly")]]
-        if reason == chatgpt.core.FinishReason.LIMIT_REACHED:
-            self.status += [[Status("Size Limit Reached")]]
-        if reason == chatgpt.core.FinishReason.CENSORED:
-            self.status += [[Status("Censored")]]
-        if reason == chatgpt.core.FinishReason.CANCELLED:
-            self.status += [[Status("Cancelled")]]
-
 
 class StopModel(core.Button):
     """The button to stop a model."""
@@ -200,54 +195,6 @@ class StopModel(core.Button):
             await query.answer("Model stopped")
         except KeyError:
             await query.answer("Model is not running")
-
-
-class ReplyUsage(core.Button):
-    """The button to display the cost of a reply."""
-
-    def __init__(self):
-        super().__init__("", "Tokens Count")
-
-    @override
-    @classmethod
-    async def callback(cls, data, query):
-        """The callback for the button."""
-        if not query.message:
-            return
-        message = core.TelegramMessage(query.message)
-
-        # retrieve the reply
-        reply = await utils.get_message(message)
-        if not isinstance(reply, chatgpt.messages.ModelMessage):
-            return
-
-        # show the cost
-        cost = (
-            f"Prompt: {reply.prompt_tokens} tokens\n"
-            f"Reply: {reply.reply_tokens} tokens"
-        )
-        await query.answer(cost, show_alert=True)
-
-
-class DeleteMessage(core.Button):
-    """The button to delete a model message."""
-
-    def __init__(self):
-        super().__init__("", "Delete")
-
-    @override
-    @classmethod
-    async def callback(cls, data, query):
-        """The callback for the button."""
-        if not query.message:
-            return
-        message = core.TelegramMessage(query.message)
-        try:  # delete from db and telegram
-            await utils.delete_message(message)
-            await query.message.delete()
-            await query.answer("Message deleted")
-        except ModelNotFound:
-            await query.answer("Message not found")
 
 
 class Status(core.Button):
