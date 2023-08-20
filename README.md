@@ -57,7 +57,16 @@ source .venv/bin/activate
 - `--debug`: flag will log debug messages. Defaults to logging info messages.
 - `--log`: flag will log messages to a file. Defaults to logging to stdout.
 - `--clean`: flag will remove the existing database docker container and will
-    not restore the database from a backup.
+  not restore the database from a backup.
+
+### Backup
+
+To backup the bot, you need the following files in the `database` directory:
+
+- `database.db`: the database file
+- `database.key`: the encryption key file
+
+The logs are stored in the `logs` directory.
 
 ### Bot Commands
 

@@ -11,7 +11,7 @@ beautifulsoup4
 sqlalchemy[asyncio]
 sqlalchemy-utils
 cryptography
-aiosqlite  # async sqlite # REVIEW: check if needed
+aiosqlite  # async sqlite
 
 # environment
 python-dotenv

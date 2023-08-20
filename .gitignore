@@ -1,7 +1,7 @@
 *__pycache__*
-*.db
-*.key
 .env
 .venv/
-.vscode/
+
+*.db
+*.key
 logs/
