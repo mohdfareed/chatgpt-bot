@@ -28,7 +28,7 @@ def main(debug=False, log=False, setup_profile=True) -> None:
     os.chdir(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
     sys.path.append(os.getcwd())
     # load environment variables
-    load_dotenv(override=True)
+    load_dotenv(override=True)  # support for .env file
     # load the bot and the database
     import bot.app as chatgpt_bot
     import database.core as chatgpt_db
@@ -117,10 +117,10 @@ if __name__ == "__main__":
     )
     parser.add_argument(  # default is True
         "-s",
-        "--disable-setup",
+        "--setup-profile",
         action="store_true",
-        help="disable setup/update of the bot's profile",
+        help="setup/update the bot's profile",
     )
 
     args = parser.parse_args()
-    main(args.debug, args.log, not args.disable_setup)
+    main(args.debug, args.log, args.setup_profile)
