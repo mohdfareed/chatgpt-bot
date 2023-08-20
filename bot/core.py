@@ -164,7 +164,7 @@ class Button(abc.ABC):
         """Create a telegram button handler for the button."""
 
         async def _handler(update: telegram.Update, _: _default_context):
-            if not (query := update.callback_query):
+            if (query := update.callback_query) is None or query.data is None:
                 return  # only handle callback queries
             data = query.data.split(":", 1)[1]
             if inspect.iscoroutinefunction(cls.callback):
@@ -258,7 +258,7 @@ class Menu(abc.ABC):
 
     @staticmethod
     def create_grid(buttons: list[Button], back_button: "MenuButton | None"):
-        grid = [buttons[n : n + 2] for n in range(0, len(buttons), 2)]
+        grid = [buttons[n:(n + 2)] for n in range(0, len(buttons), 2)]
         if not back_button:
             return grid
         # if number of tools is even, new row for back button
