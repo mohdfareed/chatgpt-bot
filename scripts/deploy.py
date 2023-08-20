@@ -41,14 +41,14 @@ def main() -> None:
 
     # switch to deployment branch
     if os.system("git checkout " + DEPLOYMENT_BRANCH):
-        restore(current_branch, changes_stashed)
+        restore(changes_stashed)
         print_error("Error: Failed to checkout deployment branch")
         sys.exit(1)
 
     # merge current branch into deployment branch
     print_bold(f"Merging {current_branch} into {DEPLOYMENT_BRANCH}...")
     if os.system("git merge " + current_branch + " --no-commit --no-ff"):
-        restore(current_branch, changes_stashed)
+        restore(changes_stashed, current_branch)
         print_error(
             "Error: Merge failed, resolve conflicts and continue manually"
         )
@@ -60,14 +60,14 @@ def main() -> None:
         f"Merge branch '{current_branch}' into {DEPLOYMENT_BRANCH}"
     )
     if os.system(f'git commit -m "{commit_message}"'):
-        restore(current_branch, changes_stashed)
+        restore(changes_stashed, current_branch)
         print_error("Error: Failed to commit changes")
         sys.exit(1)
 
     else:  # push changes
         print_bold("Pushing changes...")
         if os.system("git push origin " + DEPLOYMENT_BRANCH):
-            restore(current_branch, changes_stashed)
+            restore(changes_stashed, current_branch)
             print_error(
                 "Error: Push failed, publish the deployment branch manually"
             )
@@ -75,17 +75,18 @@ def main() -> None:
     print()
 
     # restore workspace
-    restore(current_branch, changes_stashed)
+    restore(changes_stashed, current_branch)
     os.chdir(current_dir)
     print_success(f"\nSuccessfully deployed to {DEPLOYMENT_BRANCH} branch")
 
 
-def restore(current_branch, changes_stashed):
+def restore(changes_stashed, current_branch=None):
     # switch back to current branch
-    if os.system("git checkout " + current_branch):
+    if current_branch and os.system("git checkout " + current_branch):
+        restore(changes_stashed)
         print_error("Error: Failed to switch back to " + current_branch)
-        print_error("       Switch branches and restore stash manually")
         sys.exit(1)
+
     # restore stashed changes
     if changes_stashed:
         print_bold("Restoring stashed changes...")
