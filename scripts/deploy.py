@@ -13,6 +13,7 @@ DEPLOYMENT_BRANCH = "deployment"
 def main() -> None:
     """Deploy the bot."""
 
+    # initial setup
     current_dir = os.getcwd()
     script_dir = os.path.dirname(os.path.realpath(__file__))
     os.chdir(os.path.join(script_dir, ".."))
@@ -40,6 +41,7 @@ def main() -> None:
 
     # switch to deployment branch
     if os.system("git checkout " + DEPLOYMENT_BRANCH):
+        restore(current_branch, changes_stashed)
         print_error("Error: Failed to checkout deployment branch")
         sys.exit(1)
 
@@ -48,7 +50,7 @@ def main() -> None:
     if os.system("git merge " + current_branch + " --no-commit --no-ff"):
         restore(current_branch, changes_stashed)
         print_error(
-            "Error: Merge failed, resolve conflicts and continue deployment manually"
+            "Error: Merge failed, resolve conflicts and continue manually"
         )
         sys.exit(1)
 
@@ -82,6 +84,7 @@ def restore(current_branch, changes_stashed):
     # switch back to current branch
     if os.system("git checkout " + current_branch):
         print_error("Error: Failed to switch back to " + current_branch)
+        print_error("       Switch branches and restore stash manually")
         sys.exit(1)
     # restore stashed changes
     if changes_stashed:
