@@ -11,7 +11,7 @@ import telegram.ext as telegram_extensions
 import bot
 from bot import commands, core, handlers
 
-BOT_NAME = "ChatGPT_Dev" if bot.dev_mode else "ChatGPT"
+BOT_NAME = "ChatGPT@Dev" if bot.dev_mode else "ChatGPT"
 SHORT_DESCRIPTION = "ChatGPT bot"
 DESCRIPTION = """
 ChatGPT based Telegram bot.
@@ -112,8 +112,10 @@ async def _error_handler(update, context: telegram_extensions.CallbackContext):
 
 
 async def _setup_profile():
+    global active_bot
+
     cmds = [cmd.bot_command for cmd in commands.Command.all_commands()]
-    await active_bot.set_my_name(BOT_NAME)
+    # await active_bot.set_my_name(BOT_NAME)
     await active_bot.set_my_description(DESCRIPTION)
     await active_bot.set_my_short_description(SHORT_DESCRIPTION)
     await active_bot.set_my_commands(cmds)
