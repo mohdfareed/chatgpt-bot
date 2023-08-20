@@ -131,7 +131,7 @@ class ModelMessageHandler(
             self.status += [[Status(str(error))]]
 
     async def _finalize_message_status(
-        self, message: chatgpt.messages.ModelMessage | None = None
+        self, message: chatgpt.messages.ModelMessage
     ):
         self.status = [[]]  # reset status
         # set message status by resolving finish reason

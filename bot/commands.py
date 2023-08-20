@@ -68,6 +68,9 @@ class Help(Command):
     async def callback(update: telegram.Update, context: _default_context):
         dummy_message = formatter.format_message(Help.help_message)
         dummy_message = dummy_message.format(bot=context.bot.username)
+        if not update.effective_chat:
+            return
+
         await update.effective_chat.send_message(
             dummy_message, parse_mode=telegram.constants.ParseMode.HTML
         )
