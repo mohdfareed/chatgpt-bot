@@ -3,6 +3,7 @@
 BACK_BUTTON = "←"
 ENABLED_INDICATOR = "✓"
 DISABLED_INDICATOR = "✗"
+MENU_BUTTON = "⊜ "
 
 
 def create_title(title, is_enabled, is_toggle=False) -> str:

@@ -63,7 +63,7 @@ class BotSettingsMenu(core.Menu, commands.Command):
             return [
                 [
                     core.MenuButton(ConfigMenu),
-                    core.MenuButton(ModelSettingsMenu),
+                    core.MenuButton(ModelSettingsMenu, icon="⚙︎ "),
                 ],
                 [
                     DeleteHistoryButton(),
@@ -73,7 +73,10 @@ class BotSettingsMenu(core.Menu, commands.Command):
             ]
         # group chat menu
         return [
-            [core.MenuButton(ConfigMenu), core.MenuButton(ModelSettingsMenu)],
+            [
+                core.MenuButton(ConfigMenu),
+                core.MenuButton(ModelSettingsMenu, icon="⚙︎ ")
+            ],
             [DeleteHistoryButton()],
             [
                 ToggleMessageDeletionButton(deletion_toggle_title),
@@ -93,7 +96,7 @@ class DeleteHistoryButton(core.Button):
 
     def __init__(self):
         # use the title as the button data
-        title = "Delete History"
+        title = "⊗ Clear Memory"
         super().__init__(title, title)
 
     @override

@@ -40,7 +40,7 @@ def main(debug=False, log=False, setup_profile=True) -> None:
         logging.exception(e)
         exit(1)
 
-    print("[bold green]chatgpt_bot stopped[/]")
+    print("\n[bold green]chatgpt_bot stopped[/]")
 
 
 def setup_logging(to_file, debug):

@@ -1,8 +1,5 @@
 """An organizational menu of the chat model's settings."""
 
-"""Menu for setting th bot's tools."""
-
-
 from typing_extensions import override
 
 from bot import core, settings, utils
@@ -32,8 +29,8 @@ class ModelSettingsMenu(core.Menu):
         return [
             [core.MenuButton(ModelMenu), core.MenuButton(ToolsMenu)],
             [
-                core.MenuButton(SysPromptReceiver),
-                core.MenuButton(TemperatureReceiver),
+                core.MenuButton(SysPromptReceiver, icon="✎ "),
+                core.MenuButton(TemperatureReceiver, icon="✎ "),
             ],
             [
                 core.MenuButton(BotSettingsMenu, is_parent=True),

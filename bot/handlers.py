@@ -42,7 +42,7 @@ class MessageHandler(abc.ABC):
     @abc.abstractstaticmethod
     async def callback(update: telegram.Update, context: _default_context):
         """The callback function for the command."""
-        pass
+        ...
 
     @classmethod
     def all_handlers(cls):

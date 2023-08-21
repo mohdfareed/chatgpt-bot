@@ -156,5 +156,5 @@ class SummaryMessage(SystemMessage):
         return "summary_of_previous_messages"
 
     @name.setter
-    def name(self, value: str):
+    def name(self, _):
         pass  # implement to adhere to interface

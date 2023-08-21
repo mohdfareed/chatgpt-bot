@@ -9,7 +9,6 @@ import telegram.ext as telegram_extensions
 from typing_extensions import override
 
 import chatgpt.messages
-import database.core as database
 
 _button = telegram.InlineKeyboardButton
 _default_context = telegram_extensions.ContextTypes.DEFAULT_TYPE
@@ -272,11 +271,13 @@ class Menu(abc.ABC):
 class MenuButton(Button):
     """A button that displays a menu."""
 
-    def __init__(self, menu: typing.Type[Menu], is_parent: bool = False):
+    def __init__(self, menu: typing.Type[Menu], is_parent = False, icon=None):
         from bot.settings import BACK_BUTTON
+        from bot.settings import MENU_BUTTON
 
         # add back button if parent
-        title = f"{BACK_BUTTON} {menu.title()}" if is_parent else menu.title()
+        button_icon = BACK_BUTTON if is_parent else icon or MENU_BUTTON
+        title = " ".join([button_icon + menu.title()])
         super().__init__(menu.id(), title)
 
     @override

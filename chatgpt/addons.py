@@ -30,7 +30,7 @@ class ConsoleHandler(
 
     @override
     async def on_model_run(self, _):
-        rich.print(f"[bold blue]STARTING...[/]")
+        rich.print("[bold blue]STARTING...[/]")
 
     @override
     async def on_model_start(self, config, context, tools):

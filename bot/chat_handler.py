@@ -10,8 +10,7 @@ import chatgpt.core
 import chatgpt.events
 import chatgpt.memory
 import chatgpt.messages
-from bot import core, formatter, telegram_utils, tools, utils
-from database.core import ModelNotFound
+from bot import core, formatter, telegram_utils, tools
 
 TOOL_USAGE_MESSAGE = """
 Using tool: <code>{tool_name}</code>

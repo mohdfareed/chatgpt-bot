@@ -58,11 +58,11 @@ def run(update_profile=True):
             port=bot.webhook_port,
             webhook_url=bot.webhook,
             secret_token=secrets.token_hex(32),
+            drop_pending_updates=True
         )
     else:  # run in polling mode for development
         bot.logger.warning("Running in development mode")
-        application.run_polling()
-    bot.logger.info("Telegram bot has stopped")
+        application.run_polling(drop_pending_updates=True)
 
 
 def setup_profile():
@@ -115,7 +115,7 @@ async def _setup_profile():
     global active_bot
 
     cmds = [cmd.bot_command for cmd in commands.Command.all_commands()]
-    # await active_bot.set_my_name(BOT_NAME)
+    await active_bot.set_my_name(BOT_NAME)
     await active_bot.set_my_description(DESCRIPTION)
     await active_bot.set_my_short_description(SHORT_DESCRIPTION)
     await active_bot.set_my_commands(cmds)
