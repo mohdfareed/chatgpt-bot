@@ -100,11 +100,11 @@ class DeleteConfigButton(core.Button):
         if await metrics.TelegramMetrics.delete_config(
             str(query.from_user.id), active_config
         ):
-            await query.answer(f"Model configuration deleted")
+            await query.answer("Model configuration deleted")
             # refresh the menu
             await ConfigMenu(message, query.from_user).render()
         else:
-            await query.answer(f"Model configuration not found")
+            await query.answer("Model configuration not found")
 
 
 class AddConfigButton(core.Button):
@@ -126,8 +126,8 @@ class AddConfigButton(core.Button):
         if await metrics.TelegramMetrics.add_config(
             str(query.from_user.id), config
         ):
-            await query.answer(f"Model configuration added")
+            await query.answer("Model configuration added")
         else:
-            await query.answer(f"Model configuration already exists")
+            await query.answer("Model configuration already exists")
         # refresh the menu
         await ConfigMenu(message, query.from_user).render()

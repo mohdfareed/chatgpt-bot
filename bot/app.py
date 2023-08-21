@@ -63,7 +63,6 @@ def run(update_profile=True):
     else:  # run in polling mode for development
         bot.logger.warning("Running in development mode")
         application.run_polling(drop_pending_updates=True)
-    bot.logger.info("Telegram bot has stopped")
 
 
 def setup_profile():
