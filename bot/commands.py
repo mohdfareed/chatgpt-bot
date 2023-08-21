@@ -9,8 +9,7 @@ import telegram
 import telegram.ext as telegram_extensions
 from typing_extensions import override
 
-import database.core
-from bot import core, formatter, handlers, telegram_utils, utils
+from bot import formatter, handlers
 
 _default_context = telegram_extensions.ContextTypes.DEFAULT_TYPE
 

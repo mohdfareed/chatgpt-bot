@@ -8,7 +8,7 @@ import chatgpt.events
 import chatgpt.openai.chat_model
 import chatgpt.openai.tokenization
 import database as db
-from chatgpt.messages import *
+from chatgpt.messages import Message, ModelMessage, SummaryMessage, SystemMessage
 
 SUMMARIZATION_PROMPT = """\
 Progressively summarize the lines of the conversation provided, adding onto \

@@ -12,7 +12,7 @@ def tokens(string: str, model: core.SupportedChatModel):
 
     try:  # check if a model tokenizer is available
         encoding = tiktoken.encoding_for_model(model.name)
-    except:  # the default tokenizer
+    except KeyError:  # the default tokenizer
         logger.warning(f"Tokenizer not found for model: {model.name}")
         encoding = tiktoken.get_encoding("cl100k_base")
     return len(encoding.encode(string))

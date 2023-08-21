@@ -33,7 +33,7 @@ async def edit_message(
         msg = await message.telegram_message.edit_text(
             new_message, PARSE_MODE, reply_markup=markup  # type: ignore
         )
-        if type(msg) == bool:
+        if isinstance(msg, bool):
             msg = message.telegram_message
         return core.TelegramMessage(msg)
     except telegram.error.BadRequest as e:
@@ -71,7 +71,7 @@ async def delete_message(
         else:
             await message.telegram_message.delete()
         return True
-    except:
+    except Exception:
         return False
 
 
