@@ -4,7 +4,7 @@ import argparse
 import os
 import subprocess
 import sys
-from scripts.deploy import DEPLOYMENT_BRANCH
+from deploy import DEPLOYMENT_BRANCH
 
 from utils import print_bold, print_success
 
