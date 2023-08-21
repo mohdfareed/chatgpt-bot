@@ -8,6 +8,13 @@ services:
     environment:
       - OPENAI_API_KEY
       - TELEGRAM_BOT_TOKEN
+      # optional webhook
+      - WEBHOOK # public https address
+      - WEBHOOK_ADDR=chatgpt-bot # container name
+      - WEBHOOK_PORT # defaults to 8080
+      # optional database
+      - DATABASE_URL
+      - ENCRYPTION_KEY
     volumes:
-      - ./database:/chatgpt_bot/database
-      - ./logs:/chatgpt_bot/logs
+      - ./database:/chatgpt_bot/database # default sqlite db
+      - ./logs:/chatgpt_bot/logs # bot logs
