@@ -57,6 +57,7 @@ def run(update_profile=True):
             listen=bot.webhook_addr,
             port=bot.webhook_port,
             webhook_url=bot.webhook,
+            url_path=bot.webhook_path,
             secret_token=secrets.token_hex(32),
             drop_pending_updates=True
         )
