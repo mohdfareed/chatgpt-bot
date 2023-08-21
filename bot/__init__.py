@@ -16,7 +16,7 @@ webhook = os.getenv("WEBHOOK") or ""
 """Telegram webhook URL (external address)."""
 webhook_addr = os.getenv("WEBHOOK_ADDR") or "localhost"
 """Telegram webhook IP address."""
-webhook_port = int(os.getenv("WEBHOOK_PORT") or 8080)
+webhook_port = int(os.getenv("WEBHOOK_PORT") or 80)
 """Telegram webhook port."""
 webook_path = os.getenv("WEBHOOK_PATH") or ""
 """Telegram webhook path."""
