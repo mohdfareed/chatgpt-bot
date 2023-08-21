@@ -14,11 +14,11 @@ token = os.getenv("TELEGRAM_BOT_TOKEN") or ""
 """Telegram bot token."""
 webhook = os.getenv("WEBHOOK") or ""
 """Telegram webhook URL."""
-webhook_addr = os.getenv("WEBHOOK_ADDR") or ""
+webhook_addr = os.getenv("WEBHOOK_ADDR") or "localhost"
 """Telegram webhook IP address."""
-webhook_port = int(os.getenv("WEBHOOK_PORT") or -1)
+webhook_port = int(os.getenv("WEBHOOK_PORT") or 8080)
 """Telegram webhook port."""
-dev_mode = not (webhook and webhook_addr and (webhook_port > -1))
+dev_mode = not webhook
 """Whether the bot is running in development mode (polling mode)."""
 
 # validate token

@@ -115,7 +115,7 @@ async def _setup_profile():
     global active_bot
 
     cmds = [cmd.bot_command for cmd in commands.Command.all_commands()]
-    await active_bot.set_my_name(BOT_NAME)
+    # await active_bot.set_my_name(BOT_NAME)
     await active_bot.set_my_description(DESCRIPTION)
     await active_bot.set_my_short_description(SHORT_DESCRIPTION)
     await active_bot.set_my_commands(cmds)
