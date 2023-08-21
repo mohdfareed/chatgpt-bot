@@ -13,11 +13,13 @@ logger = logging.getLogger(__name__)
 token = os.getenv("TELEGRAM_BOT_TOKEN") or ""
 """Telegram bot token."""
 webhook = os.getenv("WEBHOOK") or ""
-"""Telegram webhook URL."""
+"""Telegram webhook URL (external address)."""
 webhook_addr = os.getenv("WEBHOOK_ADDR") or "localhost"
 """Telegram webhook IP address."""
 webhook_port = int(os.getenv("WEBHOOK_PORT") or 8080)
 """Telegram webhook port."""
+webook_path = os.getenv("WEBHOOK_PATH") or ""
+"""Telegram webhook path."""
 dev_mode = not webhook
 """Whether the bot is running in development mode (polling mode)."""
 
