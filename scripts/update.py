@@ -23,7 +23,7 @@ def main() -> None:
     print_success("Repository updated successfully\n")
 
     # restart bot
-    os.system("docker-compose up -d")
+    os.system("docker-compose up --detach --build")
     print_success("Bot deployed successfully.")
 
 
