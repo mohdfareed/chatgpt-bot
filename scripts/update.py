@@ -16,14 +16,15 @@ def main() -> None:
     os.chdir(os.path.join(script_dir, ".."))
 
     # stop bot and update repo
-    os.system("docker-compose down")
+    # os.system("docker-compose down")
     created_backup = backup()
     update()
     restore() if created_backup else None
     print_success("Repository updated successfully\n")
 
     # restart bot
-    os.system("docker-compose up --detach --build")
+    # os.system("docker-compose up --detach --build")
+    os.system("docker build -t chatgpt .")
     print_success("Bot deployed successfully.")
 
 

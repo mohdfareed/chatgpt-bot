@@ -2,9 +2,9 @@ version: "3.8"
 
 services:
   chatgpt-bot:
+    build: .
     container_name: chatgpt-bot
     restart: unless-stopped
-    build: .
     environment:
       - OPENAI_API_KEY
       - TELEGRAM_BOT_TOKEN
