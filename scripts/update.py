@@ -4,6 +4,7 @@ import argparse
 import os
 import subprocess
 import sys
+from scripts.deploy import DEPLOYMENT_BRANCH
 
 from utils import print_bold, print_success
 
@@ -14,16 +15,19 @@ def main() -> None:
     # set working directory
     script_dir = os.path.dirname(os.path.realpath(__file__))
     os.chdir(os.path.join(script_dir, ".."))
+    
+    # switch to deployment branch
+    if os.system(f"git checkout {DEPLOYMENT_BRANCH}"):
+        print_bold("Error: Failed to switch to deployment branch")
+        sys.exit(1)
 
-    # stop bot and update repo
-    # os.system("docker-compose down")
+    # update repo
     created_backup = backup()
     update()
     restore() if created_backup else None
     print_success("Repository updated successfully\n")
 
-    # restart bot
-    # os.system("docker-compose up --detach --build")
+    # build the bot
     os.system("docker build -t chatgpt .")
     print_success("Bot deployed successfully.")
 
