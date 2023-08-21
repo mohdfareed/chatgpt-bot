@@ -18,7 +18,7 @@ webhook_addr = os.getenv("WEBHOOK_ADDR") or "localhost"
 """Telegram webhook IP address."""
 webhook_port = int(os.getenv("WEBHOOK_PORT") or 80)
 """Telegram webhook port."""
-webook_path = os.getenv("WEBHOOK_PATH") or ""
+webhook_path = os.getenv("WEBHOOK_PATH") or ""
 """Telegram webhook path."""
 dev_mode = not webhook
 """Whether the bot is running in development mode (polling mode)."""
